@@ -12,7 +12,9 @@ To use Shuild, simply download the `shuild.h` file and include it in your projec
 
 After having your header file, create a C file (like `shuild.c`) and include the `shuild.h` header. Then, use the provided API to define your build targets and dependencies. This source file will be compiled and executed to generate the necessary build files. You can use a compiler like TCC to run the build file directly. Or compile it with your system compiler and run the resulting executable.
 
-Single header file logic is similar to stb and miniaudio libraries. There is a macro guard to specify the file is an implementation or not. This adds flexibility to the developer to include the header in multiple files without causing redefinition errors.
+Single header file logic is similar to stb and miniaudio libraries. There is a macro guard to specify the file is an implementation or not. This adds flexibility to the developer to include the header in multiple files without causing redefinition errors. If they want to wrap and make this shitty library much complex with their own systems, they can do that easily.
+
+Most of the functions are logically similar to other build systems. You can specify include directories, source directories, targets, links, and other build configurations using the provided API functions.
 
 ## Example
 
@@ -34,3 +36,5 @@ int main() {
 }
 
 ```
+
+You can see more complete examples in the `example` folder.
