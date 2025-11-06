@@ -16,6 +16,8 @@ Single header file logic is similar to stb and miniaudio libraries. There is a m
 
 Most of the functions are logically similar to other build systems. You can specify include directories, source directories, targets, links, and other build configurations using the provided API functions.
 
+User should not use any `SHUI_` prefixed elements of the library. These are internal elements and not meant for public use.
+
 ## Example
 
 A simple build source file example:
