@@ -2,120 +2,120 @@
 
 #pragma region Platform Detection
 
-#define SHU_PLATFORM_UNKNOWN 0
-#define SHU_PLATFORM_WINDOWS 1
-#define SHU_PLATFORM_LINUX 2
-#define SHU_PLATFORM_MACOS 3
+#define SHUM_PLATFORM_UNKNOWN 0
+#define SHUM_PLATFORM_WINDOWS 1
+#define SHUM_PLATFORM_LINUX 2
+#define SHUM_PLATFORM_MACOS 3
 
 #if defined(_WIN32)
-/// @brief Current platform specifier. Use it with SHU_PLATFORM_<...> macros.
-#define SHU_PLATFORM SHU_PLATFORM_WINDOWS
+/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
+#define SHUM_PLATFORM SHUM_PLATFORM_WINDOWS
 /// @brief Current platform name string.
-#define SHU_PLATFORM_STRING "WINDOWS"
+#define SHUM_PLATFORM_STRING "WINDOWS"
 
 #elif defined(__linux__)
-/// @brief Current platform specifier. Use it with SHU_PLATFORM_<...> macros.
-#define SHU_PLATFORM SHU_PLATFORM_LINUX
+/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
+#define SHUM_PLATFORM SHUM_PLATFORM_LINUX
 /// @brief Platform name string.
-#define SHU_PLATFORM_STRING "LINUX"
+#define SHUM_PLATFORM_STRING "LINUX"
 
 #elif defined(__APPLE__) && defined(__MACH__)
-/// @brief Current platform specifier. Use it with SHU_PLATFORM_<...> macros.
-#define SHU_PLATFORM SHU_PLATFORM_MACOS
+/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
+#define SHUM_PLATFORM SHUM_PLATFORM_MACOS
 /// @brief Platform name string.
-#define SHU_PLATFORM_STRING "MACOS"
+#define SHUM_PLATFORM_STRING "MACOS"
 
 #else
-/// @brief Current platform specifier. Use it with SHU_PLATFORM_<...> macros.
-#define SHU_PLATFORM SHU_PLATFORM_UNKNOWN
+/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
+#define SHUM_PLATFORM SHUM_PLATFORM_UNKNOWN
 /// @brief Platform name string.
-#define SHU_PLATFORM_STRING "UNKNOWN"
+#define SHUM_PLATFORM_STRING "UNKNOWN"
 #endif
 
-#if SHU_PLATFORM == SHU_PLATFORM_LINUX || SHU_PLATFORM == SHU_PLATFORM_MACOS
+#if SHUM_PLATFORM == SHUM_PLATFORM_LINUX || SHUM_PLATFORM == SHUM_PLATFORM_MACOS
 /// @brief Current platform is Unix-like.
-#define SHU_PLATFORM_UNIX 1
+#define SHUM_PLATFORM_UNIX 1
 
 #else
 /// @brief Current platform is not a Unix-like.
-#define SHU_PLATFORM_UNIX 0
+#define SHUM_PLATFORM_UNIX 0
 #endif // Platform Detection
 
 #pragma endregion Platform Detection
 
 #pragma region Compiler Detection
 
-#define SHU_COMPILER_UNKNOWN 0
-#define SHU_COMPILER_CLANG 1
-#define SHU_COMPILER_GCC 2
-#define SHU_COMPILER_MSVC 3
-#define SHU_COMPILER_CLANGCL 4
+#define SHUM_COMPILER_UNKNOWN 0
+#define SHUM_COMPILER_CLANG 1
+#define SHUM_COMPILER_GCC 2
+#define SHUM_COMPILER_MSVC 3
+#define SHUM_COMPILER_CLANGCL 4
 
 #if defined(__clang__) && defined(_MSC_VER)
-/// @brief Current compiler specifier. Use it with SHU_COMPILER_<...> macros.
-#define SHU_COMPILER SHU_COMPILER_CLANGCL
+/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_COMPILER SHUM_COMPILER_CLANGCL
 /// @brief Compiler version number.
-#define SHU_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#define SHUM_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 /// @brief Compiler name string.
-#define SHU_COMPILER_STRING "CLANG-CL"
+#define SHUM_COMPILER_STRING "CLANG-CL"
 
 #elif defined(__clang__)
 
-/// @brief Current compiler specifier. Use it with SHU_COMPILER_<...> macros.
-#define SHU_COMPILER SHU_COMPILER_CLANG
+/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_COMPILER SHUM_COMPILER_CLANG
 /// @brief Compiler version number.
-#define SHU_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#define SHUM_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 /// @brief Compiler name string.
-#define SHU_COMPILER_STRING "CLANG"
+#define SHUM_COMPILER_STRING "CLANG"
 
 #elif defined(_MSC_VER)
 
-/// @brief Current compiler specifier. Use it with SHU_COMPILER_<...> macros.
-#define SHU_COMPILER SHU_COMPILER_MSVC
+/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_COMPILER SHUM_COMPILER_MSVC
 /// @brief Compiler version number.
-#define SHU_COMPILER_VERSION _MSC_VER
+#define SHUM_COMPILER_VERSION _MSC_VER
 /// @brief Compiler name string.
-#define SHU_COMPILER_STRING "MSVC"
+#define SHUM_COMPILER_STRING "MSVC"
 
 #elif defined(__GNUC__)
-/// @brief Current compiler specifier. Use it with SHU_COMPILER_<...> macros.
-#define SHU_COMPILER SHU_COMPILER_GCC
+/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_COMPILER SHUM_COMPILER_GCC
 /// @brief Compiler version number.
-#define SHU_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#define SHUM_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 /// @brief Compiler name string.
-#define SHU_COMPILER_STRING "GCC"
+#define SHUM_COMPILER_STRING "GCC"
 
 #else
-/// @brief Current compiler specifier. Use it with SHU_COMPILER_<...> macros.
-#define SHU_COMPILER SHU_COMPILER_UNKNOWN
+/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_COMPILER SHUM_COMPILER_UNKNOWN
 /// @brief Compiler version number.
-#define SHU_COMPILER_VERSION 0
+#define SHUM_COMPILER_VERSION 0
 /// @brief Compiler name string.
-#define SHU_COMPILER_STRING "UNKNOWN"
+#define SHUM_COMPILER_STRING "UNKNOWN"
 #endif // Compiler Detection
 
 #pragma endregion Compiler Detection
 
 #pragma region Shuild Declarations
 
-#ifndef SHU_MAX_STRING_ARRAY_COUNT
-#define SHU_MAX_STRING_ARRAY_COUNT 16
+#ifndef SHUM_MAX_STRING_ARRAY_COUNT
+#define SHUM_MAX_STRING_ARRAY_COUNT 16
 #endif
 
-#ifndef SHU_COMPILER_COMMAND_BUFFER
-#define SHU_COMPILER_COMMAND_BUFFER 4096
+#ifndef SHUM_COMPILER_COMMAND_BUFFER
+#define SHUM_COMPILER_COMMAND_BUFFER 4096
 #endif
 
-#ifndef SHU_MESSAGE_BUFFER_SIZE
-#define SHU_MESSAGE_BUFFER_SIZE 512
+#ifndef SHUM_MESSAGE_BUFFER_SIZE
+#define SHUM_MESSAGE_BUFFER_SIZE 512
 #endif
 
-#define SHU_ERROR_NULL 1
-#define SHU_ERROR_INDEX 2
+#define SHUM_ERROR_NULL 1
+#define SHUM_ERROR_INDEX 2
 
-#define SHU_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
-#define SHU_COLOR_YELLOW(string) "\x1b[33m" string "\x1b[0m"
-#define SHU_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
+#define SHUM_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
+#define SHUM_COLOR_YELLOW(string) "\x1b[33m" string "\x1b[0m"
+#define SHUM_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
 
 #pragma region General
 
@@ -126,22 +126,22 @@
 /// @param ... Variadic arguments for the formatted message.
 void SHU_Log(int terminate, const char *header, const char *format, ...);
 
-#define SHU_LogInfo(format, ...)                                    \
-    do                                                              \
-    {                                                               \
-        SHU_Log(0, SHU_COLOR_GREEN("INFO"), format, ##__VA_ARGS__); \
+#define SHU_LogInfo(format, ...)                                     \
+    do                                                               \
+    {                                                                \
+        SHU_Log(0, SHUM_COLOR_GREEN("INFO"), format, ##__VA_ARGS__); \
     } while (0)
 
-#define SHU_LogWarning(format, ...)                                     \
-    do                                                                  \
-    {                                                                   \
-        SHU_Log(0, SHU_COLOR_YELLOW("WARNING"), format, ##__VA_ARGS__); \
+#define SHU_LogWarning(format, ...)                                      \
+    do                                                                   \
+    {                                                                    \
+        SHU_Log(0, SHUM_COLOR_YELLOW("WARNING"), format, ##__VA_ARGS__); \
     } while (0)
 
-#define SHU_LogError(code, format, ...)                               \
-    do                                                                \
-    {                                                                 \
-        SHU_Log(code, SHU_COLOR_RED("ERROR"), format, ##__VA_ARGS__); \
+#define SHU_LogError(code, format, ...)                                \
+    do                                                                 \
+    {                                                                  \
+        SHU_Log(code, SHUM_COLOR_RED("ERROR"), format, ##__VA_ARGS__); \
     } while (0)
 
 #pragma endregion General
@@ -149,7 +149,7 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
 #pragma region Compiler
 
 /// @brief Configures the compiler to be used for compiling modules.
-/// @param compiler Compiler specifier. Use with SHU_COMPILER_<...> macros.
+/// @param compiler Compiler specifier. Use with SHUM_COMPILER_<...> macros.
 /// @param compilerCommand Command to invoke the compiler. (eg. clang)
 void SHU_CompilerConfigure(char compiler, const char *compilerCommand);
 
@@ -169,15 +169,15 @@ void SHU_CompilerSetFlags(const char *flags);
 /// @param name Name of the module. Which will be used also for output file name. (eg. myLibName, myAppName)
 void SHU_ModuleBegin(const char *name);
 
-/// @brief Adds include directories to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @brief Adds include directories to the module. Max count is defined as `SHUM_MAX_STRING_ARRAY_COUNT`.
 /// @param directory Include directory to add to the current module. (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
-/// @brief Adds source directories to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @brief Adds source directories to the module. Max count is defined as `SHUM_MAX_STRING_ARRAY_COUNT`.
 /// @param directory Source directory to add to the current module. (eg. src/)
 void SHU_ModuleAddSourceDirectory(const char *directory);
 
-/// @brief Adds source files to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @brief Adds source files to the module. Max count is defined as `SHUM_MAX_STRING_ARRAY_COUNT`.
 /// @param file Single file to add to the current module. (eg. source.c)
 void SHU_ModuleAddSourcefile(const char *file);
 
@@ -226,11 +226,11 @@ typedef struct SHUI_String
 
 typedef struct SHUI_StringList
 {
-    SHUI_String data[SHU_MAX_STRING_ARRAY_COUNT];
+    SHUI_String data[SHUM_MAX_STRING_ARRAY_COUNT];
     size_t count;
 } SHUI_StringList;
 
-static char SHUI_COMPILER = SHU_COMPILER_UNKNOWN;
+static char SHUI_COMPILER = SHUM_COMPILER_UNKNOWN;
 static SHUI_String SHUI_COMPILER_COMMAND = {0};
 static SHUI_StringList SHUI_COMPILER_FLAGS = {0};
 
@@ -240,6 +240,8 @@ static SHUI_StringList SHUI_MODULE_SOURCE_DIRECTORIES = {0};
 static SHUI_StringList SHUI_MODULE_SOURCE_FILES = {0};
 static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
 
+// todo add build targets
+
 /// @brief Creates a heap string from a string for internal usage.
 /// @param string Null terminated string.
 /// @return Created heap string.
@@ -247,14 +249,14 @@ static SHUI_String SHUI_SCreate(const char *string)
 {
     if (string == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string create.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string create.");
     }
 
     const size_t stringLength = strlen(string);
 
     if (stringLength == 0)
     {
-        SHU_LogError(SHU_ERROR_INDEX, "String length to create a heap copy can not be 0.");
+        SHU_LogError(SHUM_ERROR_INDEX, "String length to create a heap copy can not be 0.");
     }
 
     SHUI_String createdString = {0};
@@ -264,7 +266,7 @@ static SHUI_String SHUI_SCreate(const char *string)
 
     if (createdString.data == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Malloc error while creating heap string.");
+        SHU_LogError(SHUM_ERROR_NULL, "Malloc error while creating heap string.");
     }
 
     memcpy(createdString.data, string, createdString.length);
@@ -278,9 +280,9 @@ static SHUI_String SHUI_SCreate(const char *string)
 /// @param string String to destroy.
 static void SHUI_SDestroy(SHUI_String *string)
 {
-    if (string == NULL)
+    if (string == NULL || string->data == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string destroy.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string destroy.");
     }
 
     free(string->data);
@@ -311,12 +313,12 @@ static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
 {
     if (list == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string list add.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string list add.");
     }
 
-    if (list->count >= SHU_MAX_STRING_ARRAY_COUNT)
+    if (list->count >= SHUM_MAX_STRING_ARRAY_COUNT)
     {
-        SHU_LogError(SHU_ERROR_INDEX, "List is full.");
+        SHU_LogError(SHUM_ERROR_INDEX, "List is full.");
     }
 
     list->data[list->count] = string;
@@ -330,7 +332,7 @@ static void SHUI_SLClear(SHUI_StringList *list)
 {
     if (list == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Null list pointer passed as parameter to string list clear.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null list pointer passed as parameter to string list clear.");
     }
 
     for (size_t i = 0; i < list->count; i++)
@@ -350,10 +352,10 @@ static void SHUI_Run(const char *commandFormat, ...)
 {
     if (commandFormat == NULL)
     {
-        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to run.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to run.");
     }
 
-    char commandBuffer[SHU_MESSAGE_BUFFER_SIZE] = {0};
+    char commandBuffer[SHUM_MESSAGE_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, commandFormat);
@@ -376,7 +378,7 @@ static void SHUI_Run(const char *commandFormat, ...)
 
 void SHU_Log(int terminate, const char *header, const char *format, ...)
 {
-    char messageBuffer[SHU_MESSAGE_BUFFER_SIZE] = {0};
+    char messageBuffer[SHUM_MESSAGE_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, format);
@@ -408,17 +410,17 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
 
 void SHU_CompilerAddFlags(const char *flags)
 {
-    SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
+    if (strlen(flags) != 0)
+    {
+        SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
+    }
 }
 
 void SHU_CompilerSetFlags(const char *flags)
 {
     SHUI_SLClear(&SHUI_COMPILER_FLAGS);
 
-    if (strlen(flags) != 0)
-    {
-        SHU_CompilerAddFlags(flags);
-    }
+    SHU_CompilerAddFlags(flags);
 }
 
 #pragma endregion Compiler
@@ -458,14 +460,14 @@ void SHU_LibraryCompile(const char *directory)
 {
     SHUI_String directoryStr = SHUI_SCreate(directory);
 
-#if SHU_PLATFORM == SHU_PLATFORM_WINDOWS
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&directoryStr, '/', '\\');
     SHUI_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
-#elif SHU_PLATFORM_UNIX
+#elif SHUM_PLATFORM_UNIX
     SHUI_Run("mkdir -p %s" directory);
 #endif
 
-    char finalCommand[SHU_COMPILER_COMMAND_BUFFER] = {0};
+    char finalCommand[SHUM_COMPILER_COMMAND_BUFFER] = {0};
     size_t compilerCommandIndex = 0;
 
     snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
@@ -523,16 +525,21 @@ void SHU_ExecutableLink(const char *library)
 
 void SHU_ExecutableCompile(const char *directory)
 {
-    SHUI_String directoryStr = SHUI_SCreate(directory);
+    SHUI_String directoryStr = {0};
 
-#if SHU_PLATFORM == SHU_PLATFORM_WINDOWS
-    SHUI_SReplace(&directoryStr, '/', '\\');
-    SHUI_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
-#elif SHU_PLATFORM_UNIX
-    SHUI_Run("mkdir -p %s" directory);
+    if (strlen(directory) != 0)
+    {
+        directoryStr = SHUI_SCreate(directory);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+        SHUI_SReplace(&directoryStr, '/', '\\');
+        SHUI_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
+#elif SHUM_PLATFORM_UNIX
+        SHUI_Run("mkdir -p %s" directory);
 #endif
+    }
 
-    char finalCommand[SHU_COMPILER_COMMAND_BUFFER] = {0};
+    char finalCommand[SHUM_COMPILER_COMMAND_BUFFER] = {0};
     size_t compilerCommandIndex = 0;
 
     snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
@@ -569,10 +576,13 @@ void SHU_ExecutableCompile(const char *directory)
         compilerCommandIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
-    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-o%s%s%s ", directoryStr.data, SHUI_MODULE_NAME.data, SHU_PLATFORM == SHU_PLATFORM_WINDOWS ? ".exe" : "");
-    compilerCommandIndex += directoryStr.length + 3;
+    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-o%s%s%s", directoryStr.data == NULL ? "" : directoryStr.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+    compilerCommandIndex += directoryStr.length + 2;
 
-    SHUI_SDestroy(&directoryStr);
+    if (directoryStr.data != NULL)
+    {
+        SHUI_SDestroy(&directoryStr);
+    }
 
     SHUI_Run(finalCommand);
 

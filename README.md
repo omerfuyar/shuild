@@ -32,11 +32,11 @@ A simple build source file example:
 #include "shuild.h"
 
 int main() {
-    SHU_Project("MyProject");
+    SHU_ModuleBegin("myApp");
 
     //... Specify include directories, source directories, targets, links etc.
 
-    SHU_Build();
+    SHU_ExecutableCompile("build/bin");
 
     return 0;
 }

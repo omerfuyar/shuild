@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerConfigure(SHU_COMPILER_CLANG, "clang");
+    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "clang");
     SHU_CompilerAddFlags("-DFOO=13");
 
     SHU_ModuleBegin("1_single_source");
