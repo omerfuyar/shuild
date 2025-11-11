@@ -18,6 +18,10 @@ Most of the functions are logically similar to other build systems. You can spec
 
 User should not use any `SHUI_` prefixed elements of the library. These are internal elements and not meant for public use.
 
+User can define the specified macros in the header to change limits of the library.
+
+Currently there is only support for `clang`, `gcc` and `msvc`/`clang-cl` compilers. User can use other compilers but in this case compiler commands should be entered manually using compiler flags.
+
 ## Example
 
 A simple build source file example:

@@ -98,7 +98,20 @@
 
 #pragma region Shuild Declarations
 
-#define SHUI_MESSAGE_BUFFER_SIZE 512
+#ifndef SHU_MAX_STRING_ARRAY_COUNT
+#define SHU_MAX_STRING_ARRAY_COUNT 16
+#endif
+
+#ifndef SHU_COMPILER_COMMAND_BUFFER
+#define SHU_COMPILER_COMMAND_BUFFER 4096
+#endif
+
+#ifndef SHU_MESSAGE_BUFFER_SIZE
+#define SHU_MESSAGE_BUFFER_SIZE 512
+#endif
+
+#define SHU_ERROR_NULL 1
+#define SHU_ERROR_INDEX 2
 
 #define SHU_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
 #define SHU_COLOR_YELLOW(string) "\x1b[33m" string "\x1b[0m"
@@ -110,6 +123,7 @@
 /// @param terminate Exit code if not 0.
 /// @param header Header of the log.
 /// @param format Formatted message of the log.
+/// @param ... Variadic arguments for the formatted message.
 void SHU_Log(int terminate, const char *header, const char *format, ...);
 
 #define SHU_LogInfo(format, ...)                                    \
@@ -134,57 +148,59 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
 
 #pragma region Compiler
 
-/// @brief
-/// @param compiler
-/// @param compilerCommand
+/// @brief Configures the compiler to be used for compiling modules.
+/// @param compiler Compiler specifier. Use with SHU_COMPILER_<...> macros.
+/// @param compilerCommand Command to invoke the compiler. (eg. clang)
 void SHU_CompilerConfigure(char compiler, const char *compilerCommand);
 
-/// @brief
-/// @param flags
+/// @brief Adds flags to the compiler configuration.
+/// @param flags Flags to add. Can include multiple flags separated by spaces as you want. (eg. -DFOO=31)
 void SHU_CompilerAddFlags(const char *flags);
 
-/// @brief
-/// @param flags
+/// @brief Clears and sets the compiler flags, replacing all existing ones.
+/// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
 void SHU_CompilerSetFlags(const char *flags);
 
 #pragma endregion Compiler
 
 #pragma region Module
 
-/// @brief
-/// @param name
+/// @brief Begins a new module with the given name. A module can be an executable or a library.
+/// @param name Name of the module. Which will be used also for output file name. (eg. myLibName, myAppName)
 void SHU_ModuleBegin(const char *name);
 
-/// @brief
-/// @param directory
+/// @brief Adds include directories to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @param directory Include directory to add to the current module. (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
-/// @brief
-/// @param file
-void SHU_ModuleAddSourcefile(const char *file);
-
-/// @brief
-/// @param directory
+/// @brief Adds source directories to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @param directory Source directory to add to the current module. (eg. src/)
 void SHU_ModuleAddSourceDirectory(const char *directory);
+
+/// @brief Adds source files to the module. Max count is defined as `SHU_MAX_STRING_ARRAY_COUNT`.
+/// @param file Single file to add to the current module. (eg. source.c)
+void SHU_ModuleAddSourcefile(const char *file);
 
 #pragma endregion Module
 
 #pragma region Library
 
-/// @brief
-/// @param directory
+// todo make static and dynamic configuration
+
+/// @brief Compiles the current module as a library.
+/// @param directory Output directory of the library file without the name (eg. build/arc/)
 void SHU_LibraryCompile(const char *directory);
 
 #pragma endregion Library
 
 #pragma region Executable
 
-/// @brief
-/// @param library
+/// @brief Links an executable to the current executable. Practical only if the current module is an executable.
+/// @param library Library to link with executable. (eg. myLibName)
 void SHU_ExecutableLink(const char *library);
 
-/// @brief
-/// @param directory
+/// @brief Compiles the current module as an executable.
+/// @param directory Output directory of the executable file without the name (eg. build/bin/)
 void SHU_ExecutableCompile(const char *directory);
 
 #pragma endregion Executable
@@ -194,12 +210,6 @@ void SHU_ExecutableCompile(const char *directory);
 #pragma region Shuild Implementations
 
 #ifdef SHUILD_IMPLEMENTATION
-
-#define SHUI_MAX_STRING_ARRAY_COUNT 16
-#define SHUI_COMPILER_COMMAND_BUFFER 4096
-
-#define SHUI_ERROR_NULL 1
-#define SHUI_ERROR_INDEX 2
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -216,7 +226,7 @@ typedef struct SHUI_String
 
 typedef struct SHUI_StringList
 {
-    SHUI_String data[SHUI_MAX_STRING_ARRAY_COUNT];
+    SHUI_String data[SHU_MAX_STRING_ARRAY_COUNT];
     size_t count;
 } SHUI_StringList;
 
@@ -237,14 +247,14 @@ static SHUI_String SHUI_SCreate(const char *string)
 {
     if (string == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to string create.");
+        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string create.");
     }
 
     const size_t stringLength = strlen(string);
 
     if (stringLength == 0)
     {
-        SHU_LogError(SHUI_ERROR_INDEX, "String length to create a heap copy can not be 0.");
+        SHU_LogError(SHU_ERROR_INDEX, "String length to create a heap copy can not be 0.");
     }
 
     SHUI_String createdString = {0};
@@ -254,7 +264,7 @@ static SHUI_String SHUI_SCreate(const char *string)
 
     if (createdString.data == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Malloc error while creating heap string.");
+        SHU_LogError(SHU_ERROR_NULL, "Malloc error while creating heap string.");
     }
 
     memcpy(createdString.data, string, createdString.length);
@@ -270,7 +280,7 @@ static void SHUI_SDestroy(SHUI_String *string)
 {
     if (string == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to string destroy.");
+        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string destroy.");
     }
 
     free(string->data);
@@ -301,12 +311,12 @@ static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
 {
     if (list == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to string list add.");
+        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to string list add.");
     }
 
-    if (list->count >= SHUI_MAX_STRING_ARRAY_COUNT)
+    if (list->count >= SHU_MAX_STRING_ARRAY_COUNT)
     {
-        SHU_LogError(SHUI_ERROR_INDEX, "List is full.");
+        SHU_LogError(SHU_ERROR_INDEX, "List is full.");
     }
 
     list->data[list->count] = string;
@@ -320,7 +330,7 @@ static void SHUI_SLClear(SHUI_StringList *list)
 {
     if (list == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null list pointer passed as parameter to string list clear.");
+        SHU_LogError(SHU_ERROR_NULL, "Null list pointer passed as parameter to string list clear.");
     }
 
     for (size_t i = 0; i < list->count; i++)
@@ -340,10 +350,10 @@ static void SHUI_Run(const char *commandFormat, ...)
 {
     if (commandFormat == NULL)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to run.");
+        SHU_LogError(SHU_ERROR_NULL, "Null pointer passed as parameter to run.");
     }
 
-    char commandBuffer[SHUI_MESSAGE_BUFFER_SIZE] = {0};
+    char commandBuffer[SHU_MESSAGE_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, commandFormat);
@@ -366,7 +376,7 @@ static void SHUI_Run(const char *commandFormat, ...)
 
 void SHU_Log(int terminate, const char *header, const char *format, ...)
 {
-    char messageBuffer[SHUI_MESSAGE_BUFFER_SIZE] = {0};
+    char messageBuffer[SHU_MESSAGE_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, format);
@@ -407,7 +417,7 @@ void SHU_CompilerSetFlags(const char *flags)
 
     if (strlen(flags) != 0)
     {
-        SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
+        SHU_CompilerAddFlags(flags);
     }
 }
 
@@ -455,7 +465,7 @@ void SHU_LibraryCompile(const char *directory)
     SHUI_Run("mkdir -p %s" directory);
 #endif
 
-    char finalCommand[SHUI_COMPILER_COMMAND_BUFFER] = {0};
+    char finalCommand[SHU_COMPILER_COMMAND_BUFFER] = {0};
     size_t compilerCommandIndex = 0;
 
     snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
@@ -522,7 +532,7 @@ void SHU_ExecutableCompile(const char *directory)
     SHUI_Run("mkdir -p %s" directory);
 #endif
 
-    char finalCommand[SHUI_COMPILER_COMMAND_BUFFER] = {0};
+    char finalCommand[SHU_COMPILER_COMMAND_BUFFER] = {0};
     size_t compilerCommandIndex = 0;
 
     snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
