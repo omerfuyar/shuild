@@ -135,8 +135,9 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
 #pragma region Compiler
 
 /// @brief
+/// @param compiler
 /// @param compilerCommand
-void SHU_CompilerConfigure(const char *compilerCommand);
+void SHU_CompilerConfigure(char compiler, const char *compilerCommand);
 
 /// @brief
 /// @param flags
@@ -195,6 +196,7 @@ void SHU_ExecutableCompile(const char *directory);
 #ifdef SHUILD_IMPLEMENTATION
 
 #define SHUI_MAX_STRING_ARRAY_COUNT 16
+#define SHUI_COMPILER_COMMAND_BUFFER 4096
 
 #define SHUI_ERROR_NULL 1
 #define SHUI_ERROR_INDEX 2
@@ -204,6 +206,8 @@ void SHU_ExecutableCompile(const char *directory);
 #include <stdarg.h>
 #include <string.h>
 
+#pragma region Internals
+
 typedef struct SHUI_String
 {
     char *data;
@@ -212,18 +216,19 @@ typedef struct SHUI_String
 
 typedef struct SHUI_StringList
 {
-    SHUI_String *data[SHUI_MAX_STRING_ARRAY_COUNT];
+    SHUI_String data[SHUI_MAX_STRING_ARRAY_COUNT];
     size_t count;
 } SHUI_StringList;
 
+static char SHUI_COMPILER = SHU_COMPILER_UNKNOWN;
 static SHUI_String SHUI_COMPILER_COMMAND = {0};
-static SHUI_String SHUI_COMPILER_FLAGS = {0};
+static SHUI_StringList SHUI_COMPILER_FLAGS = {0};
 
-static SHUI_String SHUI_COMPILE_NAME = {0};
-static SHUI_StringList SHUI_COMPILE_INCLUDE_DIRECTORIES = {0};
-static SHUI_StringList SHUI_COMPILE_SOURCE_DIRECTORIES = {0};
-static SHUI_StringList SHUI_COMPILE_SOURCE_FILES = {0};
-static SHUI_StringList SHUI_COMPILE_LINKS = {0};
+static SHUI_String SHUI_MODULE_NAME = {0};
+static SHUI_StringList SHUI_MODULE_INCLUDE_DIRECTORIES = {0};
+static SHUI_StringList SHUI_MODULE_SOURCE_DIRECTORIES = {0};
+static SHUI_StringList SHUI_MODULE_SOURCE_FILES = {0};
+static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
 
 /// @brief Creates a heap string from a string for internal usage.
 /// @param string Null terminated string.
@@ -274,27 +279,19 @@ static void SHUI_SDestroy(SHUI_String *string)
     string->length = 0;
 }
 
-/// @brief String concatenation function. Reallocates the first string parameter.
-/// @param string String to add other string to.
-/// @param other Other string to add.
-static void SHUI_SConcat(SHUI_String *string, SHUI_String other)
+/// @brief Replaces all occurrences of find with replace in a string.
+/// @param string String to edit.
+/// @param find Character to find and replace.
+/// @param replace Character to replace with.
+static void SHUI_SReplace(SHUI_String *string, char find, char replace)
 {
-    if (string == NULL)
+    for (size_t i = 0; i < string->length; i++)
     {
-        SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to string concat.");
+        if (string->data[i] == find)
+        {
+            string->data[i] = replace;
+        }
     }
-
-    string->data = (char *)realloc(string->data, string->length + other.length + 1);
-
-    if (string->data == NULL)
-    {
-        SHU_LogError(SHUI_ERROR_NULL, "Realloc error while concating strings.");
-    }
-
-    memcpy(string->data + string->length, other.data, other.length);
-
-    string->length = string->length + other.length;
-    string->data[string->length] = '\0';
 }
 
 /// @brief Add string to the string list.
@@ -312,7 +309,7 @@ static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
         SHU_LogError(SHUI_ERROR_INDEX, "List is full.");
     }
 
-    list->data[list->count] = &string;
+    list->data[list->count] = string;
 
     list->count++;
 }
@@ -328,9 +325,9 @@ static void SHUI_SLClear(SHUI_StringList *list)
 
     for (size_t i = 0; i < list->count; i++)
     {
-        if (list->data[i]->data != NULL)
+        if (list->data[i].data != NULL)
         {
-            SHUI_SDestroy(list->data[i]);
+            SHUI_SDestroy(&list->data[i]);
         }
     }
 
@@ -339,22 +336,31 @@ static void SHUI_SLClear(SHUI_StringList *list)
 
 /// @brief Internal command runner function.
 /// @param command Command to run with system.
-static void SHUI_Run(const char *command)
+static void SHUI_Run(const char *commandFormat, ...)
 {
-    if (command == NULL)
+    if (commandFormat == NULL)
     {
         SHU_LogError(SHUI_ERROR_NULL, "Null pointer passed as parameter to run.");
     }
 
-    SHU_LogInfo("Executing command : '%s'", command);
+    char commandBuffer[SHUI_MESSAGE_BUFFER_SIZE] = {0};
 
-    int result = system(command);
+    va_list args;
+    va_start(args, commandFormat);
+    vsnprintf(commandBuffer, sizeof(commandBuffer), commandFormat, args);
+    va_end(args);
+
+    SHU_LogInfo("Executing command : '%s'", commandBuffer);
+
+    int result = system(commandBuffer);
 
     if (result != 0)
     {
         SHU_LogError(result, "Last executed command failed");
     }
 }
+
+#pragma endregion Internals
 
 #pragma region General
 
@@ -367,7 +373,7 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
     vsnprintf(messageBuffer, sizeof(messageBuffer), format, args);
     va_end(args);
 
-    printf("[%s] : %s", header, messageBuffer);
+    printf("[%s] : %s\n", header, messageBuffer);
 
     if (terminate != 0)
     {
@@ -379,38 +385,30 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
 
 #pragma region Compiler
 
-void SHU_CompilerConfigure(const char *compilerCommand)
+void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
 {
     if (SHUI_COMPILER_COMMAND.data != NULL)
     {
         SHUI_SDestroy(&SHUI_COMPILER_COMMAND);
     }
 
+    SHUI_COMPILER = compiler;
     SHUI_COMPILER_COMMAND = SHUI_SCreate(compilerCommand);
 }
 
 void SHU_CompilerAddFlags(const char *flags)
 {
-    if (SHUI_COMPILER_FLAGS.data == NULL)
-    {
-        SHUI_COMPILER_FLAGS = SHUI_SCreate(flags);
-    }
-    else
-    {
-        SHUI_String tempFlags = SHUI_SCreate(flags);
-        SHUI_SConcat(&SHUI_COMPILER_FLAGS, tempFlags);
-        SHUI_SDestroy(&tempFlags);
-    }
+    SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
 }
 
 void SHU_CompilerSetFlags(const char *flags)
 {
-    if (SHUI_COMPILER_FLAGS.data != NULL)
-    {
-        SHUI_SDestroy(&SHUI_COMPILER_FLAGS);
-    }
+    SHUI_SLClear(&SHUI_COMPILER_FLAGS);
 
-    SHUI_COMPILER_FLAGS = SHUI_SCreate(flags);
+    if (strlen(flags) != 0)
+    {
+        SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
+    }
 }
 
 #pragma endregion Compiler
@@ -419,27 +417,27 @@ void SHU_CompilerSetFlags(const char *flags)
 
 void SHU_ModuleBegin(const char *name)
 {
-    if (SHUI_COMPILE_NAME.data != NULL)
+    if (SHUI_MODULE_NAME.data != NULL)
     {
-        SHUI_SDestroy(&SHUI_COMPILE_NAME);
+        SHUI_SDestroy(&SHUI_MODULE_NAME);
     }
 
-    SHUI_COMPILE_NAME = SHUI_SCreate(name);
+    SHUI_MODULE_NAME = SHUI_SCreate(name);
 }
 
 void SHU_ModuleAddIncludeDirectory(const char *directory)
 {
-    SHUI_SLAdd(&SHUI_COMPILE_INCLUDE_DIRECTORIES, SHUI_SCreate(directory));
+    SHUI_SLAdd(&SHUI_MODULE_INCLUDE_DIRECTORIES, SHUI_SCreate(directory));
 }
 
 void SHU_ModuleAddSourcefile(const char *file)
 {
-    SHUI_SLAdd(&SHUI_COMPILE_SOURCE_FILES, SHUI_SCreate(file));
+    SHUI_SLAdd(&SHUI_MODULE_SOURCE_FILES, SHUI_SCreate(file));
 }
 
 void SHU_ModuleAddSourceDirectory(const char *directory)
 {
-    SHUI_SLAdd(&SHUI_COMPILE_SOURCE_DIRECTORIES, SHUI_SCreate(directory));
+    SHUI_SLAdd(&SHUI_MODULE_SOURCE_DIRECTORIES, SHUI_SCreate(directory));
 }
 
 #pragma endregion Module
@@ -448,11 +446,60 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
 
 void SHU_LibraryCompile(const char *directory)
 {
-    SHUI_SLClear(&SHUI_COMPILE_INCLUDE_DIRECTORIES);
-    SHUI_SLClear(&SHUI_COMPILE_SOURCE_FILES);
-    SHUI_SLClear(&SHUI_COMPILE_SOURCE_DIRECTORIES);
+    SHUI_String directoryStr = SHUI_SCreate(directory);
 
-    //...
+#if SHU_PLATFORM == SHU_PLATFORM_WINDOWS
+    SHUI_SReplace(&directoryStr, '/', '\\');
+    SHUI_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
+#elif SHU_PLATFORM_UNIX
+    SHUI_Run("mkdir -p %s" directory);
+#endif
+
+    char finalCommand[SHUI_COMPILER_COMMAND_BUFFER] = {0};
+    size_t compilerCommandIndex = 0;
+
+    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
+    compilerCommandIndex += SHUI_COMPILER_COMMAND.length + 1;
+
+    // todo cross compiler commands support
+
+    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        compilerCommandIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_DIRECTORIES.count; i++)
+    {
+        // todo find files in dir
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_MODULE_SOURCE_FILES.data[i].data);
+        compilerCommandIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+    }
+
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        compilerCommandIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+    }
+
+    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-o%s%s ", directoryStr.data, SHUI_MODULE_NAME.data);
+    compilerCommandIndex += directoryStr.length + 3;
+
+    SHUI_SDestroy(&directoryStr);
+
+    SHUI_Run(finalCommand);
+
+    SHUI_SLClear(&SHUI_MODULE_INCLUDE_DIRECTORIES);
+    SHUI_SLClear(&SHUI_MODULE_SOURCE_DIRECTORIES);
+    SHUI_SLClear(&SHUI_MODULE_SOURCE_FILES);
+
+    SHU_LogInfo("Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
+
+    SHUI_SDestroy(&SHUI_MODULE_NAME);
 }
 
 #pragma endregion Library
@@ -461,16 +508,72 @@ void SHU_LibraryCompile(const char *directory)
 
 void SHU_ExecutableLink(const char *library)
 {
+    SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library));
 }
 
 void SHU_ExecutableCompile(const char *directory)
 {
-    SHUI_SLClear(&SHUI_COMPILE_INCLUDE_DIRECTORIES);
-    SHUI_SLClear(&SHUI_COMPILE_SOURCE_FILES);
-    SHUI_SLClear(&SHUI_COMPILE_SOURCE_DIRECTORIES);
-    SHUI_SLClear(&SHUI_COMPILE_LINKS);
+    SHUI_String directoryStr = SHUI_SCreate(directory);
 
-    //...
+#if SHU_PLATFORM == SHU_PLATFORM_WINDOWS
+    SHUI_SReplace(&directoryStr, '/', '\\');
+    SHUI_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
+#elif SHU_PLATFORM_UNIX
+    SHUI_Run("mkdir -p %s" directory);
+#endif
+
+    char finalCommand[SHUI_COMPILER_COMMAND_BUFFER] = {0};
+    size_t compilerCommandIndex = 0;
+
+    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
+    compilerCommandIndex += SHUI_COMPILER_COMMAND.length + 1;
+
+    // todo cross compiler commands support
+
+    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        compilerCommandIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_DIRECTORIES.count; i++)
+    {
+        // todo find files in dir
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_MODULE_SOURCE_FILES.data[i].data);
+        compilerCommandIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+    }
+
+    for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-L%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
+        compilerCommandIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
+    }
+
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        compilerCommandIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+    }
+
+    snprintf(finalCommand + compilerCommandIndex, sizeof(finalCommand) - compilerCommandIndex, "-o%s%s%s ", directoryStr.data, SHUI_MODULE_NAME.data, SHU_PLATFORM == SHU_PLATFORM_WINDOWS ? ".exe" : "");
+    compilerCommandIndex += directoryStr.length + 3;
+
+    SHUI_SDestroy(&directoryStr);
+
+    SHUI_Run(finalCommand);
+
+    SHUI_SLClear(&SHUI_MODULE_INCLUDE_DIRECTORIES);
+    SHUI_SLClear(&SHUI_MODULE_SOURCE_FILES);
+    SHUI_SLClear(&SHUI_MODULE_SOURCE_DIRECTORIES);
+    SHUI_SLClear(&SHUI_EXECUTABLE_LINKS);
+
+    SHU_LogInfo("Executable '%s' successfully compiled.", SHUI_MODULE_NAME.data);
+
+    SHUI_SDestroy(&SHUI_MODULE_NAME);
 }
 
 #pragma endregion Executable
