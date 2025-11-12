@@ -10,7 +10,7 @@ int main(void)
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceDirectory("src/");
 
-    SHU_ModuleCompileExecutable("");
+    SHU_ModuleCompile("", 0);
 
     return 0;
 }
