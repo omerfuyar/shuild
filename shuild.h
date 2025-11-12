@@ -211,9 +211,13 @@ void SHU_ModuleCompileLibrary(const char *directory);
 /// @param directory Output directory of the executable file without the name (eg. build/bin/)
 void SHU_ModuleCompileExecutable(const char *directory);
 
+/// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
+/// @param directory Directory to search for libraries. (eg. build/arc/)
+void SHU_ModuleExecutableSetLibraryDirectory(const char *directory);
+
 /// @brief Links an executable to the current executable. Practical only if the current module is an executable.
 /// @param library Library to link with executable. (eg. myLibName)
-void SHU_ModuleExecutableLink(const char *library);
+void SHU_ModuleExecutableLinkLibrary(const char *library);
 
 #pragma endregion Module
 
@@ -250,6 +254,8 @@ static SHUI_String SHUI_MODULE_NAME = {0};
 static SHUI_StringList SHUI_MODULE_INCLUDE_DIRECTORIES = {0};
 static SHUI_StringList SHUI_MODULE_SOURCE_DIRECTORIES = {0};
 static SHUI_StringList SHUI_MODULE_SOURCE_FILES = {0};
+
+static SHUI_String SHUI_EXECUTABLE_LINK_DIRECTORY = {0};
 static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
 
 // todo add build targets
@@ -388,8 +394,9 @@ static void SHUI_Run(const char *commandFormat, ...)
 /// @param directory Output directory of the library file without the name (eg. build/)
 /// @param finalCommandBuffer Buffer to write compiler command.
 /// @param finalCommandBufferSize Size of the finalCommandBuffer in bytes.
+/// @param isLibrary Current module is a library or not.
 /// @return The index of the finalCommand to continue appending.
-static size_t SHUI_ModuleBuildCompileCommand(const char *directory, char *finalCommandBuffer, size_t finalCommandBufferSize)
+static size_t SHUI_ModuleBuildCompileCommand(const char *directory, char *finalCommandBuffer, size_t finalCommandBufferSize, char isLibrary)
 {
     SHUI_String directoryStr = {0};
 
@@ -408,7 +415,7 @@ static size_t SHUI_ModuleBuildCompileCommand(const char *directory, char *finalC
 
     size_t finalCommandIndex = 0;
 
-    snprintf(finalCommandBuffer + finalCommandIndex, finalCommandBufferSize - finalCommandIndex, "%s ", SHUI_COMPILER_COMMAND.data);
+    snprintf(finalCommandBuffer + finalCommandIndex, finalCommandBufferSize - finalCommandIndex, "%s %s", SHUI_COMPILER_COMMAND.data, isLibrary != 0 ? "-S " : "");
     finalCommandIndex += SHUI_COMPILER_COMMAND.length + 1;
 
     // todo cross compiler commands support
@@ -421,7 +428,8 @@ static size_t SHUI_ModuleBuildCompileCommand(const char *directory, char *finalC
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_DIRECTORIES.count; i++)
     {
-        // todo find files in dir
+        snprintf(finalCommandBuffer + finalCommandIndex, finalCommandBufferSize - finalCommandIndex, "%s*.c ", SHUI_MODULE_SOURCE_DIRECTORIES.data[i].data);
+        finalCommandIndex += SHUI_MODULE_SOURCE_DIRECTORIES.data[i].length + 4;
     }
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
@@ -436,7 +444,26 @@ static size_t SHUI_ModuleBuildCompileCommand(const char *directory, char *finalC
         finalCommandIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
-    snprintf(finalCommandBuffer + finalCommandIndex, finalCommandBufferSize - finalCommandIndex, "-o%s%s%s", directoryStr.data == NULL ? "" : directoryStr.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+    char *fileExtension = NULL;
+
+    if (isLibrary != 0)
+    {
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+        fileExtension = ".lib";
+#else
+        fileExtension = ".a";
+#endif
+    }
+    else
+    {
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+        fileExtension = ".exe";
+#else
+        fileExtension = "";
+#endif
+    }
+
+    snprintf(finalCommandBuffer + finalCommandIndex, finalCommandBufferSize - finalCommandIndex, "-o%s%s%s", directoryStr.data == NULL ? "" : directoryStr.data, SHUI_MODULE_NAME.data, fileExtension);
     finalCommandIndex += directoryStr.length + 2;
 
     if (directoryStr.data != NULL)
@@ -564,7 +591,7 @@ void SHU_ModuleCompileLibrary(const char *directory)
 {
     char finalCommand[SHUM_COMPILER_COMMAND_BUFFER] = {0};
 
-    SHUI_ModuleBuildCompileCommand(directory, finalCommand, sizeof(finalCommand));
+    SHUI_ModuleBuildCompileCommand(directory, finalCommand, sizeof(finalCommand), 1);
 
     SHUI_Run(finalCommand);
 
@@ -577,14 +604,18 @@ void SHU_ModuleCompileExecutable(const char *directory)
 {
     char finalCommand[SHUM_COMPILER_COMMAND_BUFFER] = {0};
 
-    size_t finalCommandIndex = SHUI_ModuleBuildCompileCommand(directory, finalCommand, sizeof(finalCommand));
+    size_t finalCommandIndex = SHUI_ModuleBuildCompileCommand(directory, finalCommand, sizeof(finalCommand), 0);
+
+    snprintf(finalCommand + finalCommandIndex, sizeof(finalCommand) - finalCommandIndex, "-L%s ", SHUI_EXECUTABLE_LINK_DIRECTORY.data);
+    finalCommandIndex += SHUI_EXECUTABLE_LINK_DIRECTORY.length + 3;
 
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
     {
-        snprintf(finalCommand + finalCommandIndex, sizeof(finalCommand) - finalCommandIndex, "-L%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
+        snprintf(finalCommand + finalCommandIndex, sizeof(finalCommand) - finalCommandIndex, "-l%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
         finalCommandIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
     }
 
+    SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
     SHUI_SLClear(&SHUI_EXECUTABLE_LINKS);
 
     SHUI_Run(finalCommand);
@@ -594,7 +625,17 @@ void SHU_ModuleCompileExecutable(const char *directory)
     SHUI_SDestroy(&SHUI_MODULE_NAME);
 }
 
-void SHU_ModuleExecutableLink(const char *library)
+void SHU_ModuleExecutableSetLibraryDirectory(const char *directory)
+{
+    if (SHUI_EXECUTABLE_LINK_DIRECTORY.data != NULL)
+    {
+        SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
+    }
+
+    SHUI_EXECUTABLE_LINK_DIRECTORY = SHUI_SCreate(directory);
+}
+
+void SHU_ModuleExecutableLinkLibrary(const char *library)
 {
     SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library));
 }
