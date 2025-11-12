@@ -1,7 +1,7 @@
 #define SHUILD_IMPLEMENTATION
 #include "../../shuild.h"
 
-int main(int argc, char **argv)
+int main(void)
 {
     SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "clang");
 
@@ -10,7 +10,7 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("exampleDebug");
     SHU_ModuleAddSourcefile("example.c");
 
-    SHU_ExecutableCompile("");
+    SHU_ModuleCompileExecutable("");
 
     //=========
 
@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("exampleRelease");
     SHU_ModuleAddSourcefile("example.c");
 
-    SHU_ExecutableCompile("");
+    SHU_ModuleCompileExecutable("");
 
     return 0;
 }

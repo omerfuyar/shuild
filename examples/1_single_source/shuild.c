@@ -1,7 +1,7 @@
 #define SHUILD_IMPLEMENTATION
 #include "../../shuild.h"
 
-int main(int argc, char **argv)
+int main(void)
 {
     SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "clang");
     SHU_CompilerAddFlags("-DFOO=13");
@@ -9,7 +9,7 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("1_single_source");
     SHU_ModuleAddSourcefile("example.c");
 
-    SHU_ExecutableCompile("build/");
+    SHU_ModuleCompileExecutable("build/");
 
     return 0;
 }

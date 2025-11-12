@@ -1,6 +1,11 @@
 #include <stdio.h>
 
-int main(int argc, char **argv)
+/*
+    This example shows that shuild can compile multiple
+    modules as executables.
+*/
+
+int main(void)
 {
     printf("Hello from 2_compiler_flags example!\n");
 
