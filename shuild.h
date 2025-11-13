@@ -245,7 +245,7 @@ void SHU_ModuleCompile(const char *directory, char module);
 
 /// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
 /// @param directory Directory to search for libraries. (eg. build/arc/)
-void SHU_ModuleSetLibraryDirectory(const char *directory);
+void SHU_ModuleAddLibraryDirectory(const char *directory);
 
 /// @brief Links an executable to the current executable. Practical only if the current module is an executable.
 /// @param library Library to link with executable. (eg. myLibName)
@@ -302,7 +302,7 @@ static SHUI_String SHUI_MODULE_NAME = {0};
 static SHUI_StringList SHUI_MODULE_INCLUDE_DIRECTORIES = {0};
 static SHUI_StringListSource SHUI_MODULE_SOURCE_FILES = {0};
 
-static SHUI_String SHUI_EXECUTABLE_LINK_DIRECTORY = {0};
+static SHUI_StringList SHUI_EXECUTABLE_LINK_DIRECTORIES = {0};
 static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
 
 // todo add build targets
@@ -494,6 +494,14 @@ static void SHUI_CompileExecutable(SHUI_String directory)
         sourceBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
     }
 
+    char linkDirectoryBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t linkDirectoryBufferIndex = 0;
+    for (size_t i = 0; i < SHUI_EXECUTABLE_LINK_DIRECTORIES.count; i++)
+    {
+        snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex, sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex, "-L%s ", SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
+        linkDirectoryBufferIndex += SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].length + 3;
+    }
+
     char linkBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t linkBufferIndex = 0;
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
@@ -510,12 +518,11 @@ static void SHUI_CompileExecutable(SHUI_String directory)
         flagBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
-    SHU_Run("%s %s %s %s%s %s %s -o%s%s%s",
+    SHU_Run("%s %s %s %s %s %s -o%s%s%s",
             SHUI_COMPILER_COMMAND.data,
             includeBuffer,
             sourceBuffer,
-            SHUI_EXECUTABLE_LINK_DIRECTORY.data == NULL ? "" : "-L",
-            SHUI_EXECUTABLE_LINK_DIRECTORY.data == NULL ? "" : SHUI_EXECUTABLE_LINK_DIRECTORY.data,
+            linkDirectoryBuffer,
             linkBuffer,
             flagBuffer,
             directory.data,
@@ -1008,7 +1015,7 @@ void SHU_ModuleCompile(const char *directory, char module)
 
     if (module == SHUM_MODULE_EXECUTABLE)
     {
-        SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
+        SHUI_SLClear(&SHUI_EXECUTABLE_LINK_DIRECTORIES);
         SHUI_SLClear(&SHUI_EXECUTABLE_LINKS);
     }
 
@@ -1020,23 +1027,19 @@ void SHU_ModuleCompile(const char *directory, char module)
 
 // todo maybe add linking tree for libraries and executables
 
-void SHU_ModuleSetLibraryDirectory(const char *directory)
+void SHU_ModuleAddLibraryDirectory(const char *directory)
 {
     if (directory == NULL)
     {
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module set library directory.");
     }
 
-    if (SHUI_EXECUTABLE_LINK_DIRECTORY.data != NULL)
-    {
-        SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
-    }
-
-    SHUI_EXECUTABLE_LINK_DIRECTORY = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
-    SHUI_SAppend(&SHUI_EXECUTABLE_LINK_DIRECTORY, directory);
+    SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+    SHUI_SAppend(&correctedDirectory, directory);
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHUI_SReplace(&SHUI_EXECUTABLE_LINK_DIRECTORY, '/', '\\');
+    SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
+    SHUI_SLAdd(&SHUI_EXECUTABLE_LINK_DIRECTORIES, correctedDirectory);
 }
 
 void SHU_ModuleLinkLibrary(const char *library)
