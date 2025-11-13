@@ -132,6 +132,10 @@
 #define SHUM_MAX_MESSAGE_BUFFER_SIZE 4096
 #endif
 
+#ifndef SHUM_MAX_PATH_SIZE
+#define SHUM_MAX_PATH_SIZE 256
+#endif
+
 #define SHUM_ERROR 1
 #define SHUM_ERROR_NULL 2
 #define SHUM_ERROR_INDEX 3
@@ -156,6 +160,15 @@ void SHU_Run(const char *commandFormat, ...);
 /// @brief Creates a directory relative to current executable if the directory doesn't exists.
 /// @param directory Directory to create (eg. resources/)
 void SHU_CreateRelativeDirectory(const char *directory);
+
+/// @brief Deletes a file.
+/// @param file File to delete. Relative to current executable.
+void SHU_DeleteFile(const char *file);
+
+/// @brief Copies a file.
+/// @param file File to copy, relative to current executable.
+/// @param directory Directory to copy file, relative to current executable.
+void SHU_CopyFile(const char *file, const char *directory);
 
 /// @brief Internal variadic logging function.
 /// @param terminate Exit code if not 0.
@@ -439,7 +452,7 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
 {
     if (SHUI_CURRENT_EXECUTABLE_DIRECTORY.data == NULL)
     {
-        char pathBuffer[MAX_PATH] = {0};
+        char pathBuffer[SHUM_MAX_PATH_SIZE] = {0};
 
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
         GetModuleFileName(NULL, pathBuffer, sizeof(pathBuffer));
@@ -530,6 +543,8 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
         commandBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
     }
 
+    // todo .o file directory
+
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
         SHU_Run("%s -c %s -o %.*so %s",
@@ -551,6 +566,12 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
     }
 
     SHU_Run("llvm-ar rcs %s%s%s %s", directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a", commandBuffer);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHU_Run("del /F /Q %s", commandBuffer);
+#elif SHUM_PLATFORM_UNIX
+    SHU_Run("rm -rf %s", commandBuffer);
+#endif
 
     SHU_LogInfo("Static Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
 }
@@ -594,6 +615,12 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     SHU_Run("%s -shared -o %s%s%s %s", SHUI_COMPILER_COMMAND.data, directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so", commandBuffer);
 
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHU_Run("del /F /Q %s", commandBuffer);
+#elif SHUM_PLATFORM_UNIX
+    SHU_Run("rm -rf %s", commandBuffer);
+#endif
+
     SHU_LogInfo("Dynamic Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
 }
 
@@ -634,19 +661,76 @@ void SHU_CreateRelativeDirectory(const char *directory)
 
     SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
 
-    if (strlen(directory) != 0)
+    if (strlen(directory) == 0)
     {
-        SHUI_SAppend(&directoryStr, directory);
-
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
-        SHUI_SReplace(&directoryStr, '/', '\\');
-        SHU_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
-#elif SHUM_PLATFORM_UNIX
-        SHU_Run("mkdir -p %s" directoryStr.data);
-#endif
+        return;
     }
 
+    SHUI_SAppend(&directoryStr, directory);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHUI_SReplace(&directoryStr, '/', '\\');
+    SHU_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
+#elif SHUM_PLATFORM_UNIX
+    SHU_Run("mkdir -p %s" directoryStr.data);
+#endif
+
     SHUI_SDestroy(&directoryStr);
+}
+
+void SHU_DeleteFile(const char *file)
+{
+    if (file == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to delete file.");
+    }
+
+    if (strlen(file) == 0)
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to delete file.");
+    }
+
+    SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+
+    SHUI_SAppend(&fileStr, file);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHU_Run("del /F /Q %s", fileStr.data);
+#elif SHUM_PLATFORM_UNIX
+    SHU_Run("rm -rf %s", fileStr.data);
+#endif
+
+    SHUI_SDestroy(&fileStr);
+}
+
+void SHU_CopyFile(const char *file, const char *directory)
+{
+    if (file == NULL || directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to copy file.");
+    }
+
+    if (strlen(directory) == 0 || strlen(file) == 0)
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to copy file.");
+    }
+
+    SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+    SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+
+    SHUI_SAppend(&directoryStr, directory);
+    SHUI_SAppend(&fileStr, file);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHUI_SReplace(&directoryStr, '/', '\\');
+    SHUI_SReplace(&fileStr, '/', '\\');
+    SHU_Run("copy /Y %s %s", fileStr.data, directoryStr.data);
+#elif SHUM_PLATFORM_UNIX
+    SHU_Run("cp -r %s %s", fileStr.data, directoryStr.data);
+#endif
+
+    SHUI_SDestroy(&directoryStr);
+    SHUI_SDestroy(&fileStr);
 }
 
 void SHU_Log(int terminate, const char *header, const char *format, ...)
@@ -809,7 +893,7 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
 
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd = {0};
-    char pattern[MAX_PATH] = {0};
+    char pattern[SHUM_MAX_PATH_SIZE] = {0};
 
     snprintf(pattern, sizeof(pattern), "%s*.c", correctedDirectory.data);
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
