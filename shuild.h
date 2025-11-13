@@ -596,7 +596,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        SHU_Run("%s -c fPIC %s -o %.*so %s",
+        SHU_Run("%s -c -fPIC %s -o %.*so %s",
                 SHUI_COMPILER_COMMAND.data,
                 SHUI_MODULE_SOURCE_FILES.data[i].data,
                 SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
