@@ -4,6 +4,10 @@ Shuild is a cross platform, simple, single header file project builder library t
 
 Be aware that Shuild is still in early development phase. Expect breaking changes and incomplete features.
 
+Huge thanks to people who come up with the name of this project and encourage me to improve it:
+[bedwen](https://github.com/bedwen)
+[ETCKK](https://github.com/ETCKK)
+
 ## Setup
 
 To use Shuild, simply download the `shuild.h` file and include it in your project. You don't even need to add to your include paths (you still can if you want), just place the header and your build source file (like `shuild.c`) in your project directory. Build folder will be created in the same directory as your build file.

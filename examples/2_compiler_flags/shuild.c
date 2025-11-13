@@ -10,7 +10,7 @@ int main(void)
     SHU_ModuleBegin("exampleDebug");
     SHU_ModuleAddSourcefile("example.c");
 
-    SHU_ModuleCompile("", 0);
+    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
     //=========
 
@@ -18,7 +18,7 @@ int main(void)
     SHU_ModuleBegin("exampleRelease");
     SHU_ModuleAddSourcefile("example.c");
 
-    SHU_ModuleCompile("", 0);
+    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
     return 0;
 }

@@ -120,18 +120,27 @@
 #define SHUM_MAX_STRING_ARRAY_COUNT 16
 #endif
 
-#ifndef SHUM_COMPILER_COMMAND_BUFFER
-#define SHUM_COMPILER_COMMAND_BUFFER 4096
+#ifndef SHUM_MAX_SOURCE_FILE_COUNT
+#define SHUM_MAX_SOURCE_FILE_COUNT 32
 #endif
 
-#ifndef SHUM_MESSAGE_BUFFER_SIZE
-#define SHUM_MESSAGE_BUFFER_SIZE 512
+#ifndef SHUM_MAX_COMMAND_BUFFER_SIZE
+#define SHUM_MAX_COMMAND_BUFFER_SIZE 4096
+#endif
+
+#ifndef SHUM_MAX_MESSAGE_BUFFER_SIZE
+#define SHUM_MAX_MESSAGE_BUFFER_SIZE 4096
 #endif
 
 #define SHUM_ERROR 1
 #define SHUM_ERROR_NULL 2
 #define SHUM_ERROR_INDEX 3
 #define SHUM_ERROR_UNKNOWN 4
+#define SHUM_ERROR_INTERNAL 5
+
+#define SHUM_MODULE_EXECUTABLE 0
+#define SHUM_MODULE_LIBRARY_STATIC 1
+#define SHUM_MODULE_LIBRARY_DYNAMIC 2
 
 #define SHUM_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
 #define SHUM_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
@@ -141,8 +150,12 @@
 #pragma region General
 
 /// @brief Internal command runner function.
-/// @param command Command to run with system.
+/// @param command Command to run with system. (eg. clang example.c -o example)
 void SHU_Run(const char *commandFormat, ...);
+
+/// @brief Creates a directory relative to current executable if the directory doesn't exists.
+/// @param directory Directory to create (eg. resources/)
+void SHU_CreateRelativeDirectory(const char *directory);
 
 /// @brief Internal variadic logging function.
 /// @param terminate Exit code if not 0.
@@ -214,8 +227,8 @@ void SHU_ModuleAddSourcefile(const char *file);
 
 /// @brief Internal generic module compile function for both libraries and executables.
 /// @param directory Output directory of the library file without the name (eg. build/)
-/// @param isLibrary Current module is a library or not.
-void SHU_ModuleCompile(const char *directory, char isLibrary);
+/// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUM_MODULE_LIBRARY_STATIC)
+void SHU_ModuleCompile(const char *directory, char module);
 
 /// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
 /// @param directory Directory to search for libraries. (eg. build/arc/)
@@ -256,9 +269,15 @@ typedef struct SHUI_String
 
 typedef struct SHUI_StringList
 {
-    SHUI_String data[SHUM_MAX_STRING_ARRAY_COUNT];
     size_t count;
+    SHUI_String data[SHUM_MAX_STRING_ARRAY_COUNT];
 } SHUI_StringList;
+
+typedef struct SHUI_StringListSource
+{
+    size_t count;
+    SHUI_String data[SHUM_MAX_SOURCE_FILE_COUNT];
+} SHUI_StringListSource;
 
 static SHUI_String SHUI_CURRENT_EXECUTABLE_DIRECTORY = {0};
 
@@ -268,8 +287,7 @@ static SHUI_StringList SHUI_COMPILER_FLAGS = {0};
 
 static SHUI_String SHUI_MODULE_NAME = {0};
 static SHUI_StringList SHUI_MODULE_INCLUDE_DIRECTORIES = {0};
-static SHUI_StringList SHUI_MODULE_SOURCE_DIRECTORIES = {0};
-static SHUI_StringList SHUI_MODULE_SOURCE_FILES = {0};
+static SHUI_StringListSource SHUI_MODULE_SOURCE_FILES = {0};
 
 static SHUI_String SHUI_EXECUTABLE_LINK_DIRECTORY = {0};
 static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
@@ -334,6 +352,11 @@ static void SHUI_SDestroy(SHUI_String *string)
 /// @param replace Character to replace with.
 static void SHUI_SReplace(SHUI_String *string, char find, char replace)
 {
+    if (string == NULL || string->data == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string replace.");
+    }
+
     for (size_t i = 0; i < string->length; i++)
     {
         if (string->data[i] == find)
@@ -349,7 +372,7 @@ static void SHUI_SReplace(SHUI_String *string, char find, char replace)
 /// @return Final string. Same with the string parameter by value.
 static SHUI_String SHUI_SAppend(SHUI_String *string, const char *appendString)
 {
-    if (string == NULL || string->data == NULL)
+    if (string == NULL || string->data == NULL || appendString == NULL)
     {
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string append.");
     }
@@ -375,7 +398,7 @@ static SHUI_String SHUI_SAppend(SHUI_String *string, const char *appendString)
 /// @param data String to add.
 static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
 {
-    if (list == NULL)
+    if (list == NULL || string.data == NULL || string.data == NULL)
     {
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string list add.");
     }
@@ -416,7 +439,7 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
 {
     if (SHUI_CURRENT_EXECUTABLE_DIRECTORY.data == NULL)
     {
-        char pathBuffer[SHUM_MESSAGE_BUFFER_SIZE] = {0};
+        char pathBuffer[MAX_PATH] = {0};
 
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
         GetModuleFileName(NULL, pathBuffer, sizeof(pathBuffer));
@@ -438,6 +461,142 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
     return SHUI_CURRENT_EXECUTABLE_DIRECTORY;
 }
 
+static void SHUI_CompileExecutable(SHUI_String directory)
+{
+    // todo cross compiler commands support
+
+    char includeBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t includeBufferIndex = 0;
+    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    {
+        snprintf(includeBuffer + includeBufferIndex, sizeof(includeBuffer) - includeBufferIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        includeBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    }
+
+    char sourceBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t sourceBufferIndex = 0;
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        snprintf(sourceBuffer + sourceBufferIndex, sizeof(sourceBuffer) - sourceBufferIndex, "%s ", SHUI_MODULE_SOURCE_FILES.data[i].data);
+        sourceBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+    }
+
+    char linkBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t linkBufferIndex = 0;
+    for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
+    {
+        snprintf(linkBuffer + linkBufferIndex, sizeof(linkBuffer) - linkBufferIndex, "-l%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
+        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
+    }
+
+    char flagBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t flagBufferIndex = 0;
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        snprintf(flagBuffer + flagBufferIndex, sizeof(flagBuffer) - flagBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        flagBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+    }
+
+    SHU_Run("%s %s %s %s%s %s %s -o%s%s%s",
+            SHUI_COMPILER_COMMAND.data,
+            includeBuffer,
+            sourceBuffer,
+            SHUI_EXECUTABLE_LINK_DIRECTORY.data == NULL ? "" : "-L",
+            SHUI_EXECUTABLE_LINK_DIRECTORY.data == NULL ? "" : SHUI_EXECUTABLE_LINK_DIRECTORY.data,
+            linkBuffer,
+            flagBuffer,
+            directory.data,
+            SHUI_MODULE_NAME.data,
+            SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+
+    SHU_LogInfo("Executable '%s' successfully compiled.", SHUI_MODULE_NAME.data);
+}
+
+static void SHUI_CompileLibraryStatic(SHUI_String directory)
+{
+    // commands for flags
+    char commandBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t commandBufferIndex = 0;
+
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBufferIndex) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        commandBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        SHU_Run("%s -c %s -o %.*so %s",
+                SHUI_COMPILER_COMMAND.data,
+                SHUI_MODULE_SOURCE_FILES.data[i].data,
+                SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
+                SHUI_MODULE_SOURCE_FILES.data[i].data,
+                commandBuffer);
+    }
+
+    // commands for objects
+    memset(commandBuffer, 0, sizeof(commandBuffer));
+    commandBufferIndex = 0;
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "%.*so ", (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1, SHUI_MODULE_SOURCE_FILES.data[i].data);
+        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+    }
+
+    SHU_Run("llvm-ar rcs %s%s%s %s", directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a", commandBuffer);
+
+    SHU_LogInfo("Static Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
+}
+
+static void SHUI_CompileLibraryDynamic(SHUI_String directory)
+{
+    // commands for flags
+    char commandBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
+    size_t commandBufferIndex = 0;
+
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBufferIndex) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        commandBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    }
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        SHU_Run("%s -c fPIC %s -o %.*so %s",
+                SHUI_COMPILER_COMMAND.data,
+                SHUI_MODULE_SOURCE_FILES.data[i].data,
+                SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
+                SHUI_MODULE_SOURCE_FILES.data[i].data,
+                commandBuffer);
+    }
+
+    // commands for objects
+    memset(commandBuffer, 0, sizeof(commandBuffer));
+
+    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
+    {
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "%.*so ", (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1, SHUI_MODULE_SOURCE_FILES.data[i].data);
+        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+    }
+
+    SHU_Run("%s -shared -o %s%s%s %s", SHUI_COMPILER_COMMAND.data, directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so", commandBuffer);
+
+    SHU_LogInfo("Dynamic Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
+}
+
 #pragma endregion Internals
 
 #pragma region General
@@ -449,7 +608,7 @@ void SHU_Run(const char *commandFormat, ...)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to run.");
     }
 
-    char commandBuffer[SHUM_MESSAGE_BUFFER_SIZE] = {0};
+    char commandBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, commandFormat);
@@ -466,9 +625,38 @@ void SHU_Run(const char *commandFormat, ...)
     }
 }
 
+void SHU_CreateRelativeDirectory(const char *directory)
+{
+    if (directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to create directory.");
+    }
+
+    SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+
+    if (strlen(directory) != 0)
+    {
+        SHUI_SAppend(&directoryStr, directory);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+        SHUI_SReplace(&directoryStr, '/', '\\');
+        SHU_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
+#elif SHUM_PLATFORM_UNIX
+        SHU_Run("mkdir -p %s" directoryStr.data);
+#endif
+    }
+
+    SHUI_SDestroy(&directoryStr);
+}
+
 void SHU_Log(int terminate, const char *header, const char *format, ...)
 {
-    char messageBuffer[SHUM_MESSAGE_BUFFER_SIZE] = {0};
+    if (header == NULL || format == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to log.");
+    }
+
+    char messageBuffer[SHUM_MAX_MESSAGE_BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, format);
@@ -489,6 +677,11 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
 
 void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
 {
+    if (compilerCommand == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler configure.");
+    }
+
     if (SHUI_COMPILER_COMMAND.data != NULL)
     {
         SHUI_SDestroy(&SHUI_COMPILER_COMMAND);
@@ -529,6 +722,11 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
 
 void SHU_CompilerAddFlags(const char *flags)
 {
+    if (flags == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler add flags.");
+    }
+
     if (strlen(flags) != 0)
     {
         SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
@@ -537,6 +735,11 @@ void SHU_CompilerAddFlags(const char *flags)
 
 void SHU_CompilerSetFlags(const char *flags)
 {
+    if (flags == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler set flags.");
+    }
+
     SHUI_SLClear(&SHUI_COMPILER_FLAGS);
 
     SHU_CompilerAddFlags(flags);
@@ -548,6 +751,11 @@ void SHU_CompilerSetFlags(const char *flags)
 
 void SHU_ModuleBegin(const char *name)
 {
+    if (name == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module begin.");
+    }
+
     if (SHUI_MODULE_NAME.data != NULL)
     {
         SHUI_SDestroy(&SHUI_MODULE_NAME);
@@ -558,6 +766,11 @@ void SHU_ModuleBegin(const char *name)
 
 void SHU_ModuleAddIncludeDirectory(const char *directory)
 {
+    if (directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add include directory");
+    }
+
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, directory);
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
@@ -568,125 +781,128 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
 
 void SHU_ModuleAddSourcefile(const char *file)
 {
+    if (file == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add source file");
+    }
+
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, file);
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
-    SHUI_SLAdd(&SHUI_MODULE_SOURCE_FILES, correctedDirectory);
+    SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, correctedDirectory);
 }
 
 void SHU_ModuleAddSourceDirectory(const char *directory)
 {
+    if (directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add source directory.");
+    }
+
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, directory);
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
-    SHUI_SLAdd(&SHUI_MODULE_SOURCE_DIRECTORIES, correctedDirectory);
+
+#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+    WIN32_FIND_DATAA ffd = {0};
+    char pattern[MAX_PATH] = {0};
+
+    snprintf(pattern, sizeof(pattern), "%s*.c", correctedDirectory.data);
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Error value returned from internal file search API.");
+    }
+
+    do
+    {
+        if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            SHUI_String newFile = SHUI_SCreate(correctedDirectory.data);
+            SHUI_SAppend(&newFile, ffd.cFileName);
+            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile);
+        }
+    } while (FindNextFileA(hFind, &ffd));
+    FindClose(hFind);
+
+#else // todo cross platform
+    DIR *searchDirectory = opendir(correctedDirectory.data);
+
+    if (searchDirectory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Error value returned from internal file search API.");
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(searchDirectory)) != NULL)
+    {
+        if (strstr(entry->d_name, ".c") != NULL)
+        {
+            SHUI_String newFile = SHUI_SCreate(correctedDirectory.data);
+            SHUI_SAppend(&newFile, entry->d_name);
+            SHUI_SLAdd(&SHUI_MODULE_SOURCE_FILES, newFile);
+        }
+    }
+    closedir(searchDirectory);
+#endif
+
+    SHUI_SDestroy(&correctedDirectory);
 }
 
-void SHU_ModuleCompile(const char *directory, char isLibrary)
+void SHU_ModuleCompile(const char *directory, char module)
 {
+    if (directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module compile.");
+    }
+
+    SHU_CreateRelativeDirectory(directory);
+
     SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
 
     if (strlen(directory) != 0)
     {
         SHUI_SAppend(&directoryStr, directory);
 
-        // todo targets
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
         SHUI_SReplace(&directoryStr, '/', '\\');
-        SHU_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
-#elif SHUM_PLATFORM_UNIX
-        SHU_Run("mkdir -p %s" directory);
 #endif
     }
 
-    char finalCommandBuffer[SHUM_COMPILER_COMMAND_BUFFER] = {0};
-    size_t finalCommandIndex = 0;
-
-    snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "%s %s", SHUI_COMPILER_COMMAND.data, isLibrary == 0 ? "" : "-S ");
-    finalCommandIndex += SHUI_COMPILER_COMMAND.length + 1;
-
-    // todo cross compiler commands support
-
-    for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
+    switch (module)
     {
-        snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
-        finalCommandIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+    case SHUM_MODULE_EXECUTABLE:
+        SHUI_CompileExecutable(directoryStr);
+        break;
+    case SHUM_MODULE_LIBRARY_STATIC:
+        SHUI_CompileLibraryStatic(directoryStr);
+        break;
+    case SHUM_MODULE_LIBRARY_DYNAMIC:
+        SHUI_CompileLibraryDynamic(directoryStr);
+        break;
+    default:
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid module passed as parameter to module compile.");
+        break;
     }
-
-    for (size_t i = 0; i < SHUI_MODULE_SOURCE_DIRECTORIES.count; i++)
-    {
-        snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "%s*.c ", SHUI_MODULE_SOURCE_DIRECTORIES.data[i].data);
-        finalCommandIndex += SHUI_MODULE_SOURCE_DIRECTORIES.data[i].length + 4;
-    }
-
-    for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
-    {
-        snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "%s ", SHUI_MODULE_SOURCE_FILES.data[i].data);
-        finalCommandIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
-    }
-
-    if (isLibrary != 0)
-    {
-        snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "-L%s ", SHUI_EXECUTABLE_LINK_DIRECTORY.data);
-        finalCommandIndex += SHUI_EXECUTABLE_LINK_DIRECTORY.length + 3;
-
-        for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
-        {
-            snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "-l%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
-            finalCommandIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
-        }
-    }
-
-    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
-    {
-        snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
-        finalCommandIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
-    }
-
-    char *fileExtension = NULL;
-
-    if (isLibrary == 0)
-    {
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
-        fileExtension = ".exe";
-#else
-        fileExtension = "";
-#endif
-    }
-    else
-    {
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
-        fileExtension = ".lib";
-#else
-        fileExtension = ".a";
-#endif
-    }
-
-    snprintf(finalCommandBuffer + finalCommandIndex, sizeof(finalCommandBuffer) - finalCommandIndex, "-o%s%s%s", directoryStr.data == NULL ? "" : directoryStr.data, SHUI_MODULE_NAME.data, fileExtension);
-    finalCommandIndex += directoryStr.length + 2;
 
     if (directoryStr.data != NULL)
     {
         SHUI_SDestroy(&directoryStr);
     }
 
-    if (isLibrary == 0)
+    if (module == SHUM_MODULE_EXECUTABLE)
     {
         SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
         SHUI_SLClear(&SHUI_EXECUTABLE_LINKS);
     }
 
     SHUI_SLClear(&SHUI_MODULE_INCLUDE_DIRECTORIES);
-    SHUI_SLClear(&SHUI_MODULE_SOURCE_FILES);
-    SHUI_SLClear(&SHUI_MODULE_SOURCE_DIRECTORIES);
-
-    SHU_Run(finalCommandBuffer);
-
-    SHU_LogInfo("%s '%s' successfully compiled.", isLibrary != 0 ? "Library" : "Executable", SHUI_MODULE_NAME.data);
+    SHUI_SLClear((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES);
 
     SHUI_SDestroy(&SHUI_MODULE_NAME);
 }
@@ -695,6 +911,11 @@ void SHU_ModuleCompile(const char *directory, char isLibrary)
 
 void SHU_ModuleSetLibraryDirectory(const char *directory)
 {
+    if (directory == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module set library directory.");
+    }
+
     if (SHUI_EXECUTABLE_LINK_DIRECTORY.data != NULL)
     {
         SHUI_SDestroy(&SHUI_EXECUTABLE_LINK_DIRECTORY);
@@ -709,6 +930,11 @@ void SHU_ModuleSetLibraryDirectory(const char *directory)
 
 void SHU_ModuleLinkLibrary(const char *library)
 {
+    if (library == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module link library.");
+    }
+
     SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library));
 }
 
