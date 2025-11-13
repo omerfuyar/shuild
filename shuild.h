@@ -228,7 +228,7 @@ void SHU_ModuleBegin(const char *name);
 /// @param directory Include directory to add to the current module. (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
-/// @brief Adds source directories to the module. Max count is defined as `SHUM_MAX_STRING_ARRAY_COUNT`.
+/// @brief Adds source directories to the module. Works recursively. Max source file count is defined as `SHUM_MAX_SOURCE_FILE_COUNT`.
 /// @param directory Source directory to add to the current module. (eg. src/)
 void SHU_ModuleAddSourceDirectory(const char *directory);
 
@@ -895,7 +895,7 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
     WIN32_FIND_DATAA ffd = {0};
     char pattern[SHUM_MAX_PATH_SIZE] = {0};
 
-    snprintf(pattern, sizeof(pattern), "%s*.c", correctedDirectory.data);
+    snprintf(pattern, sizeof(pattern), "%s*", correctedDirectory.data);
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
 
     if (hFind == INVALID_HANDLE_VALUE)
@@ -905,16 +905,43 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
 
     do
     {
-        if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        if ((ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
+            {
+                continue;
+            }
+
+            char subDirectory[SHUM_MAX_PATH_SIZE] = {0};
+            snprintf(subDirectory, sizeof(subDirectory), "%s%s\\", directory, ffd.cFileName);
+            size_t subDirectoryIndex = 0;
+
+            while (subDirectoryIndex < SHUM_MAX_PATH_SIZE && subDirectory[subDirectoryIndex] != '\0')
+            {
+                if (subDirectory[subDirectoryIndex] == '/')
+                {
+                    subDirectory[subDirectoryIndex] = '\\';
+                }
+
+                subDirectoryIndex++;
+            }
+
+            SHU_ModuleAddSourceDirectory(subDirectory);
+
+            continue;
+        }
+
+        if (strstr(ffd.cFileName, ".c") != NULL)
         {
             SHUI_String newFile = SHUI_SCreate(correctedDirectory.data);
             SHUI_SAppend(&newFile, ffd.cFileName);
             SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile);
         }
     } while (FindNextFileA(hFind, &ffd));
+
     FindClose(hFind);
 
-#else // todo cross platform
+#else
     DIR *searchDirectory = opendir(correctedDirectory.data);
 
     if (searchDirectory == NULL)
