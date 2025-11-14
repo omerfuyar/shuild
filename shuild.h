@@ -11,6 +11,11 @@
 /* ||                                                              || */
 /* \================================================================/ */
 
+// You can define various macros to configure Shuild before including this file.
+// define SHUILD_IMPLEMENTATION in one file to include the implementation.
+// define SHUM_NO_RUN_LOG to disable command run logs
+// define SHUM_MAX_<...> to customize various limits.
+
 #pragma once
 
 #pragma region Platform Detection
@@ -286,11 +291,11 @@ typedef struct SHUI_StringList
     SHUI_String data[SHUM_MAX_STRING_ARRAY_COUNT];
 } SHUI_StringList;
 
-typedef struct SHUI_StringListSource
+typedef struct SHUI_StringListBig
 {
     size_t count;
     SHUI_String data[SHUM_MAX_SOURCE_FILE_COUNT];
-} SHUI_StringListSource;
+} SHUI_StringListBig;
 
 static SHUI_String SHUI_CURRENT_EXECUTABLE_DIRECTORY = {0};
 
@@ -300,7 +305,7 @@ static SHUI_StringList SHUI_COMPILER_FLAGS = {0};
 
 static SHUI_String SHUI_MODULE_NAME = {0};
 static SHUI_StringList SHUI_MODULE_INCLUDE_DIRECTORIES = {0};
-static SHUI_StringListSource SHUI_MODULE_SOURCE_FILES = {0};
+static SHUI_StringListBig SHUI_MODULE_SOURCE_FILES = {0};
 
 static SHUI_StringList SHUI_EXECUTABLE_LINK_DIRECTORIES = {0};
 static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
@@ -409,14 +414,14 @@ static SHUI_String SHUI_SAppend(SHUI_String *string, const char *appendString)
 /// @brief Add string to the string list.
 /// @param list List to add string to
 /// @param data String to add.
-static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
+static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string, size_t capacity)
 {
     if (list == NULL || string.data == NULL || string.data == NULL)
     {
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string list add.");
     }
 
-    if (list->count >= SHUM_MAX_STRING_ARRAY_COUNT)
+    if (list->count >= capacity)
     {
         SHU_LogError(SHUM_ERROR_INDEX, "String list is full. Try increasing the limit, batch inputs or use manual flags.");
     }
@@ -457,7 +462,7 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
         GetModuleFileName(NULL, pathBuffer, sizeof(pathBuffer));
 #elif SHUM_PLATFORM == SHUM_PLATFORM_UNIX
-        readlink("/proc/self/exe", buffer, sizeof(buffer));
+        readlink("/proc/self/exe", pathBuffer, sizeof(pathBuffer));
 #endif
 
         size_t pathLength = strlen(pathBuffer);
@@ -540,7 +545,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBufferIndex) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
         commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
@@ -591,7 +596,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBufferIndex) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        snprintf(commandBuffer + commandBufferIndex, sizeof(commandBuffer) - commandBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
         commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
@@ -649,7 +654,9 @@ void SHU_Run(const char *commandFormat, ...)
     vsnprintf(commandBuffer, sizeof(commandBuffer), commandFormat, args);
     va_end(args);
 
+#ifndef SHUM_NO_RUN_LOG
     SHU_LogInfo("Executing command : '%s'", commandBuffer);
+#endif
 
     int result = system(commandBuffer);
 
@@ -820,7 +827,7 @@ void SHU_CompilerAddFlags(const char *flags)
 
     if (strlen(flags) != 0)
     {
-        SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags));
+        SHUI_SLAdd(&SHUI_COMPILER_FLAGS, SHUI_SCreate(flags), SHUM_MAX_STRING_ARRAY_COUNT);
     }
 }
 
@@ -867,7 +874,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
-    SHUI_SLAdd(&SHUI_MODULE_INCLUDE_DIRECTORIES, correctedDirectory);
+    SHUI_SLAdd(&SHUI_MODULE_INCLUDE_DIRECTORIES, correctedDirectory, SHUM_MAX_STRING_ARRAY_COUNT);
 }
 
 void SHU_ModuleAddSourcefile(const char *file)
@@ -882,7 +889,7 @@ void SHU_ModuleAddSourcefile(const char *file)
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
-    SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, correctedDirectory);
+    SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, correctedDirectory, SHUM_MAX_SOURCE_FILE_COUNT);
 }
 
 void SHU_ModuleAddSourceDirectory(const char *directory)
@@ -942,7 +949,7 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
         {
             SHUI_String newFile = SHUI_SCreate(correctedDirectory.data);
             SHUI_SAppend(&newFile, ffd.cFileName);
-            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile);
+            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile, SHUM_MAX_SOURCE_FILE_COUNT);
         }
     } while (FindNextFileA(hFind, &ffd));
 
@@ -1039,7 +1046,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
-    SHUI_SLAdd(&SHUI_EXECUTABLE_LINK_DIRECTORIES, correctedDirectory);
+    SHUI_SLAdd(&SHUI_EXECUTABLE_LINK_DIRECTORIES, correctedDirectory, SHUM_MAX_STRING_ARRAY_COUNT);
 }
 
 void SHU_ModuleLinkLibrary(const char *library)
@@ -1049,7 +1056,7 @@ void SHU_ModuleLinkLibrary(const char *library)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module link library.");
     }
 
-    SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library));
+    SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library), SHUM_MAX_STRING_ARRAY_COUNT);
 }
 
 #pragma endregion Module
