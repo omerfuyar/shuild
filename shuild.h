@@ -14,6 +14,7 @@
 // You can define various macros to configure Shuild before including this file.
 // define SHUILD_IMPLEMENTATION in one file to include the implementation.
 // define SHUM_NO_RUN_LOG to disable command run logs
+// define SHUM_NO_RUN_ERROR to disable termination on run error
 // define SHUM_NO_MODULE_LOG to disable module logs
 // define SHUM_MAX_<...> to customize various limits.
 
@@ -27,43 +28,29 @@
 #define SHUM_PLATFORM_MACOS 3
 
 #if defined(_WIN32)
-/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
-#define SHUM_PLATFORM SHUM_PLATFORM_WINDOWS
-/// @brief Current platform name string.
-#define SHUM_PLATFORM_STRING "WINDOWS"
+/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
+#define SHUM_HOST_PLATFORM SHUM_PLATFORM_WINDOWS
+/// @brief Name of the host platform.
+#define SHUM_HOST_PLATFORM_STRING "WINDOWS"
 
 #elif defined(__linux__)
-/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
-#define SHUM_PLATFORM SHUM_PLATFORM_LINUX
-/// @brief Platform name string.
-#define SHUM_PLATFORM_STRING "LINUX"
+/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
+#define SHUM_HOST_PLATFORM SHUM_PLATFORM_LINUX
+/// @brief Name of the host platform.
+#define SHUM_HOST_PLATFORM_STRING "LINUX"
 
 #elif defined(__APPLE__) && defined(__MACH__)
-/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
-#define SHUM_PLATFORM SHUM_PLATFORM_MACOS
-/// @brief Platform name string.
-#define SHUM_PLATFORM_STRING "MACOS"
+/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
+#define SHUM_HOST_PLATFORM SHUM_PLATFORM_MACOS
+/// @brief Name of the host platform.
+#define SHUM_HOST_PLATFORM_STRING "MACOS"
 
 #else
-/// @brief Current platform specifier. Use it with SHUM_PLATFORM_<...> macros.
-#define SHUM_PLATFORM SHUM_PLATFORM_UNKNOWN
-/// @brief Platform name string.
-#define SHUM_PLATFORM_STRING "UNKNOWN"
+/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
+#define SHUM_HOST_PLATFORM SHUM_PLATFORM_UNKNOWN
+/// @brief Name of the host platform.
+#define SHUM_HOST_PLATFORM_STRING "UNKNOWN"
 #endif
-
-#if SHUM_PLATFORM == SHUM_PLATFORM_LINUX || SHUM_PLATFORM == SHUM_PLATFORM_MACOS
-/// @brief Current platform is Unix-like.
-#define SHUM_PLATFORM_UNIX 1
-
-#define SHUM_PATH_DELIMETER_CHAR '/'
-#define SHUM_PATH_DELIMETER_STR "/"
-#else
-/// @brief Current platform is not a Unix-like.
-#define SHUM_PLATFORM_UNIX 0
-
-#define SHUM_PATH_DELIMETER_CHAR '\\'
-#define SHUM_PATH_DELIMETER_STR "\\"
-#endif // Platform Detection
 
 #pragma endregion Platform Detection
 
@@ -73,52 +60,90 @@
 #define SHUM_COMPILER_CLANG 1
 #define SHUM_COMPILER_GCC 2
 #define SHUM_COMPILER_MSVC 3
-#define SHUM_COMPILER_CLANGCL 4
 
-#if defined(__clang__) && defined(_MSC_VER)
-/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_COMPILER SHUM_COMPILER_CLANGCL
-/// @brief Compiler version number.
-#define SHUM_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
-/// @brief Compiler name string.
-#define SHUM_COMPILER_STRING "CLANG-CL"
-
-#elif defined(__clang__)
-
-/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_COMPILER SHUM_COMPILER_CLANG
-/// @brief Compiler version number.
-#define SHUM_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
-/// @brief Compiler name string.
-#define SHUM_COMPILER_STRING "CLANG"
-
-#elif defined(_MSC_VER)
-
-/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_COMPILER SHUM_COMPILER_MSVC
-/// @brief Compiler version number.
-#define SHUM_COMPILER_VERSION _MSC_VER
-/// @brief Compiler name string.
-#define SHUM_COMPILER_STRING "MSVC"
+#if defined(__clang__)
+/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_HOST_COMPILER SHUM_COMPILER_CLANG
+/// @brief Version of the host compiler.
+#define SHUM_HOST_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+/// @brief Name of the host compiler.
+#define SHUM_HOST_COMPILER_STRING "CLANG"
+/// @brief Default command of the host compiler.
+#define SHUM_HOST_COMPILER_COMMAND "clang"
 
 #elif defined(__GNUC__)
-/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_COMPILER SHUM_COMPILER_GCC
-/// @brief Compiler version number.
-#define SHUM_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-/// @brief Compiler name string.
-#define SHUM_COMPILER_STRING "GCC"
+/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_HOST_COMPILER SHUM_COMPILER_GCC
+/// @brief Version of the host compiler.
+#define SHUM_HOST_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+/// @brief Name of the host compiler.
+#define SHUM_HOST_COMPILER_STRING "GCC"
+/// @brief Default command of the host compiler.
+#define SHUM_HOST_COMPILER_COMMAND "gcc"
+
+#elif defined(_MSC_VER)
+/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_HOST_COMPILER SHUM_COMPILER_MSVC
+/// @brief Version of the host compiler.
+#define SHUM_HOST_COMPILER_VERSION _MSC_VER
+/// @brief Name of the host compiler.
+#define SHUM_HOST_COMPILER_STRING "MSVC"
+/// @brief Default command of the host compiler.
+#define SHUM_HOST_COMPILER_COMMAND "cl"
 
 #else
-/// @brief Current compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_COMPILER SHUM_COMPILER_UNKNOWN
-/// @brief Compiler version number.
-#define SHUM_COMPILER_VERSION 0
-/// @brief Compiler name string.
-#define SHUM_COMPILER_STRING "UNKNOWN"
-#endif // Compiler Detection
+/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
+#define SHUM_HOST_COMPILER SHUM_COMPILER_UNKNOWN
+/// @brief Version of the host compiler.
+#define SHUM_HOST_COMPILER_VERSION 0
+/// @brief Name of the host compiler.
+#define SHUM_HOST_COMPILER_STRING "UNKNOWN"
+/// @brief Default command of the host compiler.
+#define SHUM_HOST_COMPILER_COMMAND "UNKNOWN"
+#endif
 
 #pragma endregion Compiler Detection
+
+#pragma region Architecture Detection
+
+#define SHUM_ARCHITECTURE_UNKNOWN 0
+#define SHUM_ARCHITECTURE_X64 1
+#define SHUM_ARCHITECTURE_X86 2
+#define SHUM_ARCHITECTURE_ARM64 3
+#define SHUM_ARCHITECTURE_ARM32 4
+
+#if defined(_M_X64) || defined(__x86_64__)
+/// @brief Current host architecture specifier. Use it with SHUM_ARCHITECTURE_<...> macros.
+#define SHUM_HOST_ARCHITECTURE SHUM_ARCHITECTURE_X64
+/// @brief Name of the host architecture.
+#define SHUM_HOST_ARCHITECTURE_STRING "X64"
+
+#elif defined(_M_IX86) || defined(__i386__)
+/// @brief Current host architecture specifier. Use it with SHUM_ARCHITECTURE_<...> macros.
+#define SHUM_HOST_ARCHITECTURE SHUM_ARCHITECTURE_X86
+/// @brief Name of the host architecture.
+#define SHUM_HOST_ARCHITECTURE_STRING "X86"
+
+#elif defined(_M_ARM64) || defined(__aarch64__)
+/// @brief Current host architecture specifier. Use it with SHUM_ARCHITECTURE_<...> macros.
+#define SHUM_HOST_ARCHITECTURE SHUM_ARCHITECTURE_ARM64
+/// @brief Name of the host architecture.
+#define SHUM_HOST_ARCHITECTURE_STRING "ARM64"
+
+#elif defined(_M_ARM) || defined(__arm__)
+/// @brief Current host architecture specifier. Use it with SHUM_ARCHITECTURE_<...> macros.
+#define SHUM_HOST_ARCHITECTURE SHUM_ARCHITECTURE_ARM32
+/// @brief Name of the host architecture.
+#define SHUM_HOST_ARCHITECTURE_STRING "ARM32"
+
+#else
+/// @brief Current host architecture specifier. Use it with SHUM_ARCHITECTURE_<...> macros.
+#define SHUM_HOST_ARCHITECTURE SHUM_ARCHITECTURE_UNKNOWN
+/// @brief Name of the host architecture.
+#define SHUM_HOST_ARCHITECTURE_STRING "UNKNOWN"
+#endif
+
+#pragma endregion Architecture Detection
 
 #pragma region Shuild Declarations
 
@@ -152,10 +177,10 @@
 #define SHUM_MODULE_LIBRARY_STATIC 1
 #define SHUM_MODULE_LIBRARY_DYNAMIC 2
 
-#define SHUM_MODULE_TO_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
-                                       : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
-                                       : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
-                                                                               : "Unknown")
+#define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
+                                        : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
+                                        : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
+                                                                                : "Unknown")
 
 #define SHUM_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
 #define SHUM_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
@@ -210,14 +235,19 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
 
 #pragma region Compiler
 
-/// @brief Configures the compiler to be used for compiling modules.
+/// @brief Configures the compiler to be used for compiling modules. Default is the host (compiler that shuild.c compiled) compiler.
 /// @param compiler Compiler specifier. Use with SHUM_COMPILER_<...> macros.
 /// @param compilerCommand Command to invoke the compiler. (eg. clang)
 void SHU_CompilerConfigure(char compiler, const char *compilerCommand);
 
-/// @brief Tries to configure the compiler by the command of it by checking regular commands.
+/// @brief Tries to configure the compiler by the command of it by checking regular commands. Default is the host (compiler that shuild.c compiled) compiler.
 /// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc)
 void SHU_CompilerTryConfigure(const char *compilerCommand);
+
+/// @brief Sets the target platform and architecture for the compiler. Default is the host platform and architecture.
+/// @param platform Target platform specifier. Use with SHUM_PLATFORM_<...> macros.
+/// @param architecture Target architecture specifier. Use with SHUM_ARCHITECTURE_<...> macros.
+void SHU_CompilerSetTarget(char platform, char architecture);
 
 /// @brief Adds flags to the compiler configuration.
 /// @param flags Flags to add. Can include multiple flags separated by spaces as you want. (eg. -DFOO=31)
@@ -275,11 +305,11 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <stdarg.h>
 #include <string.h>
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
 #include <windows.h>
-#elif SHUM_PLATFORM == SHUM_PLATFORM_LINUX
+#elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_LINUX
 #include <unistd.h>
-#elif SHUM_PLATFORM == SHUM_PLATFORM_MACOS
+#elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
 #include <mach-o/dyld.h>
 #endif
 
@@ -305,7 +335,10 @@ typedef struct SHUI_StringListBig
 
 static SHUI_String SHUI_CURRENT_EXECUTABLE_DIRECTORY = {0};
 
-static char SHUI_COMPILER = SHUM_COMPILER_UNKNOWN;
+static char SHUI_TARGET_ARCHITECTURE = SHUM_HOST_ARCHITECTURE;
+static char SHUI_TARGET_PLATFORM = SHUM_HOST_PLATFORM;
+
+static char SHUI_COMPILER = SHUM_HOST_COMPILER;
 static SHUI_String SHUI_COMPILER_COMMAND = {0};
 static SHUI_StringList SHUI_COMPILER_FLAGS = {0};
 
@@ -465,17 +498,17 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
     {
         char pathBuffer[SHUM_MAX_PATH_SIZE] = {0};
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
         GetModuleFileName(NULL, pathBuffer, sizeof(pathBuffer));
-#elif SHUM_PLATFORM == SHUM_PLATFORM_UNIX
+#else
         readlink("/proc/self/exe", pathBuffer, sizeof(pathBuffer));
 #endif
 
         size_t pathLength = strlen(pathBuffer);
 
-        while (pathBuffer[--pathLength] != SHUM_PATH_DELIMETER_CHAR)
+        while (pathBuffer[pathLength - 1] != (SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? '\\' : '/'))
         {
-            pathBuffer[pathLength] = '\0';
+            pathBuffer[--pathLength] = '\0';
         }
         pathLength++;
 
@@ -485,15 +518,19 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
     return SHUI_CURRENT_EXECUTABLE_DIRECTORY;
 }
 
+/// @brief Compile the current module as an executable.
+/// @param directory Full output directory of the executable file. (eg. C:/[...]/build/bin/)
 static void SHUI_CompileExecutable(SHUI_String directory)
 {
-    // todo cross compiler commands support
-
     char includeBuffer[SHUM_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t includeBufferIndex = 0;
     for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
     {
-        snprintf(includeBuffer + includeBufferIndex, sizeof(includeBuffer) - includeBufferIndex, "-I%s ", SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
+        snprintf(includeBuffer + includeBufferIndex,
+                 sizeof(includeBuffer) - includeBufferIndex,
+                 "%s%s ",
+                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                 SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
         includeBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
     }
 
@@ -501,7 +538,10 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     size_t sourceBufferIndex = 0;
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        snprintf(sourceBuffer + sourceBufferIndex, sizeof(sourceBuffer) - sourceBufferIndex, "%s ", SHUI_MODULE_SOURCE_FILES.data[i].data);
+        snprintf(sourceBuffer + sourceBufferIndex,
+                 sizeof(sourceBuffer) - sourceBufferIndex,
+                 "%s ",
+                 SHUI_MODULE_SOURCE_FILES.data[i].data);
         sourceBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
     }
 
@@ -509,7 +549,11 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     size_t linkDirectoryBufferIndex = 0;
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINK_DIRECTORIES.count; i++)
     {
-        snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex, sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex, "-L%s ", SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
+        snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
+                 sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
+                 "%s%s ",
+                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
+                 SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
         linkDirectoryBufferIndex += SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].length + 3;
     }
 
@@ -517,7 +561,11 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     size_t linkBufferIndex = 0;
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
     {
-        snprintf(linkBuffer + linkBufferIndex, sizeof(linkBuffer) - linkBufferIndex, "-l%s ", SHUI_EXECUTABLE_LINKS.data[i].data);
+        snprintf(linkBuffer + linkBufferIndex,
+                 sizeof(linkBuffer) - linkBufferIndex,
+                 "%s%s ",
+                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
+                 SHUI_EXECUTABLE_LINKS.data[i].data);
         linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
     }
 
@@ -525,21 +573,28 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     size_t flagBufferIndex = 0;
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(flagBuffer + flagBufferIndex, sizeof(flagBuffer) - flagBufferIndex, "%s ", SHUI_COMPILER_FLAGS.data[i].data);
+        snprintf(flagBuffer + flagBufferIndex,
+                 sizeof(flagBuffer) - flagBufferIndex,
+                 "%s ",
+                 SHUI_COMPILER_FLAGS.data[i].data);
         flagBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
     }
 
-    SHU_Run("%s %s %s %s %s %s -o%s%s%s",
+    SHU_Run("%s %s %s %s %s %s %s%s%s%s",
             SHUI_COMPILER_COMMAND.data,
             includeBuffer,
             sourceBuffer,
             linkDirectoryBuffer,
             linkBuffer,
             flagBuffer,
+            SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             directory.data,
             SHUI_MODULE_NAME.data,
-            SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+            SHUI_TARGET_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
 }
+
+/// @brief Compile the current module as a static library.
+/// @param directory Full output directory of the executable file. (eg. C:/[...]/build/bin/)
 static void SHUI_CompileLibraryStatic(SHUI_String directory)
 {
     // commands for flags
@@ -580,15 +635,17 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
         commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
     }
 
-    SHU_Run("llvm-ar rcs %s%s%s %s", directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a", commandBuffer);
+    SHU_Run("llvm-ar rcs %s%s%s %s", directory.data, SHUI_MODULE_NAME.data, SHUI_TARGET_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a", commandBuffer);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("del /F /Q %s", commandBuffer);
-#elif SHUM_PLATFORM_UNIX
+#else
     SHU_Run("rm -rf %s", commandBuffer);
 #endif
 }
 
+/// @brief Compile the current module as a dynamic library.
+/// @param directory Full output directory of the executable file. (eg. C:/[...]/build/bin/)
 static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 {
     // commands for flags
@@ -626,11 +683,11 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
         commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
     }
 
-    SHU_Run("%s -shared -o %s%s%s %s", SHUI_COMPILER_COMMAND.data, directory.data, SHUI_MODULE_NAME.data, SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so", commandBuffer);
+    SHU_Run("%s -shared -o %s%s%s %s", SHUI_COMPILER_COMMAND.data, directory.data, SHUI_MODULE_NAME.data, SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so", commandBuffer);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("del /F /Q %s", commandBuffer);
-#elif SHUM_PLATFORM_UNIX
+#else
     SHU_Run("rm -rf %s", commandBuffer);
 #endif
 }
@@ -661,7 +718,13 @@ void SHU_Run(const char *commandFormat, ...)
 
     if (result != 0)
     {
-        SHU_LogError(result, "Last executed command failed with exit code %d.", result);
+        SHU_LogError(
+#ifdef SHUM_NO_RUN_ERROR
+            0,
+#else
+            result,
+#endif
+            "Last executed command failed with exit code %d.", result);
     }
 }
 
@@ -681,10 +744,10 @@ void SHU_CreateRelativeDirectory(const char *directory)
 
     SHUI_SAppend(&directoryStr, directory);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&directoryStr, '/', '\\');
     SHU_Run("if not exist %s mkdir %s", directoryStr.data, directoryStr.data);
-#elif SHUM_PLATFORM_UNIX
+#else
     SHU_Run("mkdir -p %s" directoryStr.data);
 #endif
 
@@ -707,9 +770,9 @@ void SHU_DeleteFile(const char *file)
 
     SHUI_SAppend(&fileStr, file);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("del /F /Q %s", fileStr.data);
-#elif SHUM_PLATFORM_UNIX
+#else
     SHU_Run("rm -rf %s", fileStr.data);
 #endif
 
@@ -736,11 +799,11 @@ void SHU_CopyFile(const char *file, const char *directory)
     SHUI_SAppend(&directoryStr, directory);
     SHUI_SAppend(&fileStr, file);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&directoryStr, '/', '\\');
     SHUI_SReplace(&fileStr, '/', '\\');
     SHU_Run("xcopy /E /I /Y %s %s", fileStr.data, directoryStr.data);
-#elif SHUM_PLATFORM_UNIX
+#else
     SHU_Run("cp -r %s %s", fileStr.data, directoryStr.data);
 #endif
 
@@ -797,7 +860,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler try configure.");
     }
 
-    if (strcmp(compilerCommand, "clang") == 0)
+    if (strcmp(compilerCommand, "clang") == 0 || strcmp(compilerCommand, "clang-cl") == 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_CLANG, compilerCommand);
     }
@@ -805,18 +868,20 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_GCC, compilerCommand);
     }
-    else if (strcmp(compilerCommand, "cl") == 0)
+    else if (strcmp(compilerCommand, "cl") == 0 || strcmp(compilerCommand, "msvc") == 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_MSVC, compilerCommand);
-    }
-    else if (strcmp(compilerCommand, "clang-cl") == 0)
-    {
-        SHU_CompilerConfigure(SHUM_COMPILER_CLANGCL, compilerCommand);
     }
     else
     {
         SHU_LogError(SHUM_ERROR_UNKNOWN, "Could not configure compiler with command '%s'. Try using standard commands or use the function" SHUM_COLOR_BLUE("SHU_CompilerConfigure") ".", compilerCommand);
     }
+}
+
+void SHU_CompilerSetTarget(char platform, char architecture)
+{
+    SHUI_TARGET_PLATFORM = platform;
+    SHUI_TARGET_ARCHITECTURE = architecture;
 }
 
 void SHU_CompilerAddFlags(const char *flags)
@@ -872,7 +937,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, directory);
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
     SHUI_SLAdd(&SHUI_MODULE_INCLUDE_DIRECTORIES, correctedDirectory, SHUM_MAX_STRING_ARRAY_COUNT);
@@ -887,7 +952,7 @@ void SHU_ModuleAddSourcefile(const char *file)
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, file);
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
     SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, correctedDirectory, SHUM_MAX_SOURCE_FILE_COUNT);
@@ -902,11 +967,11 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, directory);
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd = {0};
     char pattern[SHUM_MAX_PATH_SIZE] = {0};
 
@@ -987,8 +1052,13 @@ void SHU_ModuleCompile(const char *directory, char module)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module compile.");
     }
 
+    if (SHUI_COMPILER_COMMAND.data == NULL)
+    {
+        SHUI_COMPILER_COMMAND = SHUI_SCreate(SHUM_HOST_COMPILER_COMMAND);
+    }
+
 #ifndef SHUM_NO_MODULE_LOG
-    SHU_LogInfo("Starting to compile %s '%s'...", SHUM_MODULE_TO_STRING(module), SHUI_MODULE_NAME.data);
+    SHU_LogInfo("Starting to compile %s '%s'...", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
 #endif
 
     SHU_CreateRelativeDirectory(directory);
@@ -999,7 +1069,7 @@ void SHU_ModuleCompile(const char *directory, char module)
     {
         SHUI_SAppend(&directoryStr, directory);
 
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
         SHUI_SReplace(&directoryStr, '/', '\\');
 #endif
     }
@@ -1035,7 +1105,7 @@ void SHU_ModuleCompile(const char *directory, char module)
     SHUI_SLClear((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES);
 
 #ifndef SHUM_NO_MODULE_LOG
-    SHU_LogInfo("%s '%s' successfully compiled.", SHUM_MODULE_TO_STRING(module), SHUI_MODULE_NAME.data);
+    SHU_LogInfo("%s '%s' successfully compiled.", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
 #endif
 
     SHUI_SDestroy(&SHUI_MODULE_NAME);
@@ -1052,7 +1122,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_SAppend(&correctedDirectory, directory);
-#if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
     SHUI_SLAdd(&SHUI_EXECUTABLE_LINK_DIRECTORIES, correctedDirectory, SHUM_MAX_STRING_ARRAY_COUNT);
