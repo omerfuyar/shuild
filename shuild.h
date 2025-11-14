@@ -14,6 +14,7 @@
 // You can define various macros to configure Shuild before including this file.
 // define SHUILD_IMPLEMENTATION in one file to include the implementation.
 // define SHUM_NO_RUN_LOG to disable command run logs
+// define SHUM_NO_MODULE_LOG to disable module logs
 // define SHUM_MAX_<...> to customize various limits.
 
 #pragma once
@@ -150,6 +151,11 @@
 #define SHUM_MODULE_EXECUTABLE 0
 #define SHUM_MODULE_LIBRARY_STATIC 1
 #define SHUM_MODULE_LIBRARY_DYNAMIC 2
+
+#define SHUM_MODULE_TO_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
+                                       : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
+                                       : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
+                                                                               : "Unknown")
 
 #define SHUM_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
 #define SHUM_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
@@ -533,10 +539,7 @@ static void SHUI_CompileExecutable(SHUI_String directory)
             directory.data,
             SHUI_MODULE_NAME.data,
             SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
-
-    SHU_LogInfo("Executable '%s' successfully compiled.", SHUI_MODULE_NAME.data);
 }
-
 static void SHUI_CompileLibraryStatic(SHUI_String directory)
 {
     // commands for flags
@@ -584,8 +587,6 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
 #elif SHUM_PLATFORM_UNIX
     SHU_Run("rm -rf %s", commandBuffer);
 #endif
-
-    SHU_LogInfo("Static Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
 }
 
 static void SHUI_CompileLibraryDynamic(SHUI_String directory)
@@ -632,8 +633,6 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 #elif SHUM_PLATFORM_UNIX
     SHU_Run("rm -rf %s", commandBuffer);
 #endif
-
-    SHU_LogInfo("Dynamic Library '%s' successfully compiled.", SHUI_MODULE_NAME.data);
 }
 
 #pragma endregion Internals
@@ -729,6 +728,8 @@ void SHU_CopyFile(const char *file, const char *directory)
         SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to copy file.");
     }
 
+    SHU_CreateRelativeDirectory(directory);
+
     SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
     SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
 
@@ -738,7 +739,7 @@ void SHU_CopyFile(const char *file, const char *directory)
 #if SHUM_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&directoryStr, '/', '\\');
     SHUI_SReplace(&fileStr, '/', '\\');
-    SHU_Run("copy /Y %s %s", fileStr.data, directoryStr.data);
+    SHU_Run("xcopy /E /I /Y %s %s", fileStr.data, directoryStr.data);
 #elif SHUM_PLATFORM_UNIX
     SHU_Run("cp -r %s %s", fileStr.data, directoryStr.data);
 #endif
@@ -986,6 +987,10 @@ void SHU_ModuleCompile(const char *directory, char module)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module compile.");
     }
 
+#ifndef SHUM_NO_MODULE_LOG
+    SHU_LogInfo("Starting to compile %s '%s'...", SHUM_MODULE_TO_STRING(module), SHUI_MODULE_NAME.data);
+#endif
+
     SHU_CreateRelativeDirectory(directory);
 
     SHUI_String directoryStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1028,6 +1033,10 @@ void SHU_ModuleCompile(const char *directory, char module)
 
     SHUI_SLClear(&SHUI_MODULE_INCLUDE_DIRECTORIES);
     SHUI_SLClear((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES);
+
+#ifndef SHUM_NO_MODULE_LOG
+    SHU_LogInfo("%s '%s' successfully compiled.", SHUM_MODULE_TO_STRING(module), SHUI_MODULE_NAME.data);
+#endif
 
     SHUI_SDestroy(&SHUI_MODULE_NAME);
 }
