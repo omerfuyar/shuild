@@ -69,21 +69,12 @@ int main(void)
 #endif
 
     SHU_ModuleBegin("shuild");
-    SHU_ModuleAddSourcefile("8_target_configuration/shuild.c");
-    SHU_ModuleCompile("8_target_configuration/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleAddSourcefile("8_header_configuration/shuild.c");
+    SHU_ModuleCompile("8_header_configuration/", SHUM_MODULE_EXECUTABLE);
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHU_Run("8_target_configuration\\shuild.exe clang");
+    SHU_Run("8_header_configuration\\shuild.exe clang");
 #else
-    SHU_Run("./8_target_configuration/shuild");
-#endif
-
-    SHU_ModuleBegin("shuild");
-    SHU_ModuleAddSourcefile("9_header_configuration/shuild.c");
-    SHU_ModuleCompile("9_header_configuration/", SHUM_MODULE_EXECUTABLE);
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHU_Run("9_header_configuration\\shuild.exe clang");
-#else
-    SHU_Run("./9_header_configuration/shuild");
+    SHU_Run("./8_header_configuration/shuild");
 #endif
 
     return 0;
