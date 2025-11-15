@@ -156,11 +156,11 @@ void SHU_Run(const char *commandFormat, ...);
 /// @param directory Directory to create (eg. resources/)
 void SHU_CreateRelativeDirectory(const char *directory);
 
-/// @brief Deletes a file.
+/// @brief Deletes a file. Works recursively.
 /// @param file File to delete. Relative to current executable.
 void SHU_DeleteFile(const char *file);
 
-/// @brief Copies a file.
+/// @brief Copies a file. Works recursively.
 /// @param file File to copy, relative to current executable.
 /// @param directory Directory to copy file, relative to current executable.
 void SHU_CopyFile(const char *file, const char *directory);

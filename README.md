@@ -22,9 +22,11 @@ Most of the functions are logically similar to other build systems. You can spec
 
 User should not use any `SHUI_` prefixed elements of the library. These are internal elements and not meant for public use.
 
-User can define the specified macros in the header to change limits of the library.
+User can define several configurations using macros before including the header.
 
-Currently there is only support for `clang`, `gcc` and `msvc`/`clang-cl` compilers. User can use other compilers but in this case compiler commands should be entered manually using compiler flags.
+Currently there is only support for `clang`, `gcc` and `msvc` compilers. User can use other compilers but in this case compiler commands should be entered manually using compiler flags.
+
+Using `-O3` for `clang` and `gcc` or `/O2` optimization for `msvc` to compile the build script is recommended for better performance.
 
 ## Example
 
@@ -40,7 +42,7 @@ int main() {
 
     //... Specify include directories, source directories, targets, links etc.
 
-    SHU_ExecutableCompile("build/bin");
+    SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
 
     return 0;
 }
@@ -48,3 +50,5 @@ int main() {
 ```
 
 You can see more complete examples in the `example` folder.
+
+I also have a [Game Framework](https://github.com/omerfuyar/Code-Romeo) and [Example Game](https://github.com/omerfuyar/Code-Juliett) projects that supports/uses this build system.
