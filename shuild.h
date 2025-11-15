@@ -156,11 +156,11 @@ void SHU_Run(const char *commandFormat, ...);
 /// @param directory Directory to create (eg. resources/)
 void SHU_CreateRelativeDirectory(const char *directory);
 
-/// @brief Deletes a file. Works recursively.
+/// @brief Deletes a file.
 /// @param file File to delete. Relative to current executable.
 void SHU_DeleteFile(const char *file);
 
-/// @brief Copies a file. Works recursively.
+/// @brief Copies a file.
 /// @param file File to copy, relative to current executable.
 /// @param directory Directory to copy file, relative to current executable.
 void SHU_CopyFile(const char *file, const char *directory);
@@ -1012,6 +1012,10 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
     struct dirent *entry;
     while ((entry = readdir(searchDirectory)) != NULL)
     {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
         if (strstr(entry->d_name, ".c") != NULL)
         {
             SHUI_String newFile = SHUI_SCreate(correctedDirectory.data);

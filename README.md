@@ -22,7 +22,7 @@ Most of the functions are logically similar to other build systems. You can spec
 
 User should not use any `SHUI_` prefixed elements of the library. These are internal elements and not meant for public use.
 
-User can define several configurations using macros before including the header.
+User can define several configurations using macros before including the header. These configurations can be found on top of the `shuild.h`.
 
 Currently there is only support for `clang`, `gcc` and `msvc` compilers. User can use other compilers but in this case compiler commands should be entered manually using compiler flags.
 
