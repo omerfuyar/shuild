@@ -676,7 +676,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("del /F /Q %s", commandBuffer);
 #else
-    SHU_Run("rm -rf %s", commandBuffer);
+    SHU_Run("rm -rf %s 2>/dev/null", commandBuffer);
 #endif
 }
 
@@ -759,7 +759,7 @@ void SHU_DeleteFile(const char *file)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("del /F /Q %s", fileStr.data);
 #else
-    SHU_Run("rm -rf %s", fileStr.data);
+    SHU_Run("rm -r %s", fileStr.data);
 #endif
 
     SHUI_SDestroy(&fileStr);
@@ -788,9 +788,9 @@ void SHU_CopyFile(const char *file, const char *directory)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplace(&directoryStr, '/', '\\');
     SHUI_SReplace(&fileStr, '/', '\\');
-    SHU_Run("xcopy /E /I /Y %s %s", fileStr.data, directoryStr.data);
+    SHU_Run("xcopy /Q /E /I /Y %s %s", fileStr.data, directoryStr.data);
 #else
-    SHU_Run("cp -r %s %s", fileStr.data, directoryStr.data);
+    SHU_Run("cp -r %s %s 2>/dev/null", fileStr.data, directoryStr.data);
 #endif
 
     SHUI_SDestroy(&directoryStr);
