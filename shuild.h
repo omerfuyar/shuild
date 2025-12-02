@@ -16,6 +16,7 @@
 // define SHUC_NO_RUN_LOG to disable command run logs.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
 // define SHUC_NO_MODULE_LOG to disable module logs.
+// define SHUC_NO_EXE_OLD to disable renaming the old executable using Automate.
 // define SHUC_MAX_<...> to customize various limits.
 
 #pragma once
@@ -732,10 +733,11 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
 
     SHU_LogInfo("Build source has changed, rebuilding...");
 
+#ifndef SHUC_NO_EXE_OLD
     char oldExeName[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(oldExeName, sizeof(oldExeName), "%s.old", exeName);
-
     SHU_RenameFile(exeName, oldExeName);
+#endif
 
     SHU_Run("%s %s %s %s%s",
             SHUI_COMPILER_COMMAND.data,
