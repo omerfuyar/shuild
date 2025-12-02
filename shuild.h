@@ -148,6 +148,12 @@
 
 #pragma region General
 
+/// @brief Enables autonomously rebuilding the build script when edited. I think it works only if the build system is one script. Run after configuring the compiler.
+/// @param argc Argument count from main function.
+/// @param argv Argument array from main function.
+#define SHU_Automate(argc, argv) SHU_AutomateI(argc, argv, __FILE__)
+void SHU_AutomateI(int argc, char **argv, const char *sourceName);
+
 /// @brief Internal command runner function.
 /// @param command Command to run with system. (eg. clang example.c -o example)
 void SHU_Run(const char *commandFormat, ...);
@@ -156,14 +162,19 @@ void SHU_Run(const char *commandFormat, ...);
 /// @param directory Directory to create (eg. resources/)
 void SHU_CreateRelativeDirectory(const char *directory);
 
-/// @brief Deletes a file.
+/// @brief Deletes a file or directory recursively.
 /// @param file File to delete. Relative to current executable.
 void SHU_DeleteFile(const char *file);
 
-/// @brief Copies a file.
+/// @brief Copies a file or directory recursively.
 /// @param file File to copy, relative to current executable.
 /// @param directory Directory to copy file, relative to current executable.
 void SHU_CopyFile(const char *file, const char *directory);
+
+/// @brief Renames a file.
+/// @param file File to rename.
+/// @param name New name of the file.
+void SHU_RenameFile(const char *file, const char *name);
 
 /// @brief Internal variadic logging function.
 /// @param terminate Exit code if not 0.
@@ -256,9 +267,11 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
 #include <windows.h>
+#include <process.h>
 #elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_LINUX
 #include <unistd.h>
 #elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
@@ -453,7 +466,7 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
 
         size_t pathLength = strlen(pathBuffer);
 
-        while (pathBuffer[pathLength - 1] != (SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? '\\' : '/'))
+        while (pathLength > 0 && pathBuffer[pathLength - 1] != (SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? '\\' : '/'))
         {
             pathBuffer[--pathLength] = '\0';
         }
@@ -684,6 +697,68 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
 #pragma region General
 
+void SHU_AutomateI(int argc, char **argv, const char *sourceName)
+{
+    if (argc < 1 || argv == NULL || sourceName == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to automate.");
+    }
+
+    size_t exeNameIndex = strlen(argv[0]) - 1;
+
+    while (exeNameIndex > 0 && argv[0][exeNameIndex - 1] != (SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? '\\' : '/'))
+    {
+        exeNameIndex--;
+    }
+
+    size_t srcNameIndex = strlen(sourceName) - 1;
+
+    while (srcNameIndex > 0 && sourceName[srcNameIndex - 1] != (SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? '\\' : '/'))
+    {
+        srcNameIndex--;
+    }
+
+    const char *exeName = argv[0] + exeNameIndex;
+    const char *srcName = sourceName + srcNameIndex;
+
+    struct stat attr;
+    time_t exeTime = stat(exeName, &attr) == 0 ? attr.st_mtime : 0;
+    time_t srcTime = stat(srcName, &attr) == 0 ? attr.st_mtime : 0;
+
+    if (exeTime >= srcTime)
+    {
+        return;
+    }
+
+    SHU_LogInfo("Build source has changed, rebuilding...");
+
+    char oldExeName[SHUC_MAX_PATH_SIZE] = {0};
+    snprintf(oldExeName, sizeof(oldExeName), "%s.old", exeName);
+
+    SHU_RenameFile(exeName, oldExeName);
+
+    SHU_Run("%s %s %s %s%s",
+            SHUI_COMPILER_COMMAND.data,
+            srcName,
+            SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/O2" : "-O3",
+            SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
+            exeName);
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    intptr_t result = _spawnv(_P_WAIT, exeName, (const char *const *)argv);
+
+    if (result == -1)
+    {
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Failed to spawn new process.");
+    }
+
+    exit((int)result);
+#elif
+    execv(exeName, (const char *const *)argv);
+    SHU_LogError(SHUM_ERROR_INTERNAL, "Failed to restart process.");
+#endif
+}
+
 void SHU_Run(const char *commandFormat, ...)
 {
     if (commandFormat == NULL)
@@ -757,7 +832,7 @@ void SHU_DeleteFile(const char *file)
     SHUI_SAppend(&fileStr, file);
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHU_Run("del /F /Q %s", fileStr.data);
+    SHU_Run("if exist %s del /Q %s", fileStr.data, fileStr.data);
 #else
     SHU_Run("rm -r %s", fileStr.data);
 #endif
@@ -795,6 +870,35 @@ void SHU_CopyFile(const char *file, const char *directory)
 
     SHUI_SDestroy(&directoryStr);
     SHUI_SDestroy(&fileStr);
+}
+
+void SHU_RenameFile(const char *file, const char *name)
+{
+    if (file == NULL || name == NULL)
+    {
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to rename file.");
+    }
+
+    if (strlen(name) == 0 || strlen(file) == 0)
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to rename file.");
+    }
+
+    SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+    SHUI_String nameStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
+
+    SHUI_SAppend(&fileStr, file);
+    SHUI_SAppend(&nameStr, name);
+
+    SHU_DeleteFile(name);
+
+    if (rename(fileStr.data, nameStr.data) != 0)
+    {
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Error while renaming file '%s' to '%s'.", file, name);
+    }
+
+    SHUI_SDestroy(&fileStr);
+    SHUI_SDestroy(&nameStr);
 }
 
 void SHU_Log(int terminate, const char *header, const char *format, ...)
