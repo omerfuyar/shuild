@@ -10,7 +10,7 @@ Huge thanks to people who come up with the name of this project and encourage me
 
 ## Setup
 
-To use Shuild, simply download the `shuild.h` file and include it in your project. You don't even need to add to your include paths (you still can if you want), just place the header and your build source file (like `shuild.c`) in your project directory. Build folder will be created in the same directory as your build file.
+To use Shuild, simply download the `shuild.h` file and include it in your project. You don't even need to add to your include paths (you still can if you want), just place the header and your build source file (like `shuild.c`) in your project directory. 
 
 ## How to use
 
@@ -28,6 +28,8 @@ Currently there is only support for `clang`, `gcc` and `msvc` compilers. User ca
 
 Using `-O3` for `clang` and `gcc` or `/O2` optimization for `msvc` to compile the build script is recommended for better performance.
 
+Recently I added SHU_Automate which allows you to simply compile the build source file (`shuild.c`) once, and every time you run the executable it will check if the source file edited or not. It will automatically compile the source file again and run the new executable.
+
 ## Example
 
 A simple build source file example:
@@ -38,6 +40,8 @@ A simple build source file example:
 #include "shuild.h"
 
 int main() {
+    SHU_CompilerConfigure(...);
+    
     SHU_ModuleBegin("myApp");
 
     //... Specify include directories, source directories, targets, links etc.
