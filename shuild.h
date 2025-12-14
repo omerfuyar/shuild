@@ -102,6 +102,8 @@
 #define SHUM_HOST_COMPILER_COMMAND "UNKNOWN"
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #pragma endregion Compiler Detection
 
 #pragma region Shuild Declarations

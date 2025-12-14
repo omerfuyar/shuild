@@ -1,9 +1,10 @@
 #define SHUILD_IMPLEMENTATION
 #include "../shuild.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("clang");
+    SHU_Automate(argc, argv);
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourcefile("1_single_source/shuild.c");
@@ -75,6 +76,15 @@ int main(void)
     SHU_Run("8_header_configuration\\shuild.exe clang");
 #else
     SHU_Run("./8_header_configuration/shuild");
+#endif
+
+    SHU_ModuleBegin("shuild");
+    SHU_ModuleAddSourcefile("9_automate/shuild.c");
+    SHU_ModuleCompile("9_automate/", SHUM_MODULE_EXECUTABLE);
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHU_Run("9_automate\\shuild.exe clang");
+#else
+    SHU_Run("./9_automate/shuild");
 #endif
 
     return 0;
