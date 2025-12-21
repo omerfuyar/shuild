@@ -104,6 +104,13 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #pragma endregion Compiler Detection
 
 #pragma region Shuild Declarations
@@ -291,6 +298,7 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <dirent.h>
 #include <errno.h>
 #include <ftw.h>
+#include <sys/wait.h>
 #endif
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
