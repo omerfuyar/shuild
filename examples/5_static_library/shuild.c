@@ -15,7 +15,9 @@ int main(void)
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
     SHU_ModuleAddSourceDirectory("src/");
     SHU_ModuleAddLibraryDirectory("build/lib/");
+
     SHU_ModuleLinkLibrary("exampleLib");
+
     SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
 
     return 0;

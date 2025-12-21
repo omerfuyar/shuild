@@ -855,11 +855,10 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     {
         snprintf(linkBuffer + linkBufferIndex,
                  sizeof(linkBuffer) - linkBufferIndex,
-                 "%s%s%s ",
+                 "%s%s ",
                  SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
-                 SHUI_EXECUTABLE_LINKS.data[i].data,
-                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a");
-        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 6;
+                 SHUI_EXECUTABLE_LINKS.data[i].data);
+        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 1 + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 0 : 2);
     }
 
     char flagBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
