@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("7_different_compilers\\shuild.exe clang");
 #else
-    SHU_Run("./7_different_compilers/shuild");
+    SHU_Run("./7_different_compilers/shuild clang");
 #endif
 
     SHU_ModuleBegin("shuild");
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHU_Run("8_header_configuration\\shuild.exe clang");
 #else
-    SHU_Run("./8_header_configuration/shuild");
+    SHU_Run("./8_header_configuration/shuild clang");
 #endif
 
     SHU_ModuleBegin("shuild");

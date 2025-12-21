@@ -172,6 +172,12 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName);
 /// @param command Command to run with system. (eg. clang example.c -o example)
 void SHU_Run(const char *commandFormat, ...);
 
+/// @brief Spawns a new process and waits for completion.
+/// @param executable Path to executable.
+/// @param argv Arguments array (NULL terminated).
+/// @return Exit code of the process, or -1 on failure.
+void SHU_SpawnProcess(const char *executable, char *const *argv);
+
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
 /// @return SHUM_FILE_<...> macro accordingly.
@@ -711,32 +717,6 @@ static void SHUI_CopyRecursive(const char *src, const char *dst)
 #endif
 }
 
-/// @brief Spawns a new process and waits for completion.
-/// @param executable Path to executable.
-/// @param argv Arguments array (NULL terminated).
-/// @return Exit code of the process, or -1 on failure.
-static int SHUI_SpawnProcess(const char *executable, char *const *argv)
-{
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    intptr_t result = _spawnv(_P_WAIT, executable, (const char *const *)argv);
-    return (result == -1) ? -1 : (int)result;
-#else
-    pid_t pid = fork();
-    if (pid == 0)
-    {
-        execv(executable, argv);
-        _exit(127);
-    }
-    else if (pid > 0)
-    {
-        int status;
-        waitpid(pid, &status, 0);
-        return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    }
-    return -1;
-#endif
-}
-
 /// @brief Gets the current executable directory and sets it to SHUI_CURRENT_EXECUTABLE_DIRECTORY.
 /// @return Current executable directory string.
 static SHUI_String SHUI_GetCurrentExecutableDirectory()
@@ -758,6 +738,76 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
     }
 
     return SHUI_CURRENT_EXECUTABLE_DIRECTORY;
+}
+
+/// @brief Internal helper to traverse directory and add source files.
+/// @param basePath Base path for the directory.
+/// @param relativePath Relative path from base.
+static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *relativePath)
+{
+    char fullPath[SHUC_MAX_PATH_SIZE];
+    snprintf(fullPath, sizeof(fullPath), "%s%s", basePath, relativePath);
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    WIN32_FIND_DATAA ffd = {0};
+    char pattern[SHUC_MAX_PATH_SIZE];
+    snprintf(pattern, sizeof(pattern), "%s*", fullPath);
+
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    if (hFind == INVALID_HANDLE_VALUE)
+        return;
+
+    do
+    {
+        if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
+            continue;
+
+        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            char subDir[SHUC_MAX_PATH_SIZE];
+            snprintf(subDir, sizeof(subDir), "%s%s\\", relativePath, ffd.cFileName);
+            SHUI_AddSourceDirectoryRecursive(basePath, subDir);
+        }
+        else if (strstr(ffd.cFileName, ".c") != NULL)
+        {
+            SHUI_String newFile = SHUI_SCreate(fullPath);
+            SHUI_SAppend(&newFile, ffd.cFileName);
+            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile, SHUC_MAX_SOURCE_FILE_COUNT);
+        }
+    } while (FindNextFileA(hFind, &ffd));
+
+    FindClose(hFind);
+#else
+    DIR *dir = opendir(fullPath);
+    if (!dir)
+        return;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char entryPath[SHUC_MAX_PATH_SIZE];
+        snprintf(entryPath, sizeof(entryPath), "%s%s", fullPath, entry->d_name);
+
+        struct stat st;
+        if (stat(entryPath, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+            char subDir[SHUC_MAX_PATH_SIZE];
+            snprintf(subDir, sizeof(subDir), "%s%s/", relativePath, entry->d_name);
+            SHUI_AddSourceDirectoryRecursive(basePath, subDir);
+        }
+        else if (strstr(entry->d_name, ".c") != NULL)
+        {
+            SHUI_String newFile = SHUI_SCreate(fullPath);
+            SHUI_SAppend(&newFile, entry->d_name);
+            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile, SHUC_MAX_SOURCE_FILE_COUNT);
+        }
+    }
+
+    closedir(dir);
+#endif
 }
 
 /// @brief Compile the current module as an executable.
@@ -796,7 +846,7 @@ static void SHUI_CompileExecutable(SHUI_String directory)
                  "%s%s ",
                  SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
                  SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
-        linkDirectoryBufferIndex += SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].length + 3;
+        linkDirectoryBufferIndex += SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].length + 1 + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 9 : 2);
     }
 
     char linkBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -805,10 +855,11 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     {
         snprintf(linkBuffer + linkBufferIndex,
                  sizeof(linkBuffer) - linkBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
-                 SHUI_EXECUTABLE_LINKS.data[i].data);
-        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 3;
+                 "%s%s%s ",
+                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l:",
+                 SHUI_EXECUTABLE_LINKS.data[i].data,
+                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a");
+        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 6;
     }
 
     char flagBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -887,7 +938,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
                  (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
                  SHUI_MODULE_SOURCE_FILES.data[i].data,
                  SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
-        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 3 : 1);
     }
 
     SHU_Run("%s %s%s%s%s %s",
@@ -961,7 +1012,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
                  (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
                  SHUI_MODULE_SOURCE_FILES.data[i].data,
                  SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
-        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 3 : 1);
     }
 
     SHU_Run("%s %s %s %s%s%s %s",
@@ -1034,12 +1085,7 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             exeName);
 
-    int result = SHUI_SpawnProcess(exeName, argv);
-    if (result == -1)
-    {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Failed to spawn new process.");
-    }
-    exit(result);
+    SHU_SpawnProcess(exeName, argv);
 }
 
 void SHU_Run(const char *commandFormat, ...)
@@ -1069,6 +1115,42 @@ void SHU_Run(const char *commandFormat, ...)
 #else
         SHU_LogError(result, "Last executed command failed with exit code %d.", result);
 #endif
+    }
+}
+
+void SHU_SpawnProcess(const char *executable, char *const *argv)
+{
+    int result = 0;
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    result = (int)_spawnv(_P_WAIT, executable, (const char *const *)argv);
+#else
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        execv(executable, argv);
+        _exit(127);
+    }
+    else if (pid > 0)
+    {
+        int status;
+        waitpid(pid, &status, 0);
+        result = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    }
+#endif
+
+    if (result != 0)
+    {
+#ifdef SHUC_NO_RUN_ERROR
+        SHU_LogError(0, "Last spawned process failed with exit code %d.", result);
+#else
+        SHU_LogError(result, "Last spawned process failed with exit code %d.", result);
+#endif
+    }
+    else
+    {
+        SHU_LogInfo("Process '%s' executed successfully.", executable);
+        exit(0);
     }
 }
 
@@ -1353,76 +1435,6 @@ void SHU_ModuleAddSourcefile(const char *file)
     SHUI_SReplace(&correctedDirectory, '/', '\\');
 #endif
     SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, correctedDirectory, SHUC_MAX_SOURCE_FILE_COUNT);
-}
-
-/// @brief Internal helper to traverse directory and add source files.
-/// @param basePath Base path for the directory.
-/// @param relativePath Relative path from base.
-static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *relativePath)
-{
-    char fullPath[SHUC_MAX_PATH_SIZE];
-    snprintf(fullPath, sizeof(fullPath), "%s%s", basePath, relativePath);
-
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    WIN32_FIND_DATAA ffd = {0};
-    char pattern[SHUC_MAX_PATH_SIZE];
-    snprintf(pattern, sizeof(pattern), "%s*", fullPath);
-
-    HANDLE hFind = FindFirstFileA(pattern, &ffd);
-    if (hFind == INVALID_HANDLE_VALUE)
-        return;
-
-    do
-    {
-        if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
-            continue;
-
-        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        {
-            char subDir[SHUC_MAX_PATH_SIZE];
-            snprintf(subDir, sizeof(subDir), "%s%s\\", relativePath, ffd.cFileName);
-            SHUI_AddSourceDirectoryRecursive(basePath, subDir);
-        }
-        else if (strstr(ffd.cFileName, ".c") != NULL)
-        {
-            SHUI_String newFile = SHUI_SCreate(fullPath);
-            SHUI_SAppend(&newFile, ffd.cFileName);
-            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile, SHUC_MAX_SOURCE_FILE_COUNT);
-        }
-    } while (FindNextFileA(hFind, &ffd));
-
-    FindClose(hFind);
-#else
-    DIR *dir = opendir(fullPath);
-    if (!dir)
-        return;
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        char entryPath[SHUC_MAX_PATH_SIZE];
-        snprintf(entryPath, sizeof(entryPath), "%s%s", fullPath, entry->d_name);
-
-        struct stat st;
-        if (stat(entryPath, &st) == 0 && S_ISDIR(st.st_mode))
-        {
-            char subDir[SHUC_MAX_PATH_SIZE];
-            snprintf(subDir, sizeof(subDir), "%s%s/", relativePath, entry->d_name);
-            SHUI_AddSourceDirectoryRecursive(basePath, subDir);
-        }
-        else if (strstr(entry->d_name, ".c") != NULL)
-        {
-            SHUI_String newFile = SHUI_SCreate(fullPath);
-            SHUI_SAppend(&newFile, entry->d_name);
-            SHUI_SLAdd((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES, newFile, SHUC_MAX_SOURCE_FILE_COUNT);
-        }
-    }
-
-    closedir(dir);
-#endif
 }
 
 void SHU_ModuleAddSourceDirectory(const char *directory)

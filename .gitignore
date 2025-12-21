@@ -6,3 +6,11 @@
 build/
 *.o
 *.obj
+
+examples/buildAll
+examples/*/shuild
+examples/*/example
+examples/*/exampleDebug
+examples/*/exampleRelease
+examples/4_folder_structures/4_folder_structures
+examples/3_main_arguments/3_main_arguments
