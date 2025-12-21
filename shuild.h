@@ -856,7 +856,7 @@ static void SHUI_CompileExecutable(SHUI_String directory)
         snprintf(linkBuffer + linkBufferIndex,
                  sizeof(linkBuffer) - linkBufferIndex,
                  "%s%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l:",
+                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
                  SHUI_EXECUTABLE_LINKS.data[i].data,
                  SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a");
         linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 6;
@@ -941,11 +941,12 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
         commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 3 : 1);
     }
 
-    SHU_Run("%s %s%s%s%s %s",
+    SHU_Run("%s %s%s%s%s%s %s",
             SHUI_COMPILER == SHUM_COMPILER_CLANG ? "llvm-ar"
             : SHUI_COMPILER == SHUM_COMPILER_GCC ? "ar"
                                                  : "lib.exe",
             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/OUT:" : "rcs ", directory.data,
+            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
             SHUI_MODULE_NAME.data,
             SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a",
             commandBuffer);
@@ -1149,6 +1150,7 @@ void SHU_SpawnProcess(const char *executable, char *const *argv)
     }
     else
     {
+        SHU_LogInfo("Process '%s' executed successfully.", executable);
         exit(0);
     }
 }
