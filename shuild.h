@@ -1149,7 +1149,6 @@ void SHU_SpawnProcess(const char *executable, char *const *argv)
     }
     else
     {
-        SHU_LogInfo("Process '%s' executed successfully.", executable);
         exit(0);
     }
 }
