@@ -149,6 +149,15 @@
 #define SHUM_MODULE_LIBRARY_STATIC 1
 #define SHUM_MODULE_LIBRARY_DYNAMIC 2
 
+#define SHUM_COMPILER_OPTIMIZATION_SIZE 0
+#define SHUM_COMPILER_OPTIMIZATION_LOW 1
+#define SHUM_COMPILER_OPTIMIZATION_MID 2
+#define SHUM_COMPILER_OPTIMIZATION_HIGH 3
+
+#define SHUM_COMPILER_WARNING_LOW 0
+#define SHUM_COMPILER_WARNING_MID 1
+#define SHUM_COMPILER_WARNING_HIGH 2
+
 #define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
                                         : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
                                         : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
@@ -246,6 +255,18 @@ void SHU_CompilerAddFlags(const char *flags);
 /// @brief Clears and sets the compiler flags, replacing all existing ones.
 /// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
 void SHU_CompilerSetFlags(const char *flags);
+
+/// @brief Adds debug flags to the compiler configuration. Automatically selects flags for current compiler.
+void SHU_CompilerDebug();
+
+/// @brief Adds optimization flags to the compiler configuration. Automatically selects flags for current compiler.
+/// @param optimizationLevel Level of optimizations to add. use SHUM_COMPILER_OPTIMIZATION_<...> flags to configure.
+void SHU_CompilerOptimization(char optimizationLevel);
+
+/// @brief Adds warning flags to the compiler configuration. Automatically selects flags for current compiler.
+/// @param warningLevel Level of warnings to add. use SHUM_COMPILER_WARNING_<...> flags to configure.
+/// @param treatAsError If true, treats all warnings as errors.
+void SHU_CompilerWarning(char warningLevel, char treatAsError);
 
 #pragma endregion Compiler
 
@@ -532,24 +553,24 @@ static int SHUI_MakeDirectory(const char *path)
 /// @param path Full path to create.
 static void SHUI_MakeDirectoryRecursive(const char *path)
 {
-    char tmp[SHUC_MAX_PATH_SIZE];
+    char tempBuffer[SHUC_MAX_PATH_SIZE];
     size_t len = strlen(path);
-    if (len >= sizeof(tmp))
+    if (len >= sizeof(tempBuffer))
         return;
 
-    memcpy(tmp, path, len + 1);
+    memcpy(tempBuffer, path, len + 1);
 
     for (size_t i = 1; i < len; i++)
     {
-        if (tmp[i] == SHUI_PATH_SEPARATOR || tmp[i] == '/' || tmp[i] == '\\')
+        if (tempBuffer[i] == SHUI_PATH_SEPARATOR || tempBuffer[i] == '/' || tempBuffer[i] == '\\')
         {
-            char saved = tmp[i];
-            tmp[i] = '\0';
-            SHUI_MakeDirectory(tmp);
-            tmp[i] = saved;
+            char saved = tempBuffer[i];
+            tempBuffer[i] = '\0';
+            SHUI_MakeDirectory(tempBuffer);
+            tempBuffer[i] = saved;
         }
     }
-    SHUI_MakeDirectory(tmp);
+    SHUI_MakeDirectory(tempBuffer);
 }
 
 /// @brief Platform-specific helper to delete a single file.
@@ -1386,6 +1407,126 @@ void SHU_CompilerSetFlags(const char *flags)
     SHUI_SLClear(&SHUI_COMPILER_FLAGS);
 
     SHU_CompilerAddFlags(flags);
+}
+
+void SHU_CompilerDebug()
+{
+    if (SHUI_COMPILER == SHUM_COMPILER_MSVC)
+    {
+        SHU_CompilerAddFlags("/Zi /Od");
+    }
+    else if (SHUI_COMPILER == SHUM_COMPILER_GCC || SHUI_COMPILER == SHUM_COMPILER_CLANG)
+    {
+        SHU_CompilerAddFlags("-g -Og");
+    }
+    else
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug flags.");
+    }
+}
+
+void SHU_CompilerOptimization(char optimizationLevel)
+{
+    if (SHUI_COMPILER == SHUM_COMPILER_MSVC)
+    {
+        switch (optimizationLevel)
+        {
+        case SHUM_COMPILER_OPTIMIZATION_SIZE:
+            SHU_CompilerAddFlags("/O1");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_LOW:
+            SHU_CompilerAddFlags("/O2");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_MID:
+            SHU_CompilerAddFlags("/Ox");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_HIGH:
+            SHU_CompilerAddFlags("/Oxiy");
+            break;
+        default:
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed as parameter to compiler optimization.");
+            break;
+        }
+    }
+    else if (SHUI_COMPILER == SHUM_COMPILER_GCC || SHUI_COMPILER == SHUM_COMPILER_CLANG)
+    {
+        switch (optimizationLevel)
+        {
+        case SHUM_COMPILER_OPTIMIZATION_SIZE:
+            SHU_CompilerAddFlags("-Os");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_LOW:
+            SHU_CompilerAddFlags("-O1");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_MID:
+            SHU_CompilerAddFlags("-O2");
+            break;
+        case SHUM_COMPILER_OPTIMIZATION_HIGH:
+            SHU_CompilerAddFlags("-O3");
+            break;
+        default:
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed as parameter to compiler optimization.");
+            break;
+        }
+    }
+    else
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug optimization.");
+    }
+}
+
+void SHU_CompilerWarning(char warningLevel, char treatAsError)
+{
+    if (SHUI_COMPILER == SHUM_COMPILER_MSVC)
+    {
+        switch (warningLevel)
+        {
+        case SHUM_COMPILER_WARNING_LOW:
+            SHU_CompilerAddFlags("/W1");
+            break;
+        case SHUM_COMPILER_WARNING_MID:
+            SHU_CompilerAddFlags("/W3");
+            break;
+        case SHUM_COMPILER_WARNING_HIGH:
+            SHU_CompilerAddFlags("/Wall /GS");
+            break;
+        default:
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed as parameter to compiler optimization.");
+            break;
+        }
+
+        if (treatAsError)
+        {
+            SHU_CompilerAddFlags("/WX");
+        }
+    }
+    else if (SHUI_COMPILER == SHUM_COMPILER_GCC || SHUI_COMPILER == SHUM_COMPILER_CLANG)
+    {
+        switch (warningLevel)
+        {
+        case SHUM_COMPILER_WARNING_LOW:
+            SHU_CompilerAddFlags("-Wall");
+            break;
+        case SHUM_COMPILER_WARNING_MID:
+            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic");
+            break;
+        case SHUM_COMPILER_WARNING_HIGH:
+            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wsign-conversion -Wsign-promo -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wpointer-to-int-cast -Wint-to-pointer-cast");
+            break;
+        default:
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed as parameter to compiler optimization.");
+            break;
+        }
+
+        if (treatAsError)
+        {
+            SHU_CompilerAddFlags("-Werror");
+        }
+    }
+    else
+    {
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug optimization.");
+    }
 }
 
 #pragma endregion Compiler
