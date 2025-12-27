@@ -179,7 +179,8 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName);
 
 /// @brief Internal command runner function.
 /// @param command Command to run with system. (eg. clang example.c -o example)
-void SHU_Run(const char *commandFormat, ...);
+/// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
+int SHU_Run(const char *commandFormat, ...);
 
 /// @brief Spawns a new process and waits for completion.
 /// @param executable Path to executable.
@@ -1094,7 +1095,7 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
     SHU_SpawnProcess(exeName, argv);
 }
 
-void SHU_Run(const char *commandFormat, ...)
+int SHU_Run(const char *commandFormat, ...)
 {
     if (commandFormat == NULL)
     {
@@ -1122,6 +1123,8 @@ void SHU_Run(const char *commandFormat, ...)
         SHU_LogError(result, "Last executed command failed with exit code %d.", result);
 #endif
     }
+
+    return result;
 }
 
 void SHU_SpawnProcess(const char *executable, char *const *argv)
