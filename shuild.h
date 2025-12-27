@@ -187,6 +187,12 @@ void SHU_Run(const char *commandFormat, ...);
 /// @return Exit code of the process, or -1 on failure.
 void SHU_SpawnProcess(const char *executable, char *const *argv);
 
+/// @brief Platform-specific helper to get executable path.
+/// @param buffer Buffer to write path into.
+/// @param bufferSize Size of the buffer.
+/// @return Length of the path or 0 on failure.
+unsigned long SHU_GetExecutablePath(char *buffer, unsigned long bufferSize);
+
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
 /// @return SHUM_FILE_<...> macro accordingly.
@@ -274,7 +280,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError);
 /// @brief Gets the current configured compiler flags.
 /// @param buffer Buffer to write flags.
 /// @param bufferSize Size of the buffer.
-/// @return Characters written to the buffer.
+/// @return Length of the flags string.
 unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
 
 #pragma endregion Compiler
@@ -295,7 +301,7 @@ void SHU_ModuleAddSourceDirectory(const char *directory);
 
 /// @brief Adds source files to the module. Max count is defined as `SHUC_MAX_STRING_ARRAY_COUNT`.
 /// @param file Single file to add to the current module. (eg. source.c)
-void SHU_ModuleAddSourcefile(const char *file);
+void SHU_ModuleAddSourceFile(const char *file);
 
 /// @brief Internal generic module compile function for both libraries and executables.
 /// @param directory Output directory of the library file without the name (eg. build/)
@@ -522,30 +528,6 @@ static void SHUI_SLClear(SHUI_StringList *list)
     list->count = 0;
 }
 
-/// @brief Platform-specific helper to get executable path.
-/// @param buffer Buffer to write path into.
-/// @param bufferSize Size of the buffer.
-/// @return Length of the path or 0 on failure.
-static size_t SHUI_GetExecutablePath(char *buffer, size_t bufferSize)
-{
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    return (size_t)GetModuleFileNameA(NULL, buffer, (DWORD)bufferSize);
-#elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
-    uint32_t size = (uint32_t)bufferSize;
-    if (_NSGetExecutablePath(buffer, &size) == 0)
-        return strlen(buffer);
-    return 0;
-#else
-    ssize_t len = readlink("/proc/self/exe", buffer, bufferSize - 1);
-    if (len > 0)
-    {
-        buffer[len] = '\0';
-        return (size_t)len;
-    }
-    return 0;
-#endif
-}
-
 /// @brief Platform-specific helper to create a directory.
 /// @param path Directory path to create.
 /// @return 0 on success, non-zero on failure.
@@ -754,7 +736,7 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
     if (SHUI_CURRENT_EXECUTABLE_DIRECTORY.data == NULL)
     {
         char pathBuffer[SHUC_MAX_PATH_SIZE] = {0};
-        SHUI_GetExecutablePath(pathBuffer, sizeof(pathBuffer));
+        SHU_GetExecutablePath(pathBuffer, sizeof(pathBuffer));
 
         size_t pathLength = strlen(pathBuffer);
 
@@ -871,8 +853,10 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     {
         linkDirectoryBufferIndex += snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
                                              sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
-                                             "%s%s ",
+                                             "%s%s %s%s ",
                                              SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
+                                             SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data,
+                                             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-Wl,-rpath,",
                                              SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
     }
 
@@ -1023,6 +1007,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     // commands for objects
     memset(commandBuffer, 0, sizeof(commandBuffer));
+    commandBufferIndex = 0;
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
@@ -1034,11 +1019,13 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
                                        SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
     }
 
-    SHU_Run("%s %s %s %s%s%s %s",
+    SHU_Run("%s %s %s %s%s%s%s %s",
             SHUI_COMPILER_COMMAND.data,
             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LD" : "-shared",
             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
-            directory.data, SHUI_MODULE_NAME.data,
+            directory.data,
+            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
+            SHUI_MODULE_NAME.data,
             SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so",
             commandBuffer);
 
@@ -1171,6 +1158,26 @@ void SHU_SpawnProcess(const char *executable, char *const *argv)
         SHU_LogInfo("Process '%s' executed successfully.", executable);
         exit(0);
     }
+}
+
+unsigned long SHU_GetExecutablePath(char *buffer, unsigned long bufferSize)
+{
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    return (size_t)GetModuleFileNameA(NULL, buffer, (DWORD)bufferSize);
+#elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
+    uint32_t size = (uint32_t)bufferSize;
+    if (_NSGetExecutablePath(buffer, &size) == 0)
+        return strlen(buffer);
+    return 0;
+#else
+    ssize_t len = readlink("/proc/self/exe", buffer, bufferSize - 1);
+    if (len > 0)
+    {
+        buffer[len] = '\0';
+        return (size_t)len;
+    }
+    return 0;
+#endif
 }
 
 char SHU_FileExists(const char *file)
@@ -1514,7 +1521,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
             SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic");
             break;
         case SHUM_COMPILER_WARNING_HIGH:
-            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wsign-conversion -Wsign-promo -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wpointer-to-int-cast -Wint-to-pointer-cast");
+            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wpointer-to-int-cast -Wint-to-pointer-cast");
             break;
         default:
             SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed as parameter to compiler optimization.");
@@ -1552,7 +1559,7 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
 
     buffer[bufferIndex] = '\0';
 
-    return bufferIndex + 1;
+    return bufferIndex;
 }
 
 #pragma endregion Compiler
@@ -1589,7 +1596,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     SHUI_SLAdd(&SHUI_MODULE_INCLUDE_DIRECTORIES, correctedDirectory, SHUC_MAX_STRING_ARRAY_COUNT);
 }
 
-void SHU_ModuleAddSourcefile(const char *file)
+void SHU_ModuleAddSourceFile(const char *file)
 {
     if (file == NULL)
     {

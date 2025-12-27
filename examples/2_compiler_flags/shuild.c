@@ -8,7 +8,7 @@ int main(void)
     SHU_CompilerAddFlags("-O0");
     SHU_CompilerAddFlags("-g -Wall");
     SHU_ModuleBegin("exampleDebug");
-    SHU_ModuleAddSourcefile("example.c");
+    SHU_ModuleAddSourceFile("example.c");
 
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
@@ -16,7 +16,7 @@ int main(void)
 
     SHU_CompilerSetFlags("-O3 -DNDEBUG");
     SHU_ModuleBegin("exampleRelease");
-    SHU_ModuleAddSourcefile("example.c");
+    SHU_ModuleAddSourceFile("example.c");
 
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 

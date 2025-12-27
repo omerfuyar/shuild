@@ -4,7 +4,21 @@
 int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("clang");
-    SHU_Automate(argc, argv);
+
+    if (!strcmp("d", argv[1]))
+    {
+        SHU_CompilerDebug();
+        SHU_CompilerWarning(SHUM_COMPILER_WARNING_HIGH, 1);
+    }
+    else if (!strcmp("r", argv[1]))
+    {
+        SHU_CompilerOptimization(SHUM_COMPILER_OPTIMIZATION_HIGH);
+    }
+    else
+    {
+        printf("Wrong usage : first argument must be d or r");
+        return 1;
+    }
 
     SHU_ModuleBegin("example");
     SHU_ModuleAddSourceFile("example.c");

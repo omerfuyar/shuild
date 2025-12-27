@@ -14,7 +14,7 @@ int main(int argc, char **argv)
     SHU_CompilerTryConfigure(argv[1]);
 
     SHU_ModuleBegin("example");
-    SHU_ModuleAddSourcefile("example.c");
+    SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
     return 0;

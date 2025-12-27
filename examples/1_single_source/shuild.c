@@ -7,7 +7,7 @@ int main(void)
     SHU_CompilerAddFlags("-DFOO=13");
 
     SHU_ModuleBegin("1_single_source");
-    SHU_ModuleAddSourcefile("example.c");
+    SHU_ModuleAddSourceFile("example.c");
 
     SHU_ModuleCompile("build/", SHUM_MODULE_EXECUTABLE);
 
