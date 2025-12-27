@@ -256,6 +256,9 @@ void SHU_CompilerAddFlags(const char *flags);
 /// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
 void SHU_CompilerSetFlags(const char *flags);
 
+/// @brief Clears the current compiler flags.
+void SHU_CompilerClearFlags();
+
 /// @brief Adds debug flags to the compiler configuration. Automatically selects flags for current compiler.
 void SHU_CompilerDebug();
 
@@ -1404,9 +1407,14 @@ void SHU_CompilerSetFlags(const char *flags)
         SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler set flags.");
     }
 
-    SHUI_SLClear(&SHUI_COMPILER_FLAGS);
+    SHU_CompilerClearFlags();
 
     SHU_CompilerAddFlags(flags);
+}
+
+void SHU_CompilerClearFlags()
+{
+    SHUI_SLClear(&SHUI_COMPILER_FLAGS);
 }
 
 void SHU_CompilerDebug()
