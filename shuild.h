@@ -1538,11 +1538,19 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
 
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
+        if (bufferIndex > bufferSize - 2)
+        {
+            SHU_LogWarning("Buffer not big enough to store all flags. Returning the written buffer.");
+            break;
+        }
+
         bufferIndex += snprintf(buffer + bufferIndex,
                                 bufferSize - bufferIndex,
                                 "%s ",
                                 SHUI_COMPILER_FLAGS.data[i].data);
     }
+
+    buffer[bufferIndex] = '\0';
 
     return bufferIndex + 1;
 }
