@@ -271,6 +271,12 @@ void SHU_CompilerOptimization(char optimizationLevel);
 /// @param treatAsError If true, treats all warnings as errors.
 void SHU_CompilerWarning(char warningLevel, char treatAsError);
 
+/// @brief Gets the current configured compiler flags.
+/// @param buffer Buffer to write flags.
+/// @param bufferSize Size of the buffer.
+/// @return Characters written to the buffer.
+unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
+
 #pragma endregion Compiler
 
 #pragma region Module
@@ -842,58 +848,53 @@ static void SHUI_CompileExecutable(SHUI_String directory)
     size_t includeBufferIndex = 0;
     for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
     {
-        snprintf(includeBuffer + includeBufferIndex,
-                 sizeof(includeBuffer) - includeBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
-                 SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
-        includeBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+        includeBufferIndex += snprintf(includeBuffer + includeBufferIndex,
+                                       sizeof(includeBuffer) - includeBufferIndex,
+                                       "%s%s ",
+                                       SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                       SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
     }
 
     char sourceBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t sourceBufferIndex = 0;
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        snprintf(sourceBuffer + sourceBufferIndex,
-                 sizeof(sourceBuffer) - sourceBufferIndex,
-                 "%s ",
-                 SHUI_MODULE_SOURCE_FILES.data[i].data);
-        sourceBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + 1;
+        sourceBufferIndex += snprintf(sourceBuffer + sourceBufferIndex,
+                                      sizeof(sourceBuffer) - sourceBufferIndex,
+                                      "%s ",
+                                      SHUI_MODULE_SOURCE_FILES.data[i].data);
     }
 
     char linkDirectoryBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t linkDirectoryBufferIndex = 0;
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINK_DIRECTORIES.count; i++)
     {
-        snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
-                 sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
-                 SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
-        linkDirectoryBufferIndex += SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].length + 1 + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 9 : 2);
+        linkDirectoryBufferIndex += snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
+                                             sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
+                                             "%s%s ",
+                                             SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
+                                             SHUI_EXECUTABLE_LINK_DIRECTORIES.data[i].data);
     }
 
     char linkBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t linkBufferIndex = 0;
     for (size_t i = 0; i < SHUI_EXECUTABLE_LINKS.count; i++)
     {
-        snprintf(linkBuffer + linkBufferIndex,
-                 sizeof(linkBuffer) - linkBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
-                 SHUI_EXECUTABLE_LINKS.data[i].data);
-        linkBufferIndex += SHUI_EXECUTABLE_LINKS.data[i].length + 1 + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 0 : 2);
+        linkBufferIndex += snprintf(linkBuffer + linkBufferIndex,
+                                    sizeof(linkBuffer) - linkBufferIndex,
+                                    "%s%s ",
+                                    SHUI_COMPILER == SHUM_COMPILER_MSVC ? "" : "-l",
+                                    SHUI_EXECUTABLE_LINKS.data[i].data);
     }
 
     char flagBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     size_t flagBufferIndex = 0;
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(flagBuffer + flagBufferIndex,
-                 sizeof(flagBuffer) - flagBufferIndex,
-                 "%s ",
-                 SHUI_COMPILER_FLAGS.data[i].data);
-        flagBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+        flagBufferIndex += snprintf(flagBuffer + flagBufferIndex,
+                                    sizeof(flagBuffer) - flagBufferIndex,
+                                    "%s ",
+                                    SHUI_COMPILER_FLAGS.data[i].data);
     }
 
     SHU_Run("%s %s %s %s %s %s %s%s%s%s",
@@ -919,21 +920,19 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%s ",
-                 SHUI_COMPILER_FLAGS.data[i].data);
-        commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%s ",
+                                       SHUI_COMPILER_FLAGS.data[i].data);
     }
 
     for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
-                 SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
-        commandBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%s%s ",
+                                       SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                       SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
     }
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
@@ -955,13 +954,12 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%.*s%s ",
-                 (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
-                 SHUI_MODULE_SOURCE_FILES.data[i].data,
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
-        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 3 : 1);
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%.*s%s ",
+                                       (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
+                                       SHUI_MODULE_SOURCE_FILES.data[i].data,
+                                       SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
     }
 
     SHU_Run("%s %s%s%s%s%s %s",
@@ -995,21 +993,19 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%s ",
-                 SHUI_COMPILER_FLAGS.data[i].data);
-        commandBufferIndex += SHUI_COMPILER_FLAGS.data[i].length + 1;
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%s ",
+                                       SHUI_COMPILER_FLAGS.data[i].data);
     }
 
     for (size_t i = 0; i < SHUI_MODULE_INCLUDE_DIRECTORIES.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%s%s ",
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
-                 SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
-        commandBufferIndex += SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].length + 3;
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%s%s ",
+                                       SHUI_COMPILER == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                       SHUI_MODULE_INCLUDE_DIRECTORIES.data[i].data);
     }
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
@@ -1030,13 +1026,12 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        snprintf(commandBuffer + commandBufferIndex,
-                 sizeof(commandBuffer) - commandBufferIndex,
-                 "%.*s%s ",
-                 (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
-                 SHUI_MODULE_SOURCE_FILES.data[i].data,
-                 SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
-        commandBufferIndex += SHUI_MODULE_SOURCE_FILES.data[i].length + (SHUI_COMPILER == SHUM_COMPILER_MSVC ? 3 : 1);
+        commandBufferIndex += snprintf(commandBuffer + commandBufferIndex,
+                                       sizeof(commandBuffer) - commandBufferIndex,
+                                       "%.*s%s ",
+                                       (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
+                                       SHUI_MODULE_SOURCE_FILES.data[i].data,
+                                       SHUI_COMPILER == SHUM_COMPILER_MSVC ? "obj" : "o");
     }
 
     SHU_Run("%s %s %s %s%s%s %s",
@@ -1535,6 +1530,21 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
     {
         SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug optimization.");
     }
+}
+
+unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
+{
+    unsigned long bufferIndex = 0;
+
+    for (size_t i = 0; i < SHUI_COMPILER_FLAGS.count; i++)
+    {
+        bufferIndex += snprintf(buffer + bufferIndex,
+                                bufferSize - bufferIndex,
+                                "%s ",
+                                SHUI_COMPILER_FLAGS.data[i].data);
+    }
+
+    return bufferIndex + 1;
 }
 
 #pragma endregion Compiler
