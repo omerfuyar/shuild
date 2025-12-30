@@ -163,10 +163,15 @@
                                         : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
                                                                                 : "Unknown")
 
-#define SHUM_COLOR_RED(string) "\x1b[31m" string "\x1b[0m"
-#define SHUM_COLOR_GREEN(string) "\x1b[32m" string "\x1b[0m"
-#define SHUM_COLOR_YELLOW(string) "\x1b[33m" string "\x1b[0m"
-#define SHUM_COLOR_BLUE(string) "\x1b[34m" string "\x1b[0m"
+#define SHUM_COLOR_RESET "\x1b[0m"
+#define SHUM_COLOR_RED(string) "\x1b[31m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_GREEN(string) "\x1b[32m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_YELLOW(string) "\x1b[33m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_BLUE(string) "\x1b[34m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_MAGENTA(string) "\x1b[35m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_CYAN(string) "\x1b[36m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_WHITE(string) "\x1b[37m" string SHUM_COLOR_RESET
+#define SHUM_COLOR_BOLD(string) "\x1b[1m" string SHUM_COLOR_RESET
 
 #pragma region General
 
@@ -348,7 +353,6 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <mach-o/dyld.h>
 #endif
 
-// Platform-specific path separator
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
 #define SHUI_PATH_SEPARATOR '\\'
 #define SHUI_PATH_SEPARATOR_STR "\\"
@@ -395,18 +399,7 @@ static SHUI_StringList SHUI_EXECUTABLE_LINKS = {0};
 /// @return Created heap string.
 static SHUI_String SHUI_SCreate(const char *string)
 {
-    if (string == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string create.");
-    }
-
     const size_t stringLength = strlen(string);
-
-    if (stringLength == 0)
-    {
-        SHU_LogError(SHUM_ERROR_INDEX, "String length to create a heap copy can not be 0.");
-    }
-
     SHUI_String createdString = {0};
 
     createdString.length = stringLength;
@@ -414,7 +407,7 @@ static SHUI_String SHUI_SCreate(const char *string)
 
     if (createdString.data == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Malloc error while creating heap string.");
+        SHU_LogError(SHUM_ERROR_NULL, "Internal: Memory allocation failed in SHUI_SCreate.");
     }
 
     memcpy(createdString.data, string, createdString.length);
@@ -428,11 +421,6 @@ static SHUI_String SHUI_SCreate(const char *string)
 /// @param string String to destroy.
 static void SHUI_SDestroy(SHUI_String *string)
 {
-    if (string == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string destroy.");
-    }
-
     if (string->data != NULL)
     {
         free(string->data);
@@ -448,11 +436,6 @@ static void SHUI_SDestroy(SHUI_String *string)
 /// @param replace Character to replace with.
 static void SHUI_SReplace(SHUI_String *string, char find, char replace)
 {
-    if (string == NULL || string->data == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string replace.");
-    }
-
     for (size_t i = 0; i < string->length; i++)
     {
         if (string->data[i] == find)
@@ -468,18 +451,13 @@ static void SHUI_SReplace(SHUI_String *string, char find, char replace)
 /// @return Final string. Same with the string parameter by value.
 static SHUI_String SHUI_SAppend(SHUI_String *string, const char *appendString)
 {
-    if (string == NULL || string->data == NULL || appendString == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string append.");
-    }
-
     size_t appendLength = strlen(appendString);
 
     string->data = (char *)realloc(string->data, string->length + appendLength + 1);
 
     if (string->data == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Realloc error while appending to string.");
+        SHU_LogError(SHUM_ERROR_NULL, "Internal: Memory reallocation failed in SHUI_SAppend.");
     }
 
     memcpy(string->data + string->length, appendString, appendLength);
@@ -494,14 +472,9 @@ static SHUI_String SHUI_SAppend(SHUI_String *string, const char *appendString)
 /// @param data String to add.
 static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string, size_t capacity)
 {
-    if (list == NULL || string.data == NULL || string.data == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to string list add.");
-    }
-
     if (list->count >= capacity)
     {
-        SHU_LogError(SHUM_ERROR_INDEX, "String list is full. Try increasing the limit, batch inputs or use manual flags.");
+        SHU_LogError(SHUM_ERROR_INDEX, "String list capacity exceeded (%zu). Define SHUC_MAX_<...> to increase limits.", capacity);
     }
 
     list->data[list->count] = string;
@@ -513,11 +486,6 @@ static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string, size_t capacit
 /// @param list List to clear.
 static void SHUI_SLClear(SHUI_StringList *list)
 {
-    if (list == NULL)
-    {
-        SHU_LogError(SHUM_ERROR_NULL, "Null list pointer passed as parameter to string list clear.");
-    }
-
     for (size_t i = 0; i < list->count; i++)
     {
         if (list->data[i].data != NULL)
@@ -1050,7 +1018,7 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
 {
     if (argc < 1 || argv == NULL || sourceName == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to automate.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_Automate.");
     }
 
     size_t exeNameIndex = strlen(argv[0]) - 1;
@@ -1079,7 +1047,7 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
         return;
     }
 
-    SHU_LogInfo("Build source has changed, rebuilding...");
+    SHU_LogInfo(SHUM_COLOR_MAGENTA("Build source has changed, rebuilding..."));
 
     char oldExeName[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(oldExeName, sizeof(oldExeName), "%s.old", exeName);
@@ -1099,7 +1067,7 @@ int SHU_Run(const char *commandFormat, ...)
 {
     if (commandFormat == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to run.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_Run.");
     }
 
     char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -1110,7 +1078,7 @@ int SHU_Run(const char *commandFormat, ...)
     va_end(args);
 
 #ifndef SHUC_NO_RUN_LOG
-    SHU_LogInfo("Executing command : '%s'", commandBuffer);
+    SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), commandBuffer);
 #endif
 
     int result = system(commandBuffer);
@@ -1118,9 +1086,9 @@ int SHU_Run(const char *commandFormat, ...)
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
-        SHU_LogError(0, "Last executed command failed with exit code %d.", result);
+        SHU_LogError(0, "Command failed with exit code %d.", result);
 #else
-        SHU_LogError(result, "Last executed command failed with exit code %d.", result);
+        SHU_LogError(result, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
 #endif
     }
 
@@ -1151,14 +1119,16 @@ void SHU_SpawnProcess(const char *executable, char *const *argv)
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
-        SHU_LogError(0, "Last spawned process failed with exit code %d.", result);
+        SHU_LogError(0, "Process failed with exit code %d.", result);
 #else
-        SHU_LogError(result, "Last spawned process failed with exit code %d.", result);
+        SHU_LogError(result, "Process failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
 #endif
     }
     else
     {
-        SHU_LogInfo("Process '%s' executed successfully.", executable);
+#ifndef SHUC_NO_RUN_LOG
+        SHU_LogInfo("Process " SHUM_COLOR_CYAN("'%s'") " executed successfully.", executable);
+#endif
         exit(0);
     }
 }
@@ -1187,7 +1157,7 @@ char SHU_FileExists(const char *file)
 {
     if (file == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to file exists.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_FileExists.");
     }
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
@@ -1222,7 +1192,7 @@ void SHU_CreateRelativeDirectory(const char *directory)
 {
     if (directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to create directory.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CreateRelativeDirectory.");
     }
 
     if (strlen(directory) == 0)
@@ -1245,12 +1215,12 @@ void SHU_DeleteFile(const char *file)
 {
     if (file == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to delete file.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_DeleteFile.");
     }
 
     if (strlen(file) == 0)
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to delete file.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed to SHU_DeleteFile.");
     }
 
     SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1269,12 +1239,12 @@ void SHU_CopyFile(const char *file, const char *directory)
 {
     if (file == NULL || directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to copy file.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CopyFile.");
     }
 
     if (strlen(directory) == 0 || strlen(file) == 0)
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to copy file.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed to SHU_CopyFile.");
     }
 
     SHU_CreateRelativeDirectory(directory);
@@ -1300,12 +1270,12 @@ void SHU_RenameFile(const char *file, const char *name)
 {
     if (file == NULL || name == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to rename file.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_RenameFile.");
     }
 
     if (strlen(name) == 0 || strlen(file) == 0)
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed as parameter to rename file.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Empty string passed to SHU_RenameFile.");
     }
 
     SHUI_String fileStr = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1318,7 +1288,7 @@ void SHU_RenameFile(const char *file, const char *name)
 
     if (rename(fileStr.data, nameStr.data) != 0)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Error while renaming file '%s' to '%s'.", file, name);
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Failed to rename file '%s' to '%s'.", file, name);
     }
 
     SHUI_SDestroy(&fileStr);
@@ -1329,7 +1299,7 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
 {
     if (header == NULL || format == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to log.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_Log.");
     }
 
     char messageBuffer[SHUC_MAX_MESSAGE_BUFFER_SIZE] = {0};
@@ -1339,7 +1309,7 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
     vsnprintf(messageBuffer, sizeof(messageBuffer), format, args);
     va_end(args);
 
-    printf("[%s] : %s\n", header, messageBuffer);
+    printf(SHUM_COLOR_BOLD("[") "%s" SHUM_COLOR_BOLD("]") " : %s\n", header, messageBuffer);
 
     if (terminate != 0)
     {
@@ -1355,7 +1325,7 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
 {
     if (compilerCommand == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler configure.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CompilerConfigure.");
     }
 
     if (SHUI_COMPILER_COMMAND.data != NULL)
@@ -1371,7 +1341,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
 {
     if (compilerCommand == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler try configure.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CompilerTryConfigure.");
     }
 
     if (strcmp(compilerCommand, "clang") == 0 || strcmp(compilerCommand, "clang-cl") == 0)
@@ -1388,7 +1358,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Could not configure compiler with command '%s'. Try using standard commands or use the function" SHUM_COLOR_BLUE("SHU_CompilerConfigure") ".", compilerCommand);
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Unknown compiler command '%s'. Use " SHUM_COLOR_BLUE("SHU_CompilerConfigure") " to configure it manually.", compilerCommand);
     }
 }
 
@@ -1396,7 +1366,7 @@ void SHU_CompilerAddFlags(const char *flags)
 {
     if (flags == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler add flags.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CompilerAddFlags.");
     }
 
     if (strlen(flags) != 0)
@@ -1409,7 +1379,7 @@ void SHU_CompilerSetFlags(const char *flags)
 {
     if (flags == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to compiler set flags.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_CompilerSetFlags.");
     }
 
     SHU_CompilerClearFlags();
@@ -1434,7 +1404,7 @@ void SHU_CompilerDebug()
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug flags.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
     }
 }
 
@@ -1457,7 +1427,7 @@ void SHU_CompilerOptimization(char optimizationLevel)
             SHU_CompilerAddFlags("/Oxiy");
             break;
         default:
-            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed as parameter to compiler optimization.");
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed to SHU_CompilerOptimization.");
             break;
         }
     }
@@ -1478,13 +1448,13 @@ void SHU_CompilerOptimization(char optimizationLevel)
             SHU_CompilerAddFlags("-O3");
             break;
         default:
-            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed as parameter to compiler optimization.");
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid optimization level passed to SHU_CompilerOptimization.");
             break;
         }
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug optimization.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
     }
 }
 
@@ -1504,7 +1474,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
             SHU_CompilerAddFlags("/Wall /GS");
             break;
         default:
-            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed as parameter to compiler optimization.");
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed to SHU_CompilerWarning.");
             break;
         }
 
@@ -1527,7 +1497,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
             SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wpointer-to-int-cast -Wint-to-pointer-cast");
             break;
         default:
-            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed as parameter to compiler optimization.");
+            SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed to SHU_CompilerWarning.");
             break;
         }
 
@@ -1538,7 +1508,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Cannot set debug optimization.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
     }
 }
 
@@ -1550,7 +1520,7 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
     {
         if (bufferIndex > bufferSize - 2)
         {
-            SHU_LogWarning("Buffer not big enough to store all flags. Returning the written buffer.");
+            SHU_LogWarning("Buffer too small for compiler flags. Output truncated.");
             break;
         }
 
@@ -1573,7 +1543,7 @@ void SHU_ModuleBegin(const char *name)
 {
     if (name == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module begin.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleBegin.");
     }
 
     if (SHUI_MODULE_NAME.data != NULL)
@@ -1588,7 +1558,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
 {
     if (directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add include directory");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleAddIncludeDirectory.");
     }
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1603,7 +1573,7 @@ void SHU_ModuleAddSourceFile(const char *file)
 {
     if (file == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add source file");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleAddSourceFile.");
     }
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1618,7 +1588,7 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
 {
     if (directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module add source directory.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleAddSourceDirectory.");
     }
 
     SHUI_String correctedDirectory = SHUI_SCreate(directory);
@@ -1634,7 +1604,7 @@ void SHU_ModuleCompile(const char *directory, char module)
 {
     if (directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module compile.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleCompile.");
     }
 
     if (SHUI_COMPILER_COMMAND.data == NULL)
@@ -1643,7 +1613,7 @@ void SHU_ModuleCompile(const char *directory, char module)
     }
 
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("Starting to compile %s '%s'...", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
+    SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
 #endif
 
     SHU_CreateRelativeDirectory(directory);
@@ -1671,7 +1641,7 @@ void SHU_ModuleCompile(const char *directory, char module)
         SHUI_CompileLibraryDynamic(directoryStr);
         break;
     default:
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid module passed as parameter to module compile.");
+        SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid module type passed to SHU_ModuleCompile.");
         break;
     }
 
@@ -1690,7 +1660,7 @@ void SHU_ModuleCompile(const char *directory, char module)
     SHUI_SLClear((SHUI_StringList *)&SHUI_MODULE_SOURCE_FILES);
 
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("%s '%s' successfully compiled.", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
+    SHU_LogInfo("%s " SHUM_COLOR_MAGENTA("'%s'") " successfully compiled.", SHUM_MODULE_GET_STRING(module), SHUI_MODULE_NAME.data);
 #endif
 
     SHUI_SDestroy(&SHUI_MODULE_NAME);
@@ -1700,7 +1670,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 {
     if (directory == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module set library directory.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleAddLibraryDirectory.");
     }
 
     SHUI_String correctedDirectory = SHUI_SCreate(SHUI_GetCurrentExecutableDirectory().data);
@@ -1715,7 +1685,7 @@ void SHU_ModuleLinkLibrary(const char *library)
 {
     if (library == NULL)
     {
-        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed as parameter to module link library.");
+        SHU_LogError(SHUM_ERROR_NULL, "Null pointer passed to SHU_ModuleLinkLibrary.");
     }
 
     SHUI_SLAdd(&SHUI_EXECUTABLE_LINKS, SHUI_SCreate(library), SHUC_MAX_STRING_ARRAY_COUNT);
