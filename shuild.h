@@ -513,7 +513,7 @@ static int SHUI_MakeDirectory(const char *path)
 /// @param path Full path to create.
 static void SHUI_MakeDirectoryRecursive(const char *path)
 {
-    char tempBuffer[SHUC_MAX_PATH_SIZE];
+    char tempBuffer[SHUC_MAX_PATH_SIZE] = {0};
     size_t len = strlen(path);
     if (len >= sizeof(tempBuffer))
         return;
@@ -580,7 +580,7 @@ static void SHUI_DeleteRecursive(const char *path)
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd;
-    char pattern[SHUC_MAX_PATH_SIZE];
+    char pattern[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s\\*", path);
 
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
@@ -592,7 +592,7 @@ static void SHUI_DeleteRecursive(const char *path)
         if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
             continue;
 
-        char subPath[SHUC_MAX_PATH_SIZE];
+        char subPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(subPath, sizeof(subPath), "%s\\%s", path, ffd.cFileName);
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
@@ -624,7 +624,7 @@ static void SHUI_CopySingleFile(const char *src, const char *dst)
         return;
     }
 
-    char buffer[4096];
+    char buffer[4096] = {0};
     size_t bytesRead;
     while ((bytesRead = fread(buffer, 1, sizeof(buffer), srcFile)) > 0)
     {
@@ -654,7 +654,7 @@ static void SHUI_CopyRecursive(const char *src, const char *dst)
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd;
-    char pattern[SHUC_MAX_PATH_SIZE];
+    char pattern[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s\\*", src);
 
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
@@ -666,8 +666,8 @@ static void SHUI_CopyRecursive(const char *src, const char *dst)
         if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
             continue;
 
-        char srcPath[SHUC_MAX_PATH_SIZE];
-        char dstPath[SHUC_MAX_PATH_SIZE];
+        char srcPath[SHUC_MAX_PATH_SIZE] = {0};
+        char dstPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(srcPath, sizeof(srcPath), "%s\\%s", src, ffd.cFileName);
         snprintf(dstPath, sizeof(dstPath), "%s\\%s", dst, ffd.cFileName);
 
@@ -686,8 +686,8 @@ static void SHUI_CopyRecursive(const char *src, const char *dst)
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
-        char srcPath[SHUC_MAX_PATH_SIZE];
-        char dstPath[SHUC_MAX_PATH_SIZE];
+        char srcPath[SHUC_MAX_PATH_SIZE] = {0};
+        char dstPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(srcPath, sizeof(srcPath), "%s/%s", src, entry->d_name);
         snprintf(dstPath, sizeof(dstPath), "%s/%s", dst, entry->d_name);
 
@@ -726,12 +726,12 @@ static SHUI_String SHUI_GetCurrentExecutableDirectory()
 /// @param relativePath Relative path from base.
 static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *relativePath)
 {
-    char fullPath[SHUC_MAX_PATH_SIZE];
+    char fullPath[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(fullPath, sizeof(fullPath), "%s%s", basePath, relativePath);
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd = {0};
-    char pattern[SHUC_MAX_PATH_SIZE];
+    char pattern[SHUC_MAX_PATH_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s*", fullPath);
 
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
@@ -745,7 +745,7 @@ static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *r
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            char subDir[SHUC_MAX_PATH_SIZE];
+            char subDir[SHUC_MAX_PATH_SIZE] = {0};
             snprintf(subDir, sizeof(subDir), "%s%s\\", relativePath, ffd.cFileName);
             SHUI_AddSourceDirectoryRecursive(basePath, subDir);
         }
@@ -769,13 +769,13 @@ static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *r
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
-        char entryPath[SHUC_MAX_PATH_SIZE];
+        char entryPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(entryPath, sizeof(entryPath), "%s%s", fullPath, entry->d_name);
 
         struct stat st;
         if (stat(entryPath, &st) == 0 && S_ISDIR(st.st_mode))
         {
-            char subDir[SHUC_MAX_PATH_SIZE];
+            char subDir[SHUC_MAX_PATH_SIZE] = {0};
             snprintf(subDir, sizeof(subDir), "%s%s/", relativePath, entry->d_name);
             SHUI_AddSourceDirectoryRecursive(basePath, subDir);
         }
@@ -927,7 +927,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
 
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        char objPath[SHUC_MAX_PATH_SIZE];
+        char objPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(objPath, sizeof(objPath), "%.*s%s",
                  (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
                  SHUI_MODULE_SOURCE_FILES.data[i].data,
@@ -1001,7 +1001,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
     // Delete object files
     for (size_t i = 0; i < SHUI_MODULE_SOURCE_FILES.count; i++)
     {
-        char objPath[SHUC_MAX_PATH_SIZE];
+        char objPath[SHUC_MAX_PATH_SIZE] = {0};
         snprintf(objPath, sizeof(objPath), "%.*s%s",
                  (int)SHUI_MODULE_SOURCE_FILES.data[i].length - 1,
                  SHUI_MODULE_SOURCE_FILES.data[i].data,
