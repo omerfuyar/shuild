@@ -1,0 +1,869 @@
+desc: (none)
+cmd: ./buildAll
+time_unit: i
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=165001
+mem_heap_B=7
+mem_heap_extra_B=17
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=167120
+mem_heap_B=352
+mem_heap_extra_B=40
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=174308
+mem_heap_B=1376
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=179136
+mem_heap_B=1441
+mem_heap_extra_B=71
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=182945
+mem_heap_B=1522
+mem_heap_extra_B=94
+mem_stacks_B=0
+heap_tree=peak
+n4: 1522 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n1: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x400459C: main (buildAll.c:10)
+ n2: 170 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n1: 89 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 89 0x400459C: main (buildAll.c:10)
+  n1: 81 0x4001D72: SHU_CreateRelativeDirectory (shuild.h:1215)
+   n1: 81 0x4003494: SHU_ModuleCompile (shuild.h:1644)
+    n0: 81 0x40045AA: main (buildAll.c:11)
+ n2: 72 0x4001DFA: SHUI_SCreate (shuild.h:424)
+  n1: 65 0x400346D: SHU_ModuleCompile (shuild.h:1640)
+   n0: 65 0x40045AA: main (buildAll.c:11)
+  n0: 7 in 3 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=6
+#-----------
+time=183026
+mem_heap_B=1457
+mem_heap_extra_B=71
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=219725
+mem_heap_B=1376
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=225729
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=236883
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=10
+#-----------
+time=237280
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1377 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n2: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x40045D0: main (buildAll.c:19)
+    n0: 0 in 1 place, below massif's threshold (1.00%)
+ n2: 90 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n2: 90 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 90 0x40045D0: main (buildAll.c:19)
+   n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 0 in 2 places, all below massif's threshold (1.00%)
+ n0: 7 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=11
+#-----------
+time=243233
+mem_heap_B=1442
+mem_heap_extra_B=70
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=12
+#-----------
+time=245604
+mem_heap_B=1459
+mem_heap_extra_B=69
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=13
+#-----------
+time=280759
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=14
+#-----------
+time=286763
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=15
+#-----------
+time=297917
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=detailed
+n2: 1031 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n0: 7 in 3 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=16
+#-----------
+time=298314
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=17
+#-----------
+time=304267
+mem_heap_B=1442
+mem_heap_extra_B=70
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=18
+#-----------
+time=306638
+mem_heap_B=1459
+mem_heap_extra_B=69
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=19
+#-----------
+time=341793
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=20
+#-----------
+time=347797
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=21
+#-----------
+time=358951
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=22
+#-----------
+time=359348
+mem_heap_B=1380
+mem_heap_extra_B=44
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=23
+#-----------
+time=365301
+mem_heap_B=1445
+mem_heap_extra_B=67
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=24
+#-----------
+time=367732
+mem_heap_B=1465
+mem_heap_extra_B=63
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=25
+#-----------
+time=403702
+mem_heap_B=1380
+mem_heap_extra_B=44
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=26
+#-----------
+time=409706
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=27
+#-----------
+time=420860
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=28
+#-----------
+time=421257
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=29
+#-----------
+time=427210
+mem_heap_B=1442
+mem_heap_extra_B=70
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1442 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n2: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x400466C: main (buildAll.c:46)
+    n0: 0 in 4 places, all below massif's threshold (1.00%)
+ n2: 90 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n2: 90 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 90 0x400466C: main (buildAll.c:46)
+   n0: 0 in 4 places, all below massif's threshold (1.00%)
+  n0: 0 in 2 places, all below massif's threshold (1.00%)
+ n2: 72 0x4001DFA: SHUI_SCreate (shuild.h:424)
+  n2: 65 0x400346D: SHU_ModuleCompile (shuild.h:1640)
+   n0: 65 0x400467A: main (buildAll.c:47)
+   n0: 0 in 4 places, all below massif's threshold (1.00%)
+  n0: 7 in 3 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=30
+#-----------
+time=429581
+mem_heap_B=1459
+mem_heap_extra_B=69
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=31
+#-----------
+time=464736
+mem_heap_B=1377
+mem_heap_extra_B=47
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=32
+#-----------
+time=470740
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=33
+#-----------
+time=481894
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=34
+#-----------
+time=482291
+mem_heap_B=1378
+mem_heap_extra_B=46
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=35
+#-----------
+time=488244
+mem_heap_B=1443
+mem_heap_extra_B=69
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=36
+#-----------
+time=490635
+mem_heap_B=1461
+mem_heap_extra_B=67
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=37
+#-----------
+time=526607
+mem_heap_B=1378
+mem_heap_extra_B=46
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=38
+#-----------
+time=532611
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=39
+#-----------
+time=543765
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=40
+#-----------
+time=544162
+mem_heap_B=1382
+mem_heap_extra_B=42
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=41
+#-----------
+time=550115
+mem_heap_B=1447
+mem_heap_extra_B=65
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=42
+#-----------
+time=552586
+mem_heap_B=1469
+mem_heap_extra_B=59
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1469 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n2: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x40046D4: main (buildAll.c:64)
+    n0: 0 in 6 places, all below massif's threshold (1.00%)
+ n3: 182 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n2: 95 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 95 0x40046D4: main (buildAll.c:64)
+   n0: 0 in 6 places, all below massif's threshold (1.00%)
+  n2: 87 0x40034A1: SHU_ModuleCompile (shuild.h:1645)
+   n0: 87 0x40046E2: main (buildAll.c:65)
+   n0: 0 in 6 places, all below massif's threshold (1.00%)
+  n0: 0 in 1 place, below massif's threshold (1.00%)
+ n0: 7 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=43
+#-----------
+time=588552
+mem_heap_B=1382
+mem_heap_extra_B=42
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=44
+#-----------
+time=588738
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=45
+#-----------
+time=594556
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=46
+#-----------
+time=616829
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=47
+#-----------
+time=617226
+mem_heap_B=1383
+mem_heap_extra_B=41
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=48
+#-----------
+time=623179
+mem_heap_B=1448
+mem_heap_extra_B=64
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=49
+#-----------
+time=623341
+mem_heap_B=1513
+mem_heap_extra_B=87
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1513 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n2: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x4004716: main (buildAll.c:74)
+    n0: 0 in 7 places, all below massif's threshold (1.00%)
+ n3: 137 0x4001DFA: SHUI_SCreate (shuild.h:424)
+  n1: 65 0x4001D59: SHU_CreateRelativeDirectory (shuild.h:1214)
+   n2: 65 0x4003494: SHU_ModuleCompile (shuild.h:1644)
+    n0: 65 0x4004724: main (buildAll.c:75)
+    n0: 0 in 7 places, all below massif's threshold (1.00%)
+  n2: 65 0x400346D: SHU_ModuleCompile (shuild.h:1640)
+   n0: 65 0x4004724: main (buildAll.c:75)
+   n0: 0 in 7 places, all below massif's threshold (1.00%)
+  n0: 7 in 2 places, all below massif's threshold (1.00%)
+ n2: 96 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n2: 96 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 96 0x4004716: main (buildAll.c:74)
+   n0: 0 in 7 places, all below massif's threshold (1.00%)
+  n0: 0 in 2 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=50
+#-----------
+time=623453
+mem_heap_B=1536
+mem_heap_extra_B=80
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=51
+#-----------
+time=625589
+mem_heap_B=1448
+mem_heap_extra_B=64
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=52
+#-----------
+time=625670
+mem_heap_B=1471
+mem_heap_extra_B=57
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=53
+#-----------
+time=661640
+mem_heap_B=1383
+mem_heap_extra_B=41
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=54
+#-----------
+time=661776
+mem_heap_B=1287
+mem_heap_extra_B=33
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=55
+#-----------
+time=667644
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=56
+#-----------
+time=678798
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=57
+#-----------
+time=678951
+mem_heap_B=1096
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=58
+#-----------
+time=679062
+mem_heap_B=1115
+mem_heap_extra_B=45
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=59
+#-----------
+time=679195
+mem_heap_B=1371
+mem_heap_extra_B=53
+mem_stacks_B=0
+heap_tree=detailed
+n4: 1371 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n1: 256 0x400499F: SHUI_SLCreate (shuild.h:496)
+  n1: 256 0x40028F0: SHUI_SLAdd (shuild.h:532)
+   n2: 256 0x40030CA: SHU_ModuleAddSourceFile (shuild.h:1615)
+    n0: 256 0x400474A: main (buildAll.c:83)
+    n0: 0 in 8 places, all below massif's threshold (1.00%)
+ n2: 84 0x4001EE4: SHUI_SAppend (shuild.h:479)
+  n2: 84 0x40030AE: SHU_ModuleAddSourceFile (shuild.h:1610)
+   n0: 84 0x400474A: main (buildAll.c:83)
+   n0: 0 in 8 places, all below massif's threshold (1.00%)
+  n0: 0 in 2 places, all below massif's threshold (1.00%)
+ n0: 7 in 1 place, below massif's threshold (1.00%)
+#-----------
+snapshot=60
+#-----------
+time=685148
+mem_heap_B=1436
+mem_heap_extra_B=76
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=61
+#-----------
+time=685310
+mem_heap_B=1501
+mem_heap_extra_B=99
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=62
+#-----------
+time=685422
+mem_heap_B=1512
+mem_heap_extra_B=88
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=63
+#-----------
+time=687320
+mem_heap_B=1436
+mem_heap_extra_B=76
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=64
+#-----------
+time=687401
+mem_heap_B=1447
+mem_heap_extra_B=65
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=65
+#-----------
+time=722554
+mem_heap_B=1371
+mem_heap_extra_B=53
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=66
+#-----------
+time=722690
+mem_heap_B=1287
+mem_heap_extra_B=33
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=67
+#-----------
+time=728558
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=68
+#-----------
+time=739712
+mem_heap_B=1031
+mem_heap_extra_B=25
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=69
+#-----------
+time=739865
+mem_heap_B=1096
+mem_heap_extra_B=48
+mem_stacks_B=0
+heap_tree=detailed
+n3: 1096 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n2: 72 0x4001DFA: SHUI_SCreate (shuild.h:424)
+  n2: 65 0x4003099: SHU_ModuleAddSourceFile (shuild.h:1609)
+   n0: 65 0x400477E: main (buildAll.c:92)
+   n0: 0 in 9 places, all below massif's threshold (1.00%)
+  n0: 7 in 3 places, all below massif's threshold (1.00%)
+ n0: 0 in 2 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=70
+#-----------
+time=739976
+mem_heap_B=1124
+mem_heap_extra_B=36
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=71
+#-----------
+time=740109
+mem_heap_B=1380
+mem_heap_extra_B=44
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=72
+#-----------
+time=746062
+mem_heap_B=1445
+mem_heap_extra_B=67
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=73
+#-----------
+time=746224
+mem_heap_B=1510
+mem_heap_extra_B=90
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=74
+#-----------
+time=746336
+mem_heap_B=1530
+mem_heap_extra_B=86
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=75
+#-----------
+time=748412
+mem_heap_B=1445
+mem_heap_extra_B=67
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=76
+#-----------
+time=748493
+mem_heap_B=1465
+mem_heap_extra_B=63
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=77
+#-----------
+time=784463
+mem_heap_B=1380
+mem_heap_extra_B=44
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=78
+#-----------
+time=784599
+mem_heap_B=1287
+mem_heap_extra_B=33
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=79
+#-----------
+time=790467
+mem_heap_B=1024
+mem_heap_extra_B=8
+mem_stacks_B=0
+heap_tree=detailed
+n2: 1024 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 1024 0x4901F3C: _IO_file_doallocate (filedoalloc.c:91)
+  n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:373)
+   n1: 1024 0x49121E5: _IO_doallocbuf (genops.c:368)
+    n1: 1024 0x4910058: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:779)
+     n1: 1024 0x4910C7A: _IO_new_file_xsputn (fileops.c:1305)
+      n1: 1024 0x4910C7A: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1258)
+       n1: 1024 0x48DD3E5: __printf_buffer_flush_to_file (printf_buffer_to_file.c:59)
+        n1: 1024 0x48DD4CB: __printf_buffer_to_file_done (printf_buffer_to_file.c:120)
+         n1: 1024 0x48E8DF4: __vfprintf_internal (vfprintf-internal.c:1544)
+          n1: 1024 0x48DCB72: printf (printf.c:33)
+           n1: 1024 0x400180A: SHU_Log (shuild.h:1323)
+            n1: 1024 0x4003461: SHU_ModuleCompile (shuild.h:1637)
+             n0: 1024 0x40045AA: main (buildAll.c:11)
+ n0: 0 in 3 places, all below massif's threshold (1.00%)
+#-----------
+snapshot=80
+#-----------
+time=815436
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
