@@ -1523,7 +1523,7 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
             SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic");
             break;
         case SHUM_COMPILER_WARNING_HIGH:
-            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wpointer-to-int-cast -Wint-to-pointer-cast");
+            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -Wunused-result -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wpointer-to-int-cast -Wint-to-pointer-cast");
             break;
         default:
             SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed to SHU_CompilerWarning.");
