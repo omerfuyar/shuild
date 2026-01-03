@@ -364,6 +364,8 @@ void SHU_ModuleLinkLibrary(const char *library);
 #define SHUI_PATH_SEPARATOR_STR "/"
 #endif
 
+// todo add clean build
+
 #pragma region Internals
 
 typedef struct SHUI_String
@@ -1500,7 +1502,8 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
             SHU_CompilerAddFlags("/W3");
             break;
         case SHUM_COMPILER_WARNING_HIGH:
-            SHU_CompilerAddFlags("/Wall /GS");
+            // SHU_CompilerAddFlags("/Wall /GS");
+            SHU_CompilerAddFlags("/W4 /WX-");
             break;
         default:
             SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed to SHU_CompilerWarning.");
@@ -1517,13 +1520,13 @@ void SHU_CompilerWarning(char warningLevel, char treatAsError)
         switch (warningLevel)
         {
         case SHUM_COMPILER_WARNING_LOW:
-            SHU_CompilerAddFlags("-Wall");
+            SHU_CompilerAddFlags("-Wall -Wextra");
             break;
         case SHUM_COMPILER_WARNING_MID:
-            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic");
+            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong");
             break;
         case SHUM_COMPILER_WARNING_HIGH:
-            SHU_CompilerAddFlags("-Wall -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -fstack-protector-strong -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wpointer-to-int-cast -Wint-to-pointer-cast");
+            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wsign-conversion -Wundef -Wpointer-to-int-cast -Wint-to-pointer-cast");
             break;
         default:
             SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid warning level passed to SHU_CompilerWarning.");
