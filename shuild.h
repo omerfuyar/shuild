@@ -129,7 +129,7 @@
 #endif
 
 #ifndef SHUC_MAX_COMPILER_LENGTH
-#define SHUC_MAX_COMPILER_LENGTH 16
+#define SHUC_MAX_COMPILER_LENGTH 256
 #endif
 
 #ifndef SHUC_ARRAY_INITIAL_COUNT
@@ -785,7 +785,7 @@ static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *r
         {
             SHUI_String newFile = SHUI_SCreate(fullPath);
             SHUI_SAppend(&newFile, ffd.cFileName);
-            SHUI_SLAdd((SHUI_StringList *)&SHUI.MODULE.sourceFiles, newFile, SHUC_MAX_SOURCE_FILE_COUNT);
+            SHUI_SLAdd((SHUI_StringList *)&SHUI.MODULE.sourceFiles, newFile);
         }
     } while (FindNextFileA(hFind, &ffd));
 
@@ -825,7 +825,7 @@ static void SHUI_AddSourceDirectoryRecursive(const char *basePath, const char *r
 }
 
 /// @brief Compile the current module as an executable.
-/// @param directory Full output directory of the executable file. (eg. C:/[...]/build/bin/)
+/// @param directory Relative output directory of the library file. (eg. build/lib/)
 static void SHUI_CompileExecutable(SHUI_String directory)
 {
     char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -897,7 +897,7 @@ static void SHUI_CompileExecutable(SHUI_String directory)
 }
 
 /// @brief Compile the current module as a static library.
-/// @param directory Full output directory of the executable file. (eg. C:/[...]/build/bin/)
+/// @param directory Relative output directory of the library file. (eg. build/lib/)
 static void SHUI_CompileLibraryStatic(SHUI_String directory)
 {
     // commands for flags
@@ -930,7 +930,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
                 SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fo:" : "-o",
                 SHUI.MODULE.sourceFiles.data[i].length - 1,
                 SHUI.MODULE.sourceFiles.data[i].data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o",
+                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o",
                 commandBuffer);
     }
 
@@ -945,7 +945,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
                                        "%.*s%s ",
                                        (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
                                        SHUI.MODULE.sourceFiles.data[i].data,
-                                       SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o");
+                                       SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
     }
 
     SHU_Run("%s %s%s%s%s%s %s",
@@ -964,7 +964,7 @@ static void SHUI_CompileLibraryStatic(SHUI_String directory)
         snprintf(objPath, sizeof(objPath), "%.*s%s",
                  (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
                  SHUI.MODULE.sourceFiles.data[i].data,
-                 SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o");
+                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
         SHUI_DeleteSingleFile(objPath);
     }
 }
@@ -1003,7 +1003,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
                 SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fo:" : "-o",
                 SHUI.MODULE.sourceFiles.data[i].length - 1,
                 SHUI.MODULE.sourceFiles.data[i].data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o",
+                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o",
                 commandBuffer);
     }
 
@@ -1018,7 +1018,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
                                        "%.*s%s ",
                                        (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
                                        SHUI.MODULE.sourceFiles.data[i].data,
-                                       SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o");
+                                       SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
     }
 
     SHU_Run("%s %s %s %s%s%s%s %s",
@@ -1038,7 +1038,7 @@ static void SHUI_CompileLibraryDynamic(SHUI_String directory)
         snprintf(objPath, sizeof(objPath), "%.*s%s",
                  (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
                  SHUI.MODULE.sourceFiles.data[i].data,
-                 SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "obj" : "o");
+                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
         SHUI_DeleteSingleFile(objPath);
     }
 }
@@ -1357,11 +1357,11 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
         size_t pathLength = 0;
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-        size_t pathLength = GetModuleFileNameA(NULL, buffer, (DWORD)sizeof(buffer));
+        pathLength = GetModuleFileNameA(NULL, (LPSTR)pathBuffer, (DWORD)sizeof(pathBuffer));
 #elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
-        uint32_t size = (uint32_t)sizeof(buffer);
-        _NSGetExecutablePath(buffer, &size);
-        pathLength = strlen(buffer);
+        uint32_t size = (uint32_t)sizeof(pathBuffer);
+        _NSGetExecutablePath(pathBuffer, &size);
+        pathLength = strlen(pathBuffer);
 #else
         pathLength = readlink("/proc/self/exe", pathBuffer, sizeof(pathBuffer));
 #endif

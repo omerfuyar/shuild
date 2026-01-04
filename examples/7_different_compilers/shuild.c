@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    if (argc > 2)
+    if (argc < 2)
     {
         return 1;
     }
@@ -13,7 +13,10 @@ int main(int argc, char **argv)
 
     SHU_CompilerTryConfigure(argv[1]);
 
-    SHU_ModuleBegin("example");
+    char buffer[32] = {0};
+    snprintf(buffer, sizeof(buffer), "example%s", argv[1]);
+
+    SHU_ModuleBegin(buffer);
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 

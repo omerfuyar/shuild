@@ -7,7 +7,12 @@ build/
 *.o
 *.obj
 
-examples/buildAll
+example
+exampleclang
+examplegcc
+examplemsvc
+buildAll
+
 examples/*/shuild
 examples/*/example
 examples/*/exampleDebug

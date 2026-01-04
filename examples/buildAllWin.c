@@ -9,72 +9,71 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("1_single_source/shuild.c");
     SHU_ModuleCompile("1_single_source/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./1_single_source/shuild");
+    SHU_Run("1_single_source\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("2_compiler_flags/shuild.c");
     SHU_ModuleCompile("2_compiler_flags/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./2_compiler_flags/shuild");
+    SHU_Run("2_compiler_flags\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("3_main_arguments/shuild.c");
     SHU_ModuleCompile("3_main_arguments/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./3_main_arguments/shuild");
+    SHU_Run("3_main_arguments\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("4_folder_structures/shuild.c");
     SHU_ModuleCompile("4_folder_structures/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./4_folder_structures/shuild");
+    SHU_Run("4_folder_structures\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("5_static_library/shuild.c");
     SHU_ModuleCompile("5_static_library/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./5_static_library/shuild");
+    SHU_Run("5_static_library\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("6_dynamic_library/shuild.c");
     SHU_ModuleCompile("6_dynamic_library/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./6_dynamic_library/shuild");
+    SHU_Run("6_dynamic_library\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("7_different_compilers/shuild.c");
     SHU_ModuleCompile("7_different_compilers/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./7_different_compilers/shuild clang");
-    SHU_Run("./7_different_compilers/shuild gcc");
+    SHU_Run("7_different_compilers\\shuild.exe clang");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("8_header_configuration/shuild.c");
     SHU_ModuleCompile("8_header_configuration/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./8_header_configuration/shuild");
+    SHU_Run("8_header_configuration\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("9_automate/shuild.c");
     SHU_ModuleCompile("9_automate/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./9_automate/shuild");
+    SHU_Run("9_automate\\shuild.exe");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("10_compiler_helpers/shuild.c");
     SHU_ModuleCompile("10_compiler_helpers/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./10_compiler_helpers/shuild d");
-    SHU_Run("./10_compiler_helpers/shuild r");
+    SHU_Run("10_compiler_helpers\\shuild.exe d");
+    SHU_Run("10_compiler_helpers\\shuild.exe r");
 
     SHU_LogInfo("\n\n\nAll examples built and successfully. Running all examples...\n\n");
 
     if (argc > 1) // run all
     {
-        SHU_Run("./1_single_source/build/1_single_source");
-        SHU_Run("./2_compiler_flags/exampleDebug");
-        SHU_Run("./2_compiler_flags/exampleRelease");
-        SHU_Run("./3_main_arguments/3_main_arguments");
-        SHU_Run("./4_folder_structures/4_folder_structures");
-        SHU_Run("./5_static_library/build/bin/example");
-        SHU_Run("./6_dynamic_library/build/bin/example");
-        SHU_Run("./7_different_compilers/exampleclang");
-        SHU_Run("./7_different_compilers/examplegcc");
-        SHU_Run("./8_header_configuration/example");
-        SHU_Run("./9_automate/example");
-        SHU_Run("./10_compiler_helpers/example d");
-        SHU_Run("./10_compiler_helpers/example r");
+        SHU_Run("1_single_source\\build\\1_single_source.exe");
+        SHU_Run("2_compiler_flags\\exampleDebug.exe");
+        SHU_Run("2_compiler_flags\\exampleRelease.exe");
+        SHU_Run("3_main_arguments\\3_main_arguments.exe");
+        SHU_Run("4_folder_structures\\4_folder_structures.exe");
+        SHU_Run("5_static_library\\build\\bin\\example.exe");
+        SHU_Run("6_dynamic_library\\build\\bin\\example.exe");
+        SHU_Run("7_different_compilers\\exampleclang.exe");
+        SHU_Run("7_different_compilers\\example.exe ");
+        SHU_Run("8_header_configuration\\example.exe");
+        SHU_Run("9_automate\\example.exe");
+        SHU_Run("10_compiler_helpers\\example.exe d");
+        SHU_Run("10_compiler_helpers\\example.exe r");
     }
 
     return 0;
