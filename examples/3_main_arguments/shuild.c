@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     // SHU_CompilerTryConfigure(argv[1]);
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
 
     for (int i = 1; i < argc; i++)
     {

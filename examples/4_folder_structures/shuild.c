@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
 
     SHU_ModuleBegin("4_folder_structures");
 

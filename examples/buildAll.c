@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
     SHU_Automate(argc, argv);
 
     SHU_ModuleBegin("shuild");
@@ -39,7 +39,6 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("7_different_compilers/shuild.c");
     SHU_ModuleCompile("7_different_compilers/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("./7_different_compilers/shuild clang");
     SHU_Run("./7_different_compilers/shuild gcc");
 
     SHU_ModuleBegin("shuild");
@@ -69,7 +68,6 @@ int main(int argc, char **argv)
         SHU_Run("./4_folder_structures/4_folder_structures");
         SHU_Run("./5_static_library/build/bin/example");
         SHU_Run("./6_dynamic_library/build/bin/example");
-        SHU_Run("./7_different_compilers/exampleclang");
         SHU_Run("./7_different_compilers/examplegcc");
         SHU_Run("./8_header_configuration/example");
         SHU_Run("./9_automate/example");

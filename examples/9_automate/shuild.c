@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
     SHU_Automate(argc, argv);
 
     SHU_ModuleBegin("example");

@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
 
     if (!strcmp("d", argv[1]))
     {

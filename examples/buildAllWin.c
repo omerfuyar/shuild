@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
     SHU_Automate(argc, argv);
 
     SHU_ModuleBegin("shuild");
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("7_different_compilers/shuild.c");
     SHU_ModuleCompile("7_different_compilers/", SHUM_MODULE_EXECUTABLE);
-    SHU_Run("7_different_compilers\\shuild.exe clang");
+    SHU_Run("7_different_compilers\\shuild.exe gcc");
 
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("8_header_configuration/shuild.c");
@@ -67,9 +67,8 @@ int main(int argc, char **argv)
         SHU_Run("3_main_arguments\\3_main_arguments.exe");
         SHU_Run("4_folder_structures\\4_folder_structures.exe");
         SHU_Run("5_static_library\\build\\bin\\example.exe");
-        SHU_Run("6_dynamic_library\\build\\bin\\example.exe");
-        SHU_Run("7_different_compilers\\exampleclang.exe");
-        SHU_Run("7_different_compilers\\example.exe ");
+        SHU_Run("set PATH=6_dynamic_library\\build\\lib;%%PATH%% && 6_dynamic_library\\build\\bin\\example.exe");
+        SHU_Run("7_different_compilers\\examplegcc.exe");
         SHU_Run("8_header_configuration\\example.exe");
         SHU_Run("9_automate\\example.exe");
         SHU_Run("10_compiler_helpers\\example.exe d");

@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "clang");
+    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "gcc");
 
     SHU_CompilerAddFlags("-O0");
     SHU_CompilerAddFlags("-g -Wall");

@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "clang");
+    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "gcc");
     SHU_CompilerAddFlags("-DFOO=13");
 
     SHU_ModuleBegin("1_single_source");

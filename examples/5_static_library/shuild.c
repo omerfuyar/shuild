@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    SHU_CompilerTryConfigure("clang");
+    SHU_CompilerTryConfigure("gcc");
 
     SHU_ModuleBegin("exampleLib");
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
