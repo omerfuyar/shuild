@@ -132,12 +132,12 @@
 #define SHUC_MAX_COMPILER_LENGTH 16
 #endif
 
-#ifndef SHUC_STRING_ARRAY_INITIAL_COUNT
-#define SHUC_STRING_ARRAY_INITIAL_COUNT 16
+#ifndef SHUC_ARRAY_INITIAL_COUNT
+#define SHUC_ARRAY_INITIAL_COUNT 16
 #endif
 
-#ifndef SHUC_STRING_ARRAY_RESIZE_FACTOR
-#define SHUC_STRING_ARRAY_RESIZE_FACTOR 2.0f
+#ifndef SHUC_ARRAY_RESIZE_FACTOR
+#define SHUC_ARRAY_RESIZE_FACTOR 2.0f
 #endif
 
 #define SHUM_ERROR 1
@@ -192,11 +192,11 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName);
 /// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
 int SHU_Run(const char *commandFormat, ...);
 
-/// @brief Spawns a new process and waits for completion.
+/// @brief Spawns a new process synchronously.
 /// @param executable Path to executable.
 /// @param argv Arguments array (NULL terminated).
-/// @return Exit code of the process, or -1 on failure.
-void SHU_SpawnProcess(const char *executable, char *const *argv);
+/// @return Exit code of the process.
+int SHU_SpawnProcess(const char *executable, char *const *argv);
 
 /// @brief Platform-specific helper to get executable path.
 /// @return Address of the executable path string. Do not free or edit it.
@@ -300,7 +300,7 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
 /// @param name Name of the module. Which will be used also for output file name. (eg. myLibName, myAppName)
 void SHU_ModuleBegin(const char *name);
 
-/// @brief Adds include directories to the module. Max count is defined as `SHUC_STRING_ARRAY_INITIAL_COUNT`.
+/// @brief Adds include directories to the module. Max count is defined as `SHUC_ARRAY_INITIAL_COUNT`.
 /// @param directory Include directory to add to the current module. (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
@@ -308,7 +308,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory);
 /// @param directory Source directory to add to the current module. (eg. src/)
 void SHU_ModuleAddSourceDirectory(const char *directory);
 
-/// @brief Adds source files to the module. Max count is defined as `SHUC_STRING_ARRAY_INITIAL_COUNT`.
+/// @brief Adds source files to the module. Max count is defined as `SHUC_ARRAY_INITIAL_COUNT`.
 /// @param file Single file to add to the current module. (eg. source.c)
 void SHU_ModuleAddSourceFile(const char *file);
 
@@ -531,11 +531,11 @@ static void SHUI_SLAdd(SHUI_StringList *list, SHUI_String string)
 {
     if (list->data == NULL)
     {
-        *list = SHUI_SLCreate(SHUC_STRING_ARRAY_INITIAL_COUNT);
+        *list = SHUI_SLCreate(SHUC_ARRAY_INITIAL_COUNT);
     }
     else if (list->count >= list->capacity)
     {
-        size_t newCapacity = (size_t)((float)list->capacity * SHUC_STRING_ARRAY_RESIZE_FACTOR);
+        size_t newCapacity = (size_t)((float)list->capacity * SHUC_ARRAY_RESIZE_FACTOR);
 
         list->data = (SHUI_String *)realloc(list->data, sizeof(SHUI_String) * newCapacity);
 
@@ -1128,14 +1128,19 @@ int SHU_Run(const char *commandFormat, ...)
     return result;
 }
 
-void SHU_SpawnProcess(const char *executable, char *const *argv)
+int SHU_SpawnProcess(const char *executable, char *const *argv)
 {
     int result = 0;
+
+#ifndef SHUC_NO_RUN_LOG
+    SHU_LogInfo("Spawning process : " SHUM_COLOR_CYAN("'%s'"), executable);
+#endif
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     result = (int)_spawnv(_P_WAIT, executable, (const char *const *)argv);
 #else
     pid_t pid = fork();
+
     if (pid == 0)
     {
         execv(executable, argv);
@@ -1162,8 +1167,10 @@ void SHU_SpawnProcess(const char *executable, char *const *argv)
 #ifndef SHUC_NO_RUN_LOG
         SHU_LogInfo("Process " SHUM_COLOR_CYAN("'%s'") " executed successfully.", executable);
 #endif
-        exit(0);
+        exit(result);
     }
+
+    return result;
 }
 
 const char *SHU_GetExecutablePath()
@@ -1375,7 +1382,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     {
         SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_HOST_COMPILER_COMMAND);
     }
-    else if (strcmp(compilerCommand, "clang") == 0 || strcmp(compilerCommand, "clang-cl") == 0)
+    else if (strcmp(compilerCommand, "clang") == 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_CLANG, compilerCommand);
     }
