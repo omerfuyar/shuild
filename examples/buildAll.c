@@ -57,10 +57,11 @@ int main(int argc, char **argv)
     SHU_Run("./10_compiler_helpers/shuild d");
     SHU_Run("./10_compiler_helpers/shuild r");
 
-    SHU_LogInfo("\n\n\nAll examples built and successfully. Running all examples...\n\n");
+    SHU_LogInfo("\n\n\nAll examples built and successfully.\n");
 
-    if (argc > 1) // run all
+    if (argc > 1)
     {
+        SHU_LogInfo("Running all examples...\n\n");
         SHU_Run("./1_single_source/build/1_single_source");
         SHU_Run("./2_compiler_flags/exampleDebug");
         SHU_Run("./2_compiler_flags/exampleRelease");
