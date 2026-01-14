@@ -702,7 +702,7 @@ static void SHUI_CopyRecursive(const SHUI_String *src, const SHUI_String *dst)
 {
     char fileType = SHUI_FileExists(src);
 
-    SHU_Assert(fileType != SHUM_FILE_INVALID, "File '%s' does not exist in SHUI_CopyRecursive", src->data);
+    SHU_Assert(fileType != SHUM_FILE_INVALID, "File '%s' does not exist", src->data);
 
     if (fileType == SHUM_FILE_REGULAR)
     {
@@ -710,7 +710,14 @@ static void SHUI_CopyRecursive(const SHUI_String *src, const SHUI_String *dst)
         return;
     }
 
-    SHUI_MakeDirectoryRecursive(dst);
+    char destinationType = SHUI_FileExists(dst);
+
+    SHU_Assert(destinationType != SHUM_FILE_REGULAR, "Directory '%s' already exist as a regular file", src->data);
+
+    if (destinationType == SHUM_FILE_INVALID)
+    {
+        SHUI_MakeDirectoryRecursive(dst);
+    }
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     WIN32_FIND_DATAA ffd;
@@ -1101,7 +1108,7 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
     SHU_Run("%s %s %s %s%s",
             SHUI.COMPILER.command.data,
             srcName,
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/O2" : "-O3",
+            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Zi /Od" : "-g -Og",
             SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             exeName);
 
