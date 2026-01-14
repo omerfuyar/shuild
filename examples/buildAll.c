@@ -6,6 +6,10 @@ int main(int argc, char **argv)
     SHU_CompilerTryConfigure("gcc");
     SHU_Automate(argc, argv);
 
+    SHU_CompilerDebug();
+    SHU_CompilerWarning(SHUM_COMPILER_WARNING_HIGH, 1);
+    SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation");
+
     SHU_ModuleBegin("shuild");
     SHU_ModuleAddSourceFile("1_single_source/shuild.c");
     SHU_ModuleCompile("1_single_source/", SHUM_MODULE_EXECUTABLE);

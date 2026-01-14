@@ -5,6 +5,12 @@ int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("gcc");
 
+    if (argc < 2)
+    {
+        printf("Wrong usage : use with argument d or r");
+        return 1;
+    }
+
     if (!strcmp("d", argv[1]))
     {
         SHU_CompilerDebug();
