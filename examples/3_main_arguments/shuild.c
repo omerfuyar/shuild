@@ -11,7 +11,7 @@ int main(int argc, char **argv)
         SHU_CompilerAddFlags(argv[i]);
     }
 
-    SHU_ModuleBegin("3_main_arguments");
+    SHU_ModuleBegin("example");
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 

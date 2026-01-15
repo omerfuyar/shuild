@@ -68,11 +68,11 @@ int main(int argc, char **argv)
     if (argc > 1) // run all
     {
         SHU_LogInfo("\n\n\nAll examples are built. Running all examples...\n\n");
-        SHU_Run("./1_single_source/build/1_single_source");
+        SHU_Run("./1_single_source/build/example");
         SHU_Run("./2_compiler_flags/exampleDebug");
         SHU_Run("./2_compiler_flags/exampleRelease");
-        SHU_Run("./3_main_arguments/3_main_arguments");
-        SHU_Run("./4_folder_structures/4_folder_structures");
+        SHU_Run("./3_main_arguments/example");
+        SHU_Run("./4_folder_structures/example");
         SHU_Run("./5_static_library/build/bin/example");
         SHU_Run("./6_dynamic_library/build/bin/example");
         SHU_Run("./7_different_compilers/examplegcc");

@@ -63,11 +63,11 @@ int main(int argc, char **argv)
     if (argc > 1) // run all
     {
         SHU_LogInfo("\n\n\nAll examples are built. Running all examples...\n\n");
-        SHU_Run("1_single_source\\build\\1_single_source.exe");
+        SHU_Run("1_single_source\\build\\example.exe");
         SHU_Run("2_compiler_flags\\exampleDebug.exe");
         SHU_Run("2_compiler_flags\\exampleRelease.exe");
-        SHU_Run("3_main_arguments\\3_main_arguments.exe");
-        SHU_Run("4_folder_structures\\4_folder_structures.exe");
+        SHU_Run("3_main_arguments\\example.exe");
+        SHU_Run("4_folder_structures\\example.exe");
         SHU_Run("5_static_library\\build\\bin\\example.exe");
         SHU_Run("set PATH=6_dynamic_library\\build\\lib;%%PATH%% && 6_dynamic_library\\build\\bin\\example.exe");
         SHU_Run("7_different_compilers\\examplegcc.exe");

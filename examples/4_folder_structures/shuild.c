@@ -5,7 +5,7 @@ int main(void)
 {
     SHU_CompilerTryConfigure("gcc");
 
-    SHU_ModuleBegin("4_folder_structures");
+    SHU_ModuleBegin("example");
 
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceDirectory("src/");
