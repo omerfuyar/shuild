@@ -13,11 +13,11 @@
 
 // You can define various macros to configure Shuild before including this file.
 // define SHUILD_IMPLEMENTATION in one file to include the implementation.
+// define SHUC_ENABLE_INCREMENTAL <cache directory> to enable incremental builds. Directory is relative to current executable. Use "" to use default cache directory which is ".shu/".
 // define SHUC_NO_MODULE_LOG to disable module logs.
 // define SHUC_NO_RUN_LOG to disable command run logs.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
-// define SHUC_MAX_<...> to customize various limits.
-// and define other SHUC_<...> macros to customize various configurations.
+// define SHUC_MAX_<...> <limit> to customize limits.
 
 #pragma once
 
@@ -60,7 +60,6 @@
 #define SHUM_COMPILER_UNKNOWN 0
 #define SHUM_COMPILER_CLANG 1
 #define SHUM_COMPILER_GCC 2
-#define SHUM_COMPILER_MSVC 3
 
 #if defined(__clang__)
 /// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
@@ -81,16 +80,6 @@
 #define SHUM_HOST_COMPILER_STRING "GCC"
 /// @brief Default command of the host compiler.
 #define SHUM_HOST_COMPILER_COMMAND "gcc"
-
-#elif defined(_MSC_VER)
-/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_HOST_COMPILER SHUM_COMPILER_MSVC
-/// @brief Version of the host compiler.
-#define SHUM_HOST_COMPILER_VERSION _MSC_VER
-/// @brief Name of the host compiler.
-#define SHUM_HOST_COMPILER_STRING "MSVC"
-/// @brief Default command of the host compiler.
-#define SHUM_HOST_COMPILER_COMMAND "cl"
 
 #else
 /// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
@@ -156,14 +145,17 @@
 #define SHUM_MODULE_LIBRARY_STATIC 1
 #define SHUM_MODULE_LIBRARY_DYNAMIC 2
 
-#define SHUM_COMPILER_OPTIMIZATION_SIZE 0
-#define SHUM_COMPILER_OPTIMIZATION_LOW 1
-#define SHUM_COMPILER_OPTIMIZATION_MID 2
-#define SHUM_COMPILER_OPTIMIZATION_HIGH 3
+#define SHUM_FLAGS_DEBUG "-g -Og"
 
-#define SHUM_COMPILER_WARNING_LOW 0
-#define SHUM_COMPILER_WARNING_MID 1
-#define SHUM_COMPILER_WARNING_HIGH 2
+#define SHUM_FLAGS_OPTIMIZATION_SIZE "-Os"
+#define SHUM_FLAGS_OPTIMIZATION_LOW "-O1"
+#define SHUM_FLAGS_OPTIMIZATION_MID "-O2"
+#define SHUM_FLAGS_OPTIMIZATION_HIGH "-O3"
+
+#define SHUM_FLAGS_WARNING_LOW "-Wall -Wextra"
+#define SHUM_FLAGS_WARNING_MID "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
+#define SHUM_FLAGS_WARNING_HIGH "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
+#define SHUM_FLAGS_WARNING_ERROR " -Werror"
 
 #define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
                                         : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
@@ -179,6 +171,16 @@
 #define SHUM_COLOR_CYAN(string) "\x1b[36m" string SHUM_COLOR_RESET
 #define SHUM_COLOR_WHITE(string) "\x1b[37m" string SHUM_COLOR_RESET
 #define SHUM_COLOR_BOLD(string) "\x1b[1m" string SHUM_COLOR_RESET
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#define SHUM_PATH_SEPARATOR '\\'
+#define SHUM_PATH_SEPARATOR_STR "\\"
+#else
+#define SHUM_PATH_SEPARATOR '/'
+#define SHUM_PATH_SEPARATOR_STR "/"
+#endif
+
+#define SHUM_DEFAULT_OBJECT_CACHE_DIRECTORY ".shu/"
 
 #pragma endregion
 
@@ -207,6 +209,11 @@ int SHU_SpawnProcess(const char *executable, char *const *argv);
 /// @brief Platform-specific helper to get executable path.
 /// @return Address of the executable path string. Do not free or edit it.
 const char *SHU_GetExecutablePath();
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+/// @brief Clears the cache directory.
+void SHU_CacheClear();
+#endif
 
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
@@ -293,18 +300,6 @@ void SHU_CompilerSetFlags(const char *flags);
 /// @brief Clears the current compiler flags.
 void SHU_CompilerClearFlags();
 
-/// @brief Adds debug flags to the compiler configuration. Automatically selects flags for current compiler.
-void SHU_CompilerDebug();
-
-/// @brief Adds optimization flags to the compiler configuration. Automatically selects flags for current compiler.
-/// @param optimizationLevel Level of optimizations to add. use SHUM_COMPILER_OPTIMIZATION_<...> flags to configure.
-void SHU_CompilerOptimization(char optimizationLevel);
-
-/// @brief Adds warning flags to the compiler configuration. Automatically selects flags for current compiler.
-/// @param warningLevel Level of warnings to add. use SHUM_COMPILER_WARNING_<...> flags to configure.
-/// @param treatAsError If true, treats all warnings as errors.
-void SHU_CompilerWarning(char warningLevel, char treatAsError);
-
 /// @brief Gets the current configured compiler flags.
 /// @param buffer Buffer to write flags.
 /// @param bufferSize Size of the buffer.
@@ -375,34 +370,30 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <mach-o/dyld.h>
 #endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-#define SHUI_PATH_SEPARATOR '\\'
-#define SHUI_PATH_SEPARATOR_STR "\\"
-#else
-#define SHUI_PATH_SEPARATOR '/'
-#define SHUI_PATH_SEPARATOR_STR "/"
-#endif
-
 #pragma region Internals
 
 typedef unsigned int SHUI_Size;
 
 typedef struct SHUI_String
 {
-    char data[SHUC_MAX_STRING_SIZE];
     SHUI_Size length;
+    char data[SHUC_MAX_STRING_SIZE];
 } SHUI_String;
 
 typedef struct SHUI_StringList
 {
-    SHUI_String *data;
     SHUI_Size count;
     SHUI_Size capacity;
+    SHUI_String *data;
 } SHUI_StringList;
 
 static struct
 {
     SHUI_String currentExecutableDirectory;
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+    SHUI_String cacheDirectory;
+#endif
 
     struct
     {
@@ -529,9 +520,9 @@ static void SHUI_MakeDirectory(const SHUI_String *path)
     result = mkdir(path->data, 0755);
 #endif
 
-    if (result != 0)
+    if (result != 0 && errno != EEXIST)
     {
-        SHU_LogError(result, "Internal: Directory creation failed for '%s' in SHUI_MakeDirectory", path->data);
+        SHU_LogError(result, "Internal: Directory creation failed for '%s'", path->data);
     }
 }
 
@@ -539,13 +530,13 @@ static void SHUI_MakeDirectoryRecursive(const SHUI_String *path)
 {
     for (SHUI_Size i = 1; i < path->length; i++)
     {
-        if (path->data[i] == SHUI_PATH_SEPARATOR)
+        if (path->data[i] == SHUM_PATH_SEPARATOR)
         {
             SHUI_String tempPath = {0};
             SHUI_SAppend(&tempPath, path);
 
             tempPath.length = i;
-            tempPath.data[path->length] = '\0';
+            tempPath.data[tempPath.length] = '\0';
 
             SHUI_MakeDirectory(&tempPath);
         }
@@ -560,7 +551,7 @@ static void SHUI_DeleteSingleFile(const SHUI_String *path)
 
     if (result != 0)
     {
-        SHU_LogError(result, "Internal: File deletion failed for '%s' in SHUI_DeleteSingleFile", path->data);
+        SHU_LogError(result, "Internal: File deletion failed for '%s'", path->data);
     }
 }
 
@@ -846,6 +837,36 @@ static void SHUI_AddSourceDirectoryRecursive(const SHUI_String *path)
 #endif
 }
 
+#ifdef SHUC_ENABLE_INCREMENTAL
+static char SHUI_RequiresCompilation(const SHUI_String *sourceFile, SHUI_String *retObjectFile)
+{
+    SHUI_Size fileStartIndex = sourceFile->length - 1;
+    while (sourceFile->data[fileStartIndex] != SHUM_PATH_SEPARATOR)
+    {
+        fileStartIndex--;
+    }
+    fileStartIndex++;
+
+    SHUI_SFormat(retObjectFile, "%s%.*so", SHUI.cacheDirectory.data, sourceFile->length - fileStartIndex - 1, sourceFile->data + fileStartIndex);
+
+    if (SHUI_FileExists(retObjectFile) == SHUM_FILE_INVALID)
+    {
+        return 1;
+    }
+
+    struct stat attr;
+    time_t srcTime = stat(sourceFile->data, &attr) == 0 ? attr.st_mtime : 0;
+    time_t objTime = stat(retObjectFile->data, &attr) == 0 ? attr.st_mtime : 0;
+
+    if (srcTime > objTime)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+#endif
+
 static void SHUI_CompileExecutable(const SHUI_String *directory)
 {
     char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -854,19 +875,8 @@ static void SHUI_CompileExecutable(const SHUI_String *directory)
     {
         includeBufferIndex += (SHUI_Size)snprintf(includeBuffer + includeBufferIndex,
                                                   sizeof(includeBuffer) - includeBufferIndex,
-                                                  "%s%s ",
-                                                  SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                                  "-I%s ",
                                                   SHUI.MODULE.includeDirectories.data[i].data);
-    }
-
-    char sourceBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    SHUI_Size sourceBufferIndex = 0;
-    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
-    {
-        sourceBufferIndex += (SHUI_Size)snprintf(sourceBuffer + sourceBufferIndex,
-                                                 sizeof(sourceBuffer) - sourceBufferIndex,
-                                                 "%s ",
-                                                 SHUI.MODULE.sourceFiles.data[i].data);
     }
 
     char linkDirectoryBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
@@ -875,10 +885,8 @@ static void SHUI_CompileExecutable(const SHUI_String *directory)
     {
         linkDirectoryBufferIndex += (SHUI_Size)snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
                                                         sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
-                                                        "%s%s %s%s ",
-                                                        SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/LIBPATH:" : "-L",
+                                                        "-L%s -Wl,-rpath,%s ",
                                                         SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data,
-                                                        SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "" : "-Wl,-rpath,",
                                                         SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data);
     }
 
@@ -888,8 +896,7 @@ static void SHUI_CompileExecutable(const SHUI_String *directory)
     {
         linkBufferIndex += (SHUI_Size)snprintf(linkBuffer + linkBufferIndex,
                                                sizeof(linkBuffer) - linkBufferIndex,
-                                               "%s%s ",
-                                               SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "" : "-l",
+                                               "-l%s ",
                                                SHUI.MODULE.EXECUTABLE.links.data[i].data);
     }
 
@@ -903,22 +910,50 @@ static void SHUI_CompileExecutable(const SHUI_String *directory)
                                                SHUI.COMPILER.flags.data[i].data);
     }
 
-    SHU_Run("%s %s %s %s %s %s %s%s%s%s",
+    char sourceBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
+    SHUI_Size sourceBufferIndex = 0;
+    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
+    {
+        const SHUI_String const *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+        SHUI_String objectFile = {0};
+
+        if (SHUI_RequiresCompilation(sourceFile, &objectFile))
+        {
+            SHU_Run("%s -c %s %s %s -o%s",
+                    SHUI.COMPILER.command.data,
+                    sourceFile->data,
+                    flagBuffer,
+                    includeBuffer,
+                    objectFile.data);
+        }
+
+        sourceBufferIndex += (SHUI_Size)snprintf(sourceBuffer + sourceBufferIndex,
+                                                 sizeof(sourceBuffer) - sourceBufferIndex,
+                                                 "%s ",
+                                                 objectFile.data);
+#else
+        sourceBufferIndex += (SHUI_Size)snprintf(sourceBuffer + sourceBufferIndex,
+                                                 sizeof(sourceBuffer) - sourceBufferIndex,
+                                                 "%s ",
+                                                 sourceFile->data);
+#endif
+    }
+
+    SHU_Run("%s %s %s %s %s %s -o%s%s",
             SHUI.COMPILER.command.data,
             includeBuffer,
             sourceBuffer,
             linkDirectoryBuffer,
             linkBuffer,
             flagBuffer,
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             directory->data,
-            SHUI.MODULE.name.data,
-            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+            SHUI.MODULE.name.data);
 }
 
 static void SHUI_CompileLibraryStatic(const SHUI_String *directory)
 {
-    // commands for flags
     char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     SHUI_Size commandBufferIndex = 0;
 
@@ -934,59 +969,66 @@ static void SHUI_CompileLibraryStatic(const SHUI_String *directory)
     {
         commandBufferIndex += (SHUI_Size)snprintf(commandBuffer + commandBufferIndex,
                                                   sizeof(commandBuffer) - commandBufferIndex,
-                                                  "%s%s ",
-                                                  SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                                  "-I%s ",
                                                   SHUI.MODULE.includeDirectories.data[i].data);
     }
 
+    SHUI_StringList objFiles = SHUI_SLCreate(SHUI.MODULE.sourceFiles.count);
+
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
-        SHU_Run("%s %s %s %s %.*s%s %s",
+        SHUI_String objPath = {0};
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+        if (SHUI_RequiresCompilation(&SHUI.MODULE.sourceFiles.data[i], &objPath))
+        {
+            SHU_Run("%s -c %s -o%s %s",
+                    SHUI.COMPILER.command.data,
+                    SHUI.MODULE.sourceFiles.data[i].data,
+                    objPath.data,
+                    commandBuffer);
+        }
+
+        SHUI_SLAdd(&objFiles, &objPath);
+#else
+        SHUI_SFormat(&objPath, "%.*so", SHUI.MODULE.sourceFiles.data[i].length - 1, SHUI.MODULE.sourceFiles.data[i].data);
+
+        SHU_Run("%s -c %s -o%s %s",
                 SHUI.COMPILER.command.data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/c" : "-c",
                 SHUI.MODULE.sourceFiles.data[i].data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fo:" : "-o",
-                SHUI.MODULE.sourceFiles.data[i].length - 1,
-                SHUI.MODULE.sourceFiles.data[i].data,
-                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o",
+                objPath.data,
                 commandBuffer);
+
+        SHUI_SLAdd(&objFiles, &objPath);
+#endif
     }
 
     // commands for objects
     memset(commandBuffer, 0, sizeof(commandBuffer));
     commandBufferIndex = 0;
 
-    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
+    for (SHUI_Size i = 0; i < objFiles.count; i++)
     {
         commandBufferIndex += (SHUI_Size)snprintf(commandBuffer + commandBufferIndex,
                                                   sizeof(commandBuffer) - commandBufferIndex,
-                                                  "%.*s%s ",
-                                                  (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
-                                                  SHUI.MODULE.sourceFiles.data[i].data,
-                                                  SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
+                                                  "%s ",
+                                                  objFiles.data[i].data);
     }
 
-    SHU_Run("%s %s%s%s%s%s %s",
-            SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar"
-            : SHUI.COMPILER.identifier == SHUM_COMPILER_GCC ? "ar"
-                                                            : "lib.exe",
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/OUT:" : "rcs ", directory->data,
-            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
+    SHU_Run("%s rcs %slib%s.a %s",
+            SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar",
+            directory->data,
             SHUI.MODULE.name.data,
-            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".lib" : ".a",
             commandBuffer);
 
-    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
+#ifndef SHUC_ENABLE_INCREMENTAL
+    for (SHUI_Size i = 0; i < objFiles.count; i++)
     {
-        SHUI_String objPath = {0};
-
-        SHUI_SFormat(&objPath, "%.*s%s",
-                     (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
-                     SHUI.MODULE.sourceFiles.data[i].data,
-                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
-
-        SHUI_DeleteSingleFile(&objPath);
+        SHUI_DeleteSingleFile(&objFiles.data[i]);
     }
+#endif
+
+    SHUI_SLDestroy(&objFiles);
 }
 
 static void SHUI_CompileLibraryDynamic(const SHUI_String *directory)
@@ -1007,60 +1049,66 @@ static void SHUI_CompileLibraryDynamic(const SHUI_String *directory)
     {
         commandBufferIndex += (SHUI_Size)snprintf(commandBuffer + commandBufferIndex,
                                                   sizeof(commandBuffer) - commandBufferIndex,
-                                                  "%s%s ",
-                                                  SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/I" : "-I",
+                                                  "-I%s ",
                                                   SHUI.MODULE.includeDirectories.data[i].data);
     }
 
+    SHUI_StringList objFiles = SHUI_SLCreate(SHUI.MODULE.sourceFiles.count);
+
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
-        SHU_Run("%s %s %s %s %.*s%s %s",
+        SHUI_String objPath = {0};
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+        if (SHUI_RequiresCompilation(&SHUI.MODULE.sourceFiles.data[i], &objPath))
+        {
+            SHU_Run("%s -c -fPIC %s -o%s %s",
+                    SHUI.COMPILER.command.data,
+                    SHUI.MODULE.sourceFiles.data[i].data,
+                    objPath.data,
+                    commandBuffer);
+        }
+
+        SHUI_SLAdd(&objFiles, &objPath);
+#else
+        SHUI_SFormat(&objPath, "%.*so", SHUI.MODULE.sourceFiles.data[i].length - 1, SHUI.MODULE.sourceFiles.data[i].data);
+
+        SHU_Run("%s -c -fPIC %s -o%s %s",
                 SHUI.COMPILER.command.data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/c" : "-c -fPIC",
                 SHUI.MODULE.sourceFiles.data[i].data,
-                SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fo:" : "-o",
-                SHUI.MODULE.sourceFiles.data[i].length - 1,
-                SHUI.MODULE.sourceFiles.data[i].data,
-                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o",
+                objPath.data,
                 commandBuffer);
+
+        SHUI_SLAdd(&objFiles, &objPath);
+#endif
     }
 
     // commands for objects
     memset(commandBuffer, 0, sizeof(commandBuffer));
     commandBufferIndex = 0;
 
-    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
+    for (SHUI_Size i = 0; i < objFiles.count; i++)
     {
         commandBufferIndex += (SHUI_Size)snprintf(commandBuffer + commandBufferIndex,
                                                   sizeof(commandBuffer) - commandBufferIndex,
-                                                  "%.*s%s ",
-                                                  (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
-                                                  SHUI.MODULE.sourceFiles.data[i].data,
-                                                  SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
+                                                  "%s ",
+                                                  objFiles.data[i].data);
     }
 
-    SHU_Run("%s %s %s %s%s%s%s %s",
+    SHU_Run("%s -shared -o%slib%s.so %s",
             SHUI.COMPILER.command.data,
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/LD" : "-shared",
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             directory->data,
-            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
             SHUI.MODULE.name.data,
-            SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".dll" : ".so",
             commandBuffer);
 
-    // Delete object files
-    for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
+#ifndef SHUC_ENABLE_INCREMENTAL
+    for (SHUI_Size i = 0; i < objFiles.count; i++)
     {
-        SHUI_String objPath = {0};
-
-        SHUI_SFormat(&objPath, "%.*s%s",
-                     (int)SHUI.MODULE.sourceFiles.data[i].length - 1,
-                     SHUI.MODULE.sourceFiles.data[i].data,
-                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
-
-        SHUI_DeleteSingleFile(&objPath);
+        SHUI_DeleteSingleFile(&objFiles.data[i]);
     }
+#endif
+
+    SHUI_SLDestroy(&objFiles);
 }
 
 #pragma endregion Internals
@@ -1075,14 +1123,14 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
 
     SHUI_Size exeNameIndex = (SHUI_Size)strlen(argv[0]) - 1;
 
-    while (exeNameIndex > 0 && argv[0][exeNameIndex - 1] != SHUI_PATH_SEPARATOR && argv[0][exeNameIndex - 1] != '/' && argv[0][exeNameIndex - 1] != '\\')
+    while (exeNameIndex > 0 && argv[0][exeNameIndex - 1] != SHUM_PATH_SEPARATOR && argv[0][exeNameIndex - 1] != '/' && argv[0][exeNameIndex - 1] != '\\')
     {
         exeNameIndex--;
     }
 
     SHUI_Size srcNameIndex = (SHUI_Size)strlen(sourceName) - 1;
 
-    while (srcNameIndex > 0 && sourceName[srcNameIndex - 1] != SHUI_PATH_SEPARATOR && sourceName[srcNameIndex - 1] != '/' && sourceName[srcNameIndex - 1] != '\\')
+    while (srcNameIndex > 0 && sourceName[srcNameIndex - 1] != SHUM_PATH_SEPARATOR && sourceName[srcNameIndex - 1] != '/' && sourceName[srcNameIndex - 1] != '\\')
     {
         srcNameIndex--;
     }
@@ -1105,11 +1153,9 @@ void SHU_AutomateI(int argc, char **argv, const char *sourceName)
     snprintf(oldExeName, sizeof(oldExeName), "%s.old", exeName);
     SHU_RenameFile(exeName, oldExeName);
 
-    SHU_Run("%s %s %s %s%s",
+    SHU_Run("%s %s " SHUM_FLAGS_DEBUG " -o%s",
             SHUI.COMPILER.command.data,
             srcName,
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Zi /Od" : "-g -Og",
-            SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC ? "/Fe:" : "-o",
             exeName);
 
     SHU_SpawnProcess(exeName, argv);
@@ -1335,13 +1381,20 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
         pathLength = (SHUI_Size)readlink("/proc/self/exe", pathBuffer, sizeof(pathBuffer));
 #endif
 
-        while (pathLength > 0 && pathBuffer[pathLength - 1] != SHUI_PATH_SEPARATOR && pathBuffer[pathLength - 1] != '/' && pathBuffer[pathLength - 1] != '\\')
+        while (pathLength > 0 && pathBuffer[pathLength - 1] != SHUM_PATH_SEPARATOR && pathBuffer[pathLength - 1] != '/' && pathBuffer[pathLength - 1] != '\\')
         {
             pathBuffer[--pathLength] = '\0';
         }
         pathLength++;
 
         SHUI_SAppendC(&SHUI.currentExecutableDirectory, pathBuffer);
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+        SHUI_SAppend(&SHUI.cacheDirectory, &SHUI.currentExecutableDirectory);
+        SHUI_SAppendC(&SHUI.cacheDirectory, strlen(SHUC_ENABLE_INCREMENTAL) == 0 ? SHUM_DEFAULT_OBJECT_CACHE_DIRECTORY : SHUC_ENABLE_INCREMENTAL);
+
+        SHUI_MakeDirectoryRecursive(&SHUI.cacheDirectory);
+#endif
     }
 }
 
@@ -1358,10 +1411,6 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     else if (strcmp(compilerCommand, "gcc") == 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_GCC, compilerCommand);
-    }
-    else if (strcmp(compilerCommand, "cl") == 0 || strcmp(compilerCommand, "msvc") == 0)
-    {
-        SHU_CompilerConfigure(SHUM_COMPILER_MSVC, compilerCommand);
     }
     else
     {
@@ -1391,127 +1440,6 @@ void SHU_CompilerClearFlags()
     if (SHUI.COMPILER.flags.data != NULL)
     {
         SHUI_SLDestroy(&SHUI.COMPILER.flags);
-    }
-}
-
-void SHU_CompilerDebug()
-{
-    if (SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC)
-    {
-        SHU_CompilerAddFlags("/Zi /Od");
-    }
-    else if (SHUI.COMPILER.identifier == SHUM_COMPILER_GCC || SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG)
-    {
-        SHU_CompilerAddFlags("-g -Og");
-    }
-    else
-    {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
-    }
-}
-
-void SHU_CompilerOptimization(char optimizationLevel)
-{
-    SHU_Assert(optimizationLevel == SHUM_COMPILER_OPTIMIZATION_SIZE ||
-                   optimizationLevel == SHUM_COMPILER_OPTIMIZATION_LOW ||
-                   optimizationLevel == SHUM_COMPILER_OPTIMIZATION_MID ||
-                   optimizationLevel == SHUM_COMPILER_OPTIMIZATION_HIGH,
-               "Invalid optimization level '%d'.", optimizationLevel);
-
-    if (SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC)
-    {
-        switch (optimizationLevel)
-        {
-        case SHUM_COMPILER_OPTIMIZATION_SIZE:
-            SHU_CompilerAddFlags("/O1");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_LOW:
-            SHU_CompilerAddFlags("/O2");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_MID:
-            SHU_CompilerAddFlags("/Ox");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_HIGH:
-            SHU_CompilerAddFlags("/Oxiy");
-            break;
-        }
-    }
-    else if (SHUI.COMPILER.identifier == SHUM_COMPILER_GCC || SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG)
-    {
-        switch (optimizationLevel)
-        {
-        case SHUM_COMPILER_OPTIMIZATION_SIZE:
-            SHU_CompilerAddFlags("-Os");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_LOW:
-            SHU_CompilerAddFlags("-O1");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_MID:
-            SHU_CompilerAddFlags("-O2");
-            break;
-        case SHUM_COMPILER_OPTIMIZATION_HIGH:
-            SHU_CompilerAddFlags("-O3");
-            break;
-        }
-    }
-    else
-    {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
-    }
-}
-
-void SHU_CompilerWarning(char warningLevel, char treatAsError)
-{
-    SHU_Assert(warningLevel == SHUM_COMPILER_WARNING_LOW ||
-                   warningLevel == SHUM_COMPILER_WARNING_MID ||
-                   warningLevel == SHUM_COMPILER_WARNING_HIGH,
-               "Invalid warning level '%d'.", warningLevel);
-
-    if (SHUI.COMPILER.identifier == SHUM_COMPILER_MSVC)
-    {
-        switch (warningLevel)
-        {
-        case SHUM_COMPILER_WARNING_LOW:
-            SHU_CompilerAddFlags("/W1");
-            break;
-        case SHUM_COMPILER_WARNING_MID:
-            SHU_CompilerAddFlags("/W3");
-            break;
-        case SHUM_COMPILER_WARNING_HIGH:
-            // SHU_CompilerAddFlags("/Wall /GS");
-            SHU_CompilerAddFlags("/W4 /WX-");
-            break;
-        }
-
-        if (treatAsError)
-        {
-            SHU_CompilerAddFlags("/WX");
-        }
-    }
-    else if (SHUI.COMPILER.identifier == SHUM_COMPILER_GCC || SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG)
-    {
-        switch (warningLevel)
-        {
-        case SHUM_COMPILER_WARNING_LOW:
-            SHU_CompilerAddFlags("-Wall -Wextra");
-            break;
-        case SHUM_COMPILER_WARNING_MID:
-            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong");
-            break;
-        case SHUM_COMPILER_WARNING_HIGH:
-            SHU_CompilerAddFlags("-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wnull-dereference -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls");
-            SHU_CompilerAddFlags("-Wsign-conversion -Wundef -Wpointer-to-int-cast -Wint-to-pointer-cast");
-            break;
-        }
-
-        if (treatAsError)
-        {
-            SHU_CompilerAddFlags("-Werror");
-        }
-    }
-    else
-    {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Compiler not configured. Configure the compiler first.");
     }
 }
 

@@ -13,12 +13,12 @@ int main(int argc, char **argv)
 
     if (!strcmp("d", argv[1]))
     {
-        SHU_CompilerDebug();
-        SHU_CompilerWarning(SHUM_COMPILER_WARNING_HIGH, 1);
+        SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG);
+        SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_HIGH SHUM_FLAGS_WARNING_ERROR);
     }
     else if (!strcmp("r", argv[1]))
     {
-        SHU_CompilerOptimization(SHUM_COMPILER_OPTIMIZATION_HIGH);
+        SHU_CompilerAddFlags(SHUM_FLAGS_OPTIMIZATION_HIGH);
     }
     else
     {

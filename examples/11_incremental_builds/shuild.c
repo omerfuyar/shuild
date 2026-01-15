@@ -1,4 +1,5 @@
 #define SHUILD_IMPLEMENTATION
+#define SHUC_ENABLE_INCREMENTAL ""
 #include "../../shuild.h"
 
 int main(void)

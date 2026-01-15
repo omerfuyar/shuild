@@ -6,8 +6,7 @@ int main(int argc, char **argv)
     SHU_CompilerTryConfigure("gcc");
     SHU_Automate(argc, argv);
 
-    SHU_CompilerDebug();
-    SHU_CompilerWarning(SHUM_COMPILER_WARNING_HIGH, 1);
+    SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG);
     SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation");
 
     SHU_ModuleBegin("shuild");
@@ -61,10 +60,14 @@ int main(int argc, char **argv)
     SHU_Run("./10_compiler_helpers/shuild d");
     SHU_Run("./10_compiler_helpers/shuild r");
 
-    SHU_LogInfo("\n\n\nAll examples built and successfully. Running all examples...\n\n");
+    SHU_ModuleBegin("shuild");
+    SHU_ModuleAddSourceFile("11_incremental_builds/shuild.c");
+    SHU_ModuleCompile("11_incremental_builds/", SHUM_MODULE_EXECUTABLE);
+    SHU_Run("./11_incremental_builds/shuild");
 
     if (argc > 1) // run all
     {
+        SHU_LogInfo("\n\n\nAll examples are built. Running all examples...\n\n");
         SHU_Run("./1_single_source/build/1_single_source");
         SHU_Run("./2_compiler_flags/exampleDebug");
         SHU_Run("./2_compiler_flags/exampleRelease");
@@ -77,6 +80,7 @@ int main(int argc, char **argv)
         SHU_Run("./9_automate/example");
         SHU_Run("./10_compiler_helpers/example d");
         SHU_Run("./10_compiler_helpers/example r");
+        SHU_Run("./11_incremental_builds/build/bin/example");
     }
 
     return 0;

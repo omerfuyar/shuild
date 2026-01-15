@@ -6,6 +6,7 @@
 build/
 *.o
 *.obj
+.shu
 
 example
 exampleclang
