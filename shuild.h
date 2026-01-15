@@ -914,7 +914,7 @@ static void SHUI_CompileExecutable(const SHUI_String *directory)
     SHUI_Size sourceBufferIndex = 0;
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
-        const SHUI_String const *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
+        const SHUI_String *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
 
 #ifdef SHUC_ENABLE_INCREMENTAL
         SHUI_String objectFile = {0};
