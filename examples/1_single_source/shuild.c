@@ -8,7 +8,6 @@ int main(void)
 
     SHU_ModuleBegin("example");
     SHU_ModuleAddSourceFile("example.c");
-
     SHU_ModuleCompile("build/", SHUM_MODULE_EXECUTABLE);
 
     return 0;

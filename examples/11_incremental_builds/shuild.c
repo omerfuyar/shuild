@@ -2,9 +2,11 @@
 #define SHUC_ENABLE_INCREMENTAL ""
 #include "../../shuild.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("gcc");
+
+    SHU_CompilerAddFlags("-DFOO");
 
     SHU_ModuleBegin("exampleLib");
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
