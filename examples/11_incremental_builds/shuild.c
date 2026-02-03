@@ -8,7 +8,6 @@ int main(int argc, char **argv)
     SHU_CompilerTryConfigure("gcc");
 
     // configure compiler and module until compilation.
-    SHU_CompilerAddFlags("-DFOO");
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceDirectory("src/");

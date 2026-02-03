@@ -862,6 +862,11 @@ static size_t SHUI_CacheHashState()
 {
     size_t hash = 5381;
 
+    for (SHUI_Size i = 0; i < SHUI.cacheDirectory.length; i++)
+    {
+        hash = ((hash << 5) + hash) + (size_t)SHUI.cacheDirectory.data[i];
+    }
+
     hash = ((hash << 5) + hash) + (size_t)SHUI.COMPILER.identifier;
 
     // Hash Compiler Command
@@ -876,6 +881,21 @@ static size_t SHUI_CacheHashState()
         {
             hash = ((hash << 5) + hash) + (size_t)SHUI.COMPILER.flags.data[i].data[j];
         }
+    }
+
+    for (SHUI_Size i = 0; i < SHUI.currentExecutableDirectory.length; i++)
+    {
+        hash = ((hash << 5) + hash) + (size_t)SHUI.currentExecutableDirectory.data[i];
+    }
+
+    for (SHUI_Size i = 0; i < SHUI.MODULE.name.length; i++)
+    {
+        hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.name.data[i];
+    }
+
+    for (SHUI_Size i = 0; i < SHUI.MODULE.root.length; i++)
+    {
+        hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.root.data[i];
     }
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.includeDirectories.count; i++)
@@ -909,8 +929,6 @@ static size_t SHUI_CacheHashState()
             hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.EXECUTABLE.links.data[i].data[j];
         }
     }
-
-    SHU_LogInfo("hash for module %s : %zu", SHUI.MODULE.name.data, hash);
 
     return hash;
 }
@@ -965,11 +983,7 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
                                                   SHUI.MODULE.includeDirectories.data[i].data);
     }
 
-    SHUI_Size fileStartIndex = 0;
-    while (sourceFile->data[fileStartIndex] == SHUI.currentExecutableDirectory.data[fileStartIndex])
-    {
-        fileStartIndex++;
-    }
+    SHUI_Size fileStartIndex = SHUI.MODULE.root.length;
 
     SHUI_String dependencyFile = {0};
     SHUI_SFormat(&dependencyFile, "%s%s%c%.*s%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, sourceFile->length - fileStartIndex - 1, sourceFile->data + fileStartIndex, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
@@ -1084,7 +1098,6 @@ headerCheck:
 
         if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 && strncmp(lineBuffer.data + lineBuffer.length - 4, ".h\n", 4) != 0)
         {
-            SHU_LogInfo("Skipped line : '%s'", lineBuffer.data);
             continue;
         }
 
