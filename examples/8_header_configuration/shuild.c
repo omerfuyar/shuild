@@ -9,7 +9,7 @@ int main(void)
 {
     SHU_CompilerTryConfigure("gcc");
 
-    SHU_ModuleBegin("example");
+    SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
     return 0;

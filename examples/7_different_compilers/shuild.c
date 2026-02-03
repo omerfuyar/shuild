@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     char buffer[32] = {0};
     snprintf(buffer, sizeof(buffer), "example%s", argv[1]);
 
-    SHU_ModuleBegin(buffer);
+    SHU_ModuleBegin(buffer, "");
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 

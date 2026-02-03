@@ -5,12 +5,12 @@ int main(void)
 {
     SHU_CompilerTryConfigure("gcc");
 
-    SHU_ModuleBegin("exampleLib");
-    SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceDirectory("dependencies/exampleLib/src/");
+    SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
+    SHU_ModuleAddIncludeDirectory("include/");
+    SHU_ModuleAddSourceDirectory("src/");
     SHU_ModuleCompile("build/lib/", SHUM_MODULE_LIBRARY_DYNAMIC);
 
-    SHU_ModuleBegin("example");
+    SHU_ModuleBegin("example", "");
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
     SHU_ModuleAddSourceDirectory("src/");

@@ -26,7 +26,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    SHU_ModuleBegin("example");
+    SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
