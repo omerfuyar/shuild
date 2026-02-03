@@ -858,76 +858,94 @@ static void SHUI_AddSourceDirectoryRecursive(const SHUI_String *path)
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-static size_t SHUI_CacheHashState()
+static unsigned long long SHUI_CacheHashState()
 {
-    size_t hash = 5381;
+    unsigned long long hash = 14695981039346656037ULL;
+
+#define SHUI_HASH_BYTE(byte) hash = ((hash ^ (unsigned long long)(byte)) * 1099511628211ULL)
+#define SHUI_HASH_MIX() hash ^= (hash >> 17)
 
     for (SHUI_Size i = 0; i < SHUI.cacheDirectory.length; i++)
     {
-        hash = ((hash << 5) + hash) + (size_t)SHUI.cacheDirectory.data[i];
+        SHUI_HASH_BYTE(SHUI.cacheDirectory.data[i]);
     }
+    SHUI_HASH_MIX();
 
-    hash = ((hash << 5) + hash) + (size_t)SHUI.COMPILER.identifier;
+    SHUI_HASH_BYTE(SHUI.COMPILER.identifier);
+    SHUI_HASH_MIX();
 
-    // Hash Compiler Command
     for (SHUI_Size i = 0; i < SHUI.COMPILER.command.length; i++)
     {
-        hash = ((hash << 5) + hash) + (size_t)SHUI.COMPILER.command.data[i];
+        SHUI_HASH_BYTE(SHUI.COMPILER.command.data[i]);
     }
+    SHUI_HASH_MIX();
 
+    SHUI_HASH_BYTE(SHUI.COMPILER.flags.count); // Include count to differentiate empty lists
     for (SHUI_Size i = 0; i < SHUI.COMPILER.flags.count; i++)
     {
         for (SHUI_Size j = 0; j < SHUI.COMPILER.flags.data[i].length; j++)
         {
-            hash = ((hash << 5) + hash) + (size_t)SHUI.COMPILER.flags.data[i].data[j];
+            SHUI_HASH_BYTE(SHUI.COMPILER.flags.data[i].data[j]);
         }
+        SHUI_HASH_MIX();
     }
 
     for (SHUI_Size i = 0; i < SHUI.currentExecutableDirectory.length; i++)
     {
-        hash = ((hash << 5) + hash) + (size_t)SHUI.currentExecutableDirectory.data[i];
+        SHUI_HASH_BYTE(SHUI.currentExecutableDirectory.data[i]);
     }
+    SHUI_HASH_MIX();
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.name.length; i++)
     {
-        hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.name.data[i];
+        SHUI_HASH_BYTE(SHUI.MODULE.name.data[i]);
     }
+    SHUI_HASH_MIX();
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.root.length; i++)
     {
-        hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.root.data[i];
+        SHUI_HASH_BYTE(SHUI.MODULE.root.data[i]);
     }
+    SHUI_HASH_MIX();
 
+    SHUI_HASH_BYTE(SHUI.MODULE.includeDirectories.count);
     for (SHUI_Size i = 0; i < SHUI.MODULE.includeDirectories.count; i++)
     {
         for (SHUI_Size j = 0; j < SHUI.MODULE.includeDirectories.data[i].length; j++)
         {
-            hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.includeDirectories.data[i].data[j];
+            SHUI_HASH_BYTE(SHUI.MODULE.includeDirectories.data[i].data[j]);
         }
+        SHUI_HASH_MIX();
     }
 
+    SHUI_HASH_BYTE(SHUI.MODULE.sourceFiles.count);
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
         for (SHUI_Size j = 0; j < SHUI.MODULE.sourceFiles.data[i].length; j++)
         {
-            hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.sourceFiles.data[i].data[j];
+            SHUI_HASH_BYTE(SHUI.MODULE.sourceFiles.data[i].data[j]);
         }
+        SHUI_HASH_MIX();
     }
 
+    SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.linkDirectories.count);
     for (SHUI_Size i = 0; i < SHUI.MODULE.EXECUTABLE.linkDirectories.count; i++)
     {
         for (SHUI_Size j = 0; j < SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].length; j++)
         {
-            hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data[j];
+            SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data[j]);
         }
+        SHUI_HASH_MIX();
     }
 
+    SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.links.count);
     for (SHUI_Size i = 0; i < SHUI.MODULE.EXECUTABLE.links.count; i++)
     {
         for (SHUI_Size j = 0; j < SHUI.MODULE.EXECUTABLE.links.data[i].length; j++)
         {
-            hash = ((hash << 5) + hash) + (size_t)SHUI.MODULE.EXECUTABLE.links.data[i].data[j];
+            SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.links.data[i].data[j]);
         }
+        SHUI_HASH_MIX();
     }
 
     return hash;
@@ -938,11 +956,11 @@ static void SHUI_ModuleCacheUpdate(const SHUI_String *moduleName)
     SHUI_String moduleCacheFile = {0};
     SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
 
-    size_t currentConfig = SHUI_CacheHashState();
+    unsigned long long currentConfig = SHUI_CacheHashState();
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "w+");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
-    fprintf(cacheFileHandle, "%zu", currentConfig);
+    fprintf(cacheFileHandle, "%llu", currentConfig);
     fclose(cacheFileHandle);
 }
 
@@ -956,17 +974,16 @@ static char SHUI_ModuleCacheRequiresCleanup(const SHUI_String *moduleName)
         return 1;
     }
 
-    size_t currentConfig = SHUI_CacheHashState();
-
-    FILE *cacheFileHandle = fopen(moduleCacheFile.data, "r");
-    SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
+    unsigned long long currentConfig = SHUI_CacheHashState();
 
     char buffer[32] = {0};
 
+    FILE *cacheFileHandle = fopen(moduleCacheFile.data, "r");
+    SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
     fread(buffer, 1, sizeof(buffer), cacheFileHandle);
     fclose(cacheFileHandle);
 
-    size_t savedConfig = strtoll(buffer, NULL, 10);
+    unsigned long long savedConfig = strtoull(buffer, NULL, 10);
 
     return currentConfig != savedConfig;
 }
@@ -1006,14 +1023,16 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
     SHUI_SAppendC(&bufferFile, ".tmp");
 
     FILE *dependencyFileHandle = fopen(dependencyFile.data, "r");
-    FILE *bufferFileHandle = fopen(bufferFile.data, "w+");
     SHU_Assert(dependencyFileHandle != NULL, "File open failed for '%s'", dependencyFile.data);
+
+    FILE *bufferFileHandle = fopen(bufferFile.data, "w+");
     SHU_Assert(bufferFileHandle != NULL, "File open failed for '%s'", bufferFile.data);
 
     SHUI_String lineBuffer = {0};
     while (fgets(lineBuffer.data, SHUC_MAX_STRING_SIZE, dependencyFileHandle) != NULL)
     {
         lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
+        // SHU_LogInfo("line encountered :\n'%.*s'", lineBuffer.length, lineBuffer.data);
 
         if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 && strncmp(lineBuffer.data + lineBuffer.length - 4, ".h\n", 4) != 0)
         {
@@ -1029,6 +1048,8 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
 
         SHUI_String headerFile = {0};
         SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 3, lineBuffer.data + headerPathStartIndex);
+
+        SHU_LogInfo("Extracted header file : '%s'", headerFile.data);
 
         struct stat attr;
         time_t headerTime = stat(headerFile.data, &attr) == 0 ? attr.st_mtime : 0;
@@ -1576,7 +1597,7 @@ void SHU_CacheConfigure(const char *cacheDirectory)
 
     SHUI_MakeDirectoryRecursive(&SHUI.cacheDirectory);
 
-    SHU_LogInfo("Configured cache directory at " SHUM_COLOR_CYAN("'%s'"), SHUI.cacheDirectory.data);
+    SHU_LogInfo("Configured cache directory at " SHUM_COLOR_CYAN("'%s'") "\n", SHUI.cacheDirectory.data);
 }
 
 void SHU_CacheClearModule(const char *moduleName)
