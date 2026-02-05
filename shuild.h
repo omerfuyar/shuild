@@ -19,7 +19,7 @@
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
-#define SHUC_ENABLE_INCREMENTAL
+// #define SHUC_ENABLE_INCREMENTAL
 
 #pragma once
 
@@ -657,16 +657,16 @@ static void SHUI_DeleteRecursive(const SHUI_String *path)
         if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
             continue;
 
-        char subPath[SHUC_MAX_STRING_SIZE] = {0};
-        snprintf(subPath, sizeof(subPath), "%s\\%s", path->data, ffd.cFileName);
+        SHUI_String subPath = {0};
+        subPath.length = snprintf(subPath.data, SHUC_MAX_STRING_SIZE, "%s\\%s", path->data, ffd.cFileName);
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            SHUI_DeleteRecursive(subPath);
+            SHUI_DeleteRecursive(&subPath);
         }
         else
         {
-            SHUI_DeleteSingleFile(subPath);
+            SHUI_DeleteSingleFile(&subPath);
         }
     } while (FindNextFileA(hFind, &ffd));
 
@@ -1069,7 +1069,12 @@ static char SHUI_RequiresCompilation(const SHUI_String *moduleName, const SHUI_S
     char returnCondition = 0;
     SHUI_Size fileStartIndex = SHUI.MODULE.root.length;
 
-    SHUI_SFormat(retObjectFile, "%s%s%c%.*so", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, sourceFile->length - fileStartIndex - 1, sourceFile->data + fileStartIndex);
+    SHUI_SFormat(retObjectFile, "%s%s%c%.*s%s",
+                 SHUI.cacheDirectory.data,
+                 moduleName->data, SHUM_PATH_SEPARATOR,
+                 sourceFile->length - fileStartIndex - 1,
+                 sourceFile->data + fileStartIndex,
+                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
     {
         SHUI_Size lastSeparatorIndex = retObjectFile->length - 1;
@@ -1312,7 +1317,9 @@ static void SHUI_CompileLibraryStatic(const SHUI_String *directory)
 #else
         skipLibPacking = 0;
 
-        SHUI_SFormat(&objPath, "%.*so", SHUI.MODULE.sourceFiles.data[i].length - 1, SHUI.MODULE.sourceFiles.data[i].data);
+        SHUI_SFormat(&objPath, "%.*s%s", SHUI.MODULE.sourceFiles.data[i].length - 1,
+                     SHUI.MODULE.sourceFiles.data[i].data,
+                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
         SHU_Run("%s -c %s -o%s %s",
                 SHUI.COMPILER.command.data,
@@ -1338,10 +1345,11 @@ static void SHUI_CompileLibraryStatic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
-        SHU_Run("%s rcs %slib%s.a %s",
+        SHU_Run("%s rcs %slib%s.%s %s",
                 SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar",
                 directory->data,
                 SHUI.MODULE.name.data,
+                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "lib" : "a",
                 commandBuffer);
     }
     else
@@ -1411,7 +1419,8 @@ static void SHUI_CompileLibraryDynamic(const SHUI_String *directory)
 #else
         skipLibPacking = 0;
 
-        SHUI_SFormat(&objPath, "%.*so", SHUI.MODULE.sourceFiles.data[i].length - 1, SHUI.MODULE.sourceFiles.data[i].data);
+        SHUI_SFormat(&objPath, "%.*s%s", SHUI.MODULE.sourceFiles.data[i].length - 1, SHUI.MODULE.sourceFiles.data[i].data,
+                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
         SHU_Run("%s -c -fPIC %s -o%s %s",
                 SHUI.COMPILER.command.data,
@@ -1437,10 +1446,11 @@ static void SHUI_CompileLibraryDynamic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
-        SHU_Run("%s -shared -o%slib%s.so %s",
+        SHU_Run("%s -shared -o%slib%s.%s %s",
                 SHUI.COMPILER.command.data,
                 directory->data,
                 SHUI.MODULE.name.data,
+                SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "dll" : "so",
                 commandBuffer);
     }
     else
