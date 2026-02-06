@@ -19,8 +19,6 @@
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
-#define SHUC_ENABLE_INCREMENTAL
-
 #pragma once
 
 #pragma region Platform Detection
