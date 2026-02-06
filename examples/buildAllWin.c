@@ -50,9 +50,9 @@ int main(int argc, char **argv)
     SHU_UtilRun("8_header_configuration\\shuild.exe");
 
     SHU_ModuleBegin("shuild", "");
-    SHU_ModuleAddSourceFile("9_automate/shuild.c");
-    SHU_ModuleCompile("9_automate/", SHUM_MODULE_EXECUTABLE);
-    SHU_UtilRun("9_automate\\shuild.exe");
+    SHU_ModuleAddSourceFile("9_automate_builds/shuild.c");
+    SHU_ModuleCompile("9_automate_builds/", SHUM_MODULE_EXECUTABLE);
+    SHU_UtilRun("9_automate_builds\\shuild.exe");
 
     SHU_ModuleBegin("shuild", "");
     SHU_ModuleAddSourceFile("10_compiler_helpers/shuild.c");
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         SHU_UtilRun("set PATH=6_dynamic_library\\build\\lib;%%PATH%% && 6_dynamic_library\\build\\bin\\example.exe");
         SHU_UtilRun("7_different_compilers\\examplegcc.exe");
         SHU_UtilRun("8_header_configuration\\example.exe");
-        SHU_UtilRun("9_automate\\example.exe");
+        SHU_UtilRun("9_automate_builds\\example.exe");
         SHU_UtilRun("10_compiler_helpers\\example.exe d");
         SHU_UtilRun("10_compiler_helpers\\example.exe r");
         SHU_UtilRun("11_incremental_builds\\build\\bin\\example");

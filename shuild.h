@@ -236,6 +236,11 @@ void SHU_UtilCopyFile(const char *file, const char *directory);
 /// @param name New name of the file.
 void SHU_UtilRenameFile(const char *file, const char *name);
 
+/// @brief Gets the edit time of a file.
+/// @param file File to get time of edit.
+/// @return Timestamp of the file if found.
+long SHU_GetFileEditTime(const char *file);
+
 /// @brief Internal variadic logging function.
 /// @param terminate Exit code if not 0.
 /// @param header Header of the log.
@@ -973,6 +978,10 @@ static void SHUI_CModuleUpdate(const SHUI_String *moduleName)
     SHUI_String moduleCacheFile = {0};
     SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
 
+    SHUI_String moduleCacheDir = {0};
+    SHUI_SFormat(&moduleCacheDir, "%s%s%c", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR);
+    SHUI_UMakeDirectoryRecursive(&moduleCacheDir);
+
     unsigned long long currentConfig = SHUI_CHashState();
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "w+");
@@ -1076,8 +1085,7 @@ static void SHUI_CHeaderUpdate(const SHUI_String *moduleName, const SHUI_String 
         SHUI_String headerFile = {0};
         SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
 
-        struct stat attr;
-        time_t headerTime = stat(headerFile.data, &attr) == 0 ? attr.st_mtime : 0;
+        time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
 
         fprintf(bufferFileHandle, "%ld%s", headerTime, lineBuffer.data);
     }
@@ -1119,9 +1127,8 @@ static char SHUI_CUnitRequiresCompilation(const SHUI_String *moduleName, const S
         goto headerCheck; // just skip the code below
     }
 
-    struct stat attr;
-    time_t sourceTime = stat(sourceFile->data, &attr) == 0 ? attr.st_mtime : 0;
-    time_t objectTime = stat(retObjectFile->data, &attr) == 0 ? attr.st_mtime : 0;
+    time_t sourceTime = SHUI_UGetFileEditTime(sourceFile);
+    time_t objectTime = SHUI_UGetFileEditTime(retObjectFile);
 
     if (sourceTime > objectTime)
     {
@@ -1169,7 +1176,7 @@ headerCheck:
         SHUI_String headerFile = {0};
         SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
 
-        time_t headerTime = stat(headerFile.data, &attr) == 0 ? attr.st_mtime : 0;
+        time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
 
         if (headerTime > headerCacheTime)
         {
@@ -1519,9 +1526,8 @@ void SHU_UtilAutomateI(int argc, char **argv, const char *sourceName)
     const char *exeName = argv[0] + exeNameIndex;
     const char *srcName = sourceName + srcNameIndex;
 
-    struct stat attr;
-    time_t exeTime = stat(exeName, &attr) == 0 ? attr.st_mtime : 0;
-    time_t sourceTime = stat(srcName, &attr) == 0 ? attr.st_mtime : 0;
+    time_t exeTime = SHU_GetFileEditTime(exeName);
+    time_t sourceTime = SHU_GetFileEditTime(srcName);
 
     if (exeTime >= sourceTime)
     {
@@ -1698,6 +1704,17 @@ void SHU_UtilRenameFile(const char *file, const char *name)
     SHUI_SAppendC(&nameStr, name);
 
     SHUI_URenameFile(&fileStr, &nameStr);
+}
+
+long SHU_GetFileEditTime(const char *file)
+{
+    SHU_AssertNullPtr(file);
+
+    SHUI_String fileStr = SHUI.currentExecutableDirectory;
+
+    SHUI_SAppendC(&fileStr, file);
+
+    return SHUI_UGetFileEditTime(&fileStr);
 }
 
 void SHU_Log(int terminate, const char *header, const char *format, ...)
