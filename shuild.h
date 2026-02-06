@@ -1082,8 +1082,10 @@ static void SHUI_CHeaderUpdate(const SHUI_String *moduleName, const SHUI_String 
             headerPathStartIndex++;
         }
 
+        SHUI_Size junkAtEnd = (strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) == 0) ? 1 : 3;
+
         SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
+        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - junkAtEnd, lineBuffer.data + headerPathStartIndex);
 
         time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
 
@@ -1167,6 +1169,8 @@ headerCheck:
             headerPathStartIndex++;
         }
 
+        SHUI_Size junkAtEnd = (strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) == 0) ? 1 : 3;
+
         char timeStampBuffer[32] = {0};
         memcpy(timeStampBuffer, lineBuffer.data, headerPathStartIndex - 1);
 
@@ -1174,7 +1178,7 @@ headerCheck:
         SHU_Assert(headerCacheTime > 0, "Invalid header cache time parsed from dependency file '%s'.", dependencyFile.data);
 
         SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
+        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - junkAtEnd, lineBuffer.data + headerPathStartIndex);
 
         time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
 
