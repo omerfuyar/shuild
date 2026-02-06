@@ -65,6 +65,11 @@ int main(int argc, char **argv)
     SHU_ModuleCompile("11_incremental_builds/", SHUM_MODULE_EXECUTABLE);
     SHU_UtilRun("11_incremental_builds\\shuild");
 
+    SHU_ModuleBegin("shuild", "");
+    SHU_ModuleAddSourceFile("12_different_incrementals/shuild.c");
+    SHU_ModuleCompile("12_different_incrementals/", SHUM_MODULE_EXECUTABLE);
+    SHU_UtilRun("12_different_incrementals\\shuild");
+
     if (argc > 1) // run all
     {
         SHU_LogInfo("\n\n\nAll examples are built. Running all examples...\n\n");
@@ -81,6 +86,8 @@ int main(int argc, char **argv)
         SHU_UtilRun("10_compiler_helpers\\example.exe d");
         SHU_UtilRun("10_compiler_helpers\\example.exe r");
         SHU_UtilRun("11_incremental_builds\\build\\bin\\example");
+        SHU_UtilRun("12_different_incrementals\\build\\debug\\example");
+        SHU_UtilRun("12_different_incrementals\\build\\release\\example");
     }
 
     return 0;

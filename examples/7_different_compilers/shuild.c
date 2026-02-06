@@ -1,6 +1,10 @@
 #define SHUILD_IMPLEMENTATION
 #include "../../shuild.h"
 
+/*
+    This example shows shuild logic combined with C.
+*/
+
 int main(int argc, char **argv)
 {
     if (argc < 2)
@@ -16,7 +20,9 @@ int main(int argc, char **argv)
     char buffer[32] = {0};
     snprintf(buffer, sizeof(buffer), "example%s", argv[1]);
 
-    SHU_ModuleBegin(buffer, "");
+    // totally dynamic/runtime configurations
+
+    SHU_ModuleBegin(buffer, NULL);
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 

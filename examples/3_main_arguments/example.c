@@ -1,10 +1,5 @@
 #include <stdio.h>
 
-/*
-    This example shows capabilities of a shuild source
-    file with command line arguments
-*/
-
 int main(void)
 {
     printf("Hello from 3_main_arguments example!\n");

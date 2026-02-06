@@ -2,26 +2,30 @@
 #define SHUC_ENABLE_INCREMENTAL
 #include "../../shuild.h"
 
+/*
+    This example shows incremental build capabilities of shuild.
+    Cache system will automatically handle all the dependencies
+    of intermidiate files like source file of the object file,
+    headers that source includes and compiler configuration
+    (that also means module state) that module has compiled.
+*/
+
 int main(int argc, char **argv)
 {
-    // initialize the cache if doesn't exist
+    // The cache will be configured as '.shu' in current executable directory.
     SHU_CompilerTryConfigure("gcc");
     SHU_UtilAutomate(argc, argv);
 
-    // configure compiler and module until compilation.
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
     SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceDirectory("src/");
+    SHU_ModuleAddSourceFile("src/");
 
-    // check the module cache and cleanup if compiler and module configuration changed/not existent.
-    // check the object file exist and up to date for all source files
-    // check header cache file exist and up to date for all source files and their header dependencies
     SHU_ModuleCompile("build/lib/", SHUM_MODULE_LIBRARY_STATIC);
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceDirectory("src/");
+    SHU_ModuleAddSourceFile("src/");
     SHU_ModuleAddLibraryDirectory("build/lib/");
 
     SHU_ModuleLinkLibrary("exampleLib");

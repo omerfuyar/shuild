@@ -1,17 +1,24 @@
 #define SHUILD_IMPLEMENTATION
 #include "../../shuild.h"
 
+/*
+    This example shows Automate function and it's usage.
+*/
+
 int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("gcc");
+    // Even automate function must be called after compiler configuration.
     SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
     SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
 
-    // Activate this line and save after compiling and running it for the first time, then you can directly run it.
-    // SHU_LogInfo("This message is showed automatically!");
+    // Compile this program without the code below,
+    // activate this line and save, then you can directly run it.
+    // It will automatically rebuild itself and show the message.
+    // SHU_LogInfo("This message is showed after auto build!");
 
     return 0;
 }

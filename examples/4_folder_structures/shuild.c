@@ -1,16 +1,25 @@
 #define SHUILD_IMPLEMENTATION
 #include "../../shuild.h"
 
+/*
+    This example shows building a project
+    with a include/ + src/ file structure.
+*/
+
 int main(void)
 {
     SHU_CompilerTryConfigure("gcc");
 
-    SHU_ModuleBegin("example", "");
+    SHU_ModuleBegin("example", NULL);
 
+    // Add preconfigred flags to add include directory for current module.
+    //  Thats why should needs to know your compiler.
+    // Path relative to current executable
     SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceDirectory("src/");
+    // Same function can be used
+    SHU_ModuleAddSourceFile("src/");
 
-    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile(NULL, SHUM_MODULE_EXECUTABLE);
 
     return 0;
 }

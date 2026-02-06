@@ -117,10 +117,6 @@
 #define SHUC_MAX_STRING_SIZE 256
 #endif
 
-#ifndef SHUC_MAX_COMPILER_LENGTH
-#define SHUC_MAX_COMPILER_LENGTH 256
-#endif
-
 #ifndef SHUC_ARRAY_INITIAL_COUNT
 #define SHUC_ARRAY_INITIAL_COUNT 16
 #endif
@@ -340,18 +336,14 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
 
 /// @brief Begins a new module with the given name. A module can be an executable or a library. Must be called before any other Module function.
 /// @param name Name of the module. Which will be used also for output file name. (eg. myLibName, myAppName)
-/// @param root Root directory of the module. Will be used to relatively point other files and directories for module. Relative to current executable. (eg. dependencies/library/)
+/// @param root Root directory of the module. Will be used to relatively point other files and directories for module. Relative to current executable. Leave it empty string or NULL to ignore. (eg. dependencies/library/)
 void SHU_ModuleBegin(const char *name, const char *root);
 
-/// @brief Adds include directories to the module. Max count is defined as `SHUC_ARRAY_INITIAL_COUNT`.
+/// @brief Adds include directories to the module.
 /// @param directory Include directory to add to the current module. Relative to root directory specified in ModuleBegin (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
-/// @brief Adds source directories to the module. Works recursively. Max source file count is defined as `SHUC_MAX_SOURCE_FILE_COUNT`.
-/// @param directory Source directory to add to the current module. (eg. src/)
-void SHU_ModuleAddSourceDirectory(const char *directory);
-
-/// @brief Adds source files to the module. Max count is defined as `SHUC_ARRAY_INITIAL_COUNT`.
+/// @brief Adds source files to the module. Single file or recursive directory.
 /// @param file Single file to add to the current module. Relative to root directory specified in ModuleBegin (eg. source.c)
 void SHU_ModuleAddSourceFile(const char *file);
 
@@ -1844,7 +1836,7 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
 
 void SHU_CompilerTryConfigure(const char *compilerCommand)
 {
-    if (compilerCommand == NULL)
+    if (compilerCommand == NULL || strlen(compilerCommand) == 0)
     {
         SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_HOST_COMPILER_COMMAND);
     }
@@ -1921,13 +1913,21 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
 void SHU_ModuleBegin(const char *name, const char *root)
 {
     SHU_AssertNullPtr(name);
-    SHU_AssertNullPtr(root);
 
     SHUI_SZero(SHUI.MODULE.name);
     SHUI_SAppendC(&SHUI.MODULE.name, name);
 
     SHUI.MODULE.root = SHUI.currentExecutableDirectory;
-    SHUI_SAppendC(&SHUI.MODULE.root, root);
+
+    if (root != NULL && strlen(root) != 0)
+    {
+        SHUI_SAppendC(&SHUI.MODULE.root, root);
+
+        if (SHUI.MODULE.root.data[SHUI.MODULE.root.length - 1] != SHUM_PATH_SEPARATOR)
+        {
+            SHUI_SAppendC(&SHUI.MODULE.root, SHUM_PATH_SEPARATOR_STR);
+        }
+    }
 }
 
 void SHU_ModuleAddIncludeDirectory(const char *directory)
@@ -1960,26 +1960,24 @@ void SHU_ModuleAddSourceFile(const char *file)
     SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
 #endif
 
-    SHUI_SLAdd(&SHUI.MODULE.sourceFiles, &correctedDirectory);
-}
-
-void SHU_ModuleAddSourceDirectory(const char *directory)
-{
-    SHU_AssertNullPtr(directory);
-
-    SHUI_String correctedDirectory = SHUI.MODULE.root;
-    SHUI_SAppendC(&correctedDirectory, directory);
-
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
-#endif
-
-    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    char fileType = SHUI_UFileExists(&correctedDirectory);
+    if (fileType == SHUM_FILE_DIRECTORY)
     {
-        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
-    }
+        if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+        {
+            SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
+        }
 
-    SHUI_UAddSourceDirectoryRecursive(&correctedDirectory);
+        SHUI_UAddSourceDirectoryRecursive(&correctedDirectory);
+    }
+    else if (fileType == SHUM_FILE_REGULAR)
+    {
+        SHUI_SLAdd(&SHUI.MODULE.sourceFiles, &correctedDirectory);
+    }
+    else
+    {
+        SHU_LogError(SHUM_ERROR_INVALID, "File '%s' to add source does not exists.", correctedDirectory.data);
+    }
 }
 
 void SHU_ModuleCompile(const char *directory, char module)
@@ -1990,7 +1988,7 @@ void SHU_ModuleCompile(const char *directory, char module)
 
     SHUI_String directoryStr = SHUI.currentExecutableDirectory;
 
-    if (directory != NULL && (SHUI_Size)strlen(directory) != 0)
+    if (directory != NULL && strlen(directory) != 0)
     {
         SHUI_SAppendC(&directoryStr, directory);
 
@@ -2058,6 +2056,11 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
 #endif
+
+    if (SHUI_UFileExists(&correctedDirectory) != SHUM_FILE_DIRECTORY)
+    {
+        SHU_LogError(SHUM_ERROR_INVALID, "File '%s' to add library directory does not exists or not a directory.", correctedDirectory.data);
+    }
 
     if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
     {
