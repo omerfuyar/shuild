@@ -344,12 +344,12 @@ void SHU_ModuleAddSourceDirectory(const char *directory);
 void SHU_ModuleAddSourceFile(const char *file);
 
 /// @brief Internal generic module compile function for both libraries and executables.
-/// @param directory Output directory of the library file without the name. Relative to root directory specified in ModuleBegin (eg. build/)
+/// @param directory Output directory of the library file without the name. Relative to current executable directory. (eg. build/)
 /// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUM_MODULE_LIBRARY_STATIC)
 void SHU_ModuleCompile(const char *directory, char module);
 
 /// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
-/// @param directory Directory to search for libraries. Relative to root directory specified in ModuleBegin (eg. build/arc/)
+/// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
 void SHU_ModuleAddLibraryDirectory(const char *directory);
 
 /// @brief Links an executable to the current executable. Practical only if the current module is an executable.
@@ -859,6 +859,19 @@ static void SHUI_UAddSourceDirectoryRecursive(const SHUI_String *path)
 
     closedir(dir);
 #endif
+}
+
+static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
+{
+    struct stat attr;
+    int result = stat(file->data, &attr);
+
+    if (result != 0)
+    {
+        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: File attribute getting failed for '%s'.", file->data);
+    }
+
+    return attr.st_mtime;
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -1927,7 +1940,7 @@ void SHU_ModuleCompile(const char *directory, char module)
     SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
 #endif
 
-    SHUI_String directoryStr = SHUI.MODULE.root;
+    SHUI_String directoryStr = SHUI.currentExecutableDirectory;
 
     if (directory != NULL && (SHUI_Size)strlen(directory) != 0)
     {
@@ -1986,7 +1999,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 {
     SHU_AssertNullPtr(directory);
 
-    SHUI_String correctedDirectory = SHUI.MODULE.root;
+    SHUI_String correctedDirectory = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&correctedDirectory, directory);
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
