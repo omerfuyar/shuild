@@ -145,17 +145,24 @@
 #define SHUM_MODULE_LIBRARY_STATIC 1
 #define SHUM_MODULE_LIBRARY_DYNAMIC 2
 
-#define SHUM_FLAGS_DEBUG "-g -Og"
+#define SHUM_FLAGS_DEBUG " -g -Og"
 
-#define SHUM_FLAGS_OPTIMIZATION_SIZE "-Os"
-#define SHUM_FLAGS_OPTIMIZATION_LOW "-O1"
-#define SHUM_FLAGS_OPTIMIZATION_MID "-O2"
-#define SHUM_FLAGS_OPTIMIZATION_HIGH "-O3"
+#define SHUM_FLAGS_OPTIMIZATION_SIZE " -Os"
+#define SHUM_FLAGS_OPTIMIZATION_LOW " -O1"
+#define SHUM_FLAGS_OPTIMIZATION_MID " -O2"
+#define SHUM_FLAGS_OPTIMIZATION_HIGH " -O3"
 
-#define SHUM_FLAGS_WARNING_LOW "-Wall -Wextra"
-#define SHUM_FLAGS_WARNING_MID "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
-#define SHUM_FLAGS_WARNING_HIGH "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
+#define SHUM_FLAGS_WARNING_LOW " -Wall -Wextra"
+#define SHUM_FLAGS_WARNING_MID " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
+#define SHUM_FLAGS_WARNING_HIGH " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
 #define SHUM_FLAGS_WARNING_ERROR " -Werror"
+
+#define SHUM_FLAGS_STANDARD_C89 " -std=c89"
+#define SHUM_FLAGS_STANDARD_C99 " -std=c99"
+#define SHUM_FLAGS_STANDARD_C11 " -std=c11"
+#define SHUM_FLAGS_STANDARD_C17 " -std=c17"
+#define SHUM_FLAGS_STANDARD_C23 " -std=c23"
+#define SHUM_FLAGS_STANDARD_C2Y " -std=c2y"
 
 #define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
                                         : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
