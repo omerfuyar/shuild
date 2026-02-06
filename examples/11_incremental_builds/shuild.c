@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 {
     // initialize the cache if doesn't exist
     SHU_CompilerTryConfigure("gcc");
-    SHU_Automate(argc, argv);
+    SHU_UtilAutomate(argc, argv);
 
     // configure compiler and module until compilation.
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");

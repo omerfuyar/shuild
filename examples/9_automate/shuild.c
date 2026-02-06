@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("gcc");
-    SHU_Automate(argc, argv);
+    SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
