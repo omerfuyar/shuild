@@ -1652,6 +1652,11 @@ void SHU_UtilCreateDirectory(const char *directory)
     SHUI_SReplaceChar(&directoryStr, '/', '\\');
 #endif
 
+    if (directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
+    }
+
     if (SHUI_UFileExists(&directoryStr) == SHUM_FILE_INVALID)
     {
         SHUI_UMakeDirectoryRecursive(&directoryStr);
@@ -1753,6 +1758,11 @@ void SHU_CacheConfigure(const char *cacheDirectory)
 
     SHUI.cacheDirectory = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&SHUI.cacheDirectory, cacheDirectory);
+
+    if (SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&SHUI.cacheDirectory, SHUM_PATH_SEPARATOR_STR);
+    }
 
     SHUI_UMakeDirectoryRecursive(&SHUI.cacheDirectory);
 
@@ -1924,6 +1934,11 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
 #endif
 
+    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
+    }
+
     SHUI_SLAdd(&SHUI.MODULE.includeDirectories, &correctedDirectory);
 }
 
@@ -1952,6 +1967,11 @@ void SHU_ModuleAddSourceDirectory(const char *directory)
     SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
 #endif
 
+    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
+    }
+
     SHUI_UAddSourceDirectoryRecursive(&correctedDirectory);
 }
 
@@ -1970,6 +1990,11 @@ void SHU_ModuleCompile(const char *directory, char module)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
         SHUI_SReplaceChar(&directoryStr, '/', '\\');
 #endif
+
+        if (directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+        {
+            SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
+        }
 
         if (SHUI_UFileExists(&directoryStr) != SHUM_FILE_DIRECTORY)
         {
@@ -2026,6 +2051,11 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SReplaceChar(&correctedDirectory, '/', '\\');
 #endif
+
+    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
+    }
 
     SHUI_SLAdd(&SHUI.MODULE.EXECUTABLE.linkDirectories, &correctedDirectory);
 }
