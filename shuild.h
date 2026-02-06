@@ -19,7 +19,7 @@
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
-// #define SHUC_ENABLE_INCREMENTAL
+#define SHUC_ENABLE_INCREMENTAL
 
 #pragma once
 
@@ -1003,7 +1003,13 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
     SHUI_Size fileStartIndex = SHUI.MODULE.root.length;
 
     SHUI_String dependencyFile = {0};
-    SHUI_SFormat(&dependencyFile, "%s%s%c%.*s%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, sourceFile->length - fileStartIndex - 1, sourceFile->data + fileStartIndex, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
+    SHUI_SFormat(&dependencyFile, "%s%s%c%.*s%s",
+                 SHUI.cacheDirectory.data,
+                 moduleName->data,
+                 SHUM_PATH_SEPARATOR,
+                 sourceFile->length - fileStartIndex - 1,
+                 sourceFile->data + fileStartIndex,
+                 SHUM_DEFAULT_CACHE_DATA_EXTENSION);
 
     {
         SHUI_Size lastSeparatorIndex = dependencyFile.length - 1;
@@ -1017,7 +1023,11 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
         SHUI_MakeDirectoryRecursive(&objectDirectory);
     }
 
-    SHU_Run("%s -MM %s -MF %s %s", SHUI.COMPILER.command.data, sourceFile->data, dependencyFile.data, includeBuffer);
+    SHU_Run("%s -MM %s -MF %s %s",
+            SHUI.COMPILER.command.data,
+            sourceFile->data,
+            dependencyFile.data,
+            includeBuffer);
 
     SHUI_String bufferFile = dependencyFile;
     SHUI_SAppendC(&bufferFile, ".tmp");
@@ -1032,9 +1042,9 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
     while (fgets(lineBuffer.data, SHUC_MAX_STRING_SIZE, dependencyFileHandle) != NULL)
     {
         lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
-        // SHU_LogInfo("line encountered :\n'%.*s'", lineBuffer.length, lineBuffer.data);
 
-        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 && strncmp(lineBuffer.data + lineBuffer.length - 4, ".h\n", 4) != 0)
+        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 &&
+            strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) != 0)
         {
             fputs(lineBuffer.data, bufferFileHandle);
             continue;
@@ -1047,14 +1057,12 @@ static void SHUI_HeaderCacheUpdate(const SHUI_String *moduleName, const SHUI_Str
         }
 
         SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 3, lineBuffer.data + headerPathStartIndex);
-
-        SHU_LogInfo("Extracted header file : '%s'", headerFile.data);
+        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
 
         struct stat attr;
         time_t headerTime = stat(headerFile.data, &attr) == 0 ? attr.st_mtime : 0;
 
-        fprintf(bufferFileHandle, "%lld%s", (long long)headerTime, lineBuffer.data);
+        fprintf(bufferFileHandle, "%ld%s", headerTime, lineBuffer.data);
     }
 
     fclose(bufferFileHandle);
@@ -1111,6 +1119,7 @@ headerCheck:
     if (SHUI_FileExists(&dependencyFile) != SHUM_FILE_REGULAR)
     {
         *headerCacheDirty = 1;
+        returnCondition = 1;
         goto out;
     }
 
@@ -1122,7 +1131,8 @@ headerCheck:
     {
         lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
 
-        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 && strncmp(lineBuffer.data + lineBuffer.length - 4, ".h\n", 4) != 0)
+        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 &&
+            strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) != 0)
         {
             continue;
         }
@@ -1133,26 +1143,21 @@ headerCheck:
             headerPathStartIndex++;
         }
 
-        SHUI_Size headerPathEndIndex = lineBuffer.length - 1;
-        while (headerPathEndIndex > 0 && lineBuffer.data[headerPathEndIndex] != 'h')
-        {
-            headerPathEndIndex--;
-        }
+        char timeStampBuffer[32] = {0};
+        memcpy(timeStampBuffer, lineBuffer.data, headerPathStartIndex - 1);
 
-        char timestampBuffer[32] = {0};
-        memcpy(timestampBuffer, lineBuffer.data, headerPathStartIndex - 1);
-
-        time_t headerCacheTime = strtoll(timestampBuffer, NULL, 10);
-        SHU_Assert(headerCacheTime != 0, "Invalid header cache time parsed from dependency file '%s'.", dependencyFile.data);
+        time_t headerCacheTime = strtol(timeStampBuffer, NULL, 10);
+        SHU_Assert(headerCacheTime > 0, "Invalid header cache time parsed from dependency file '%s'.", dependencyFile.data);
 
         SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", headerPathEndIndex - headerPathStartIndex + 1, lineBuffer.data + headerPathStartIndex);
+        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - 1, lineBuffer.data + headerPathStartIndex);
 
-        time_t headerTime = stat(retObjectFile->data, &attr) == 0 ? attr.st_mtime : 0;
+        time_t headerTime = stat(headerFile.data, &attr) == 0 ? attr.st_mtime : 0;
 
         if (headerTime > headerCacheTime)
         {
             *headerCacheDirty = 1;
+            returnCondition = 1;
             break;
         }
     }
@@ -1296,20 +1301,21 @@ static void SHUI_CompileLibraryStatic(const SHUI_String *directory)
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
         SHUI_String objPath = {0};
+        const SHUI_String *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
 
 #ifdef SHUC_ENABLE_INCREMENTAL
         char headerCacheDirty = 0;
-        if (SHUI_RequiresCompilation(&SHUI.MODULE.name, &SHUI.MODULE.sourceFiles.data[i], &objPath, &headerCacheDirty))
+        if (SHUI_RequiresCompilation(&SHUI.MODULE.name, sourceFile, &objPath, &headerCacheDirty))
         {
             SHU_Run("%s -c %s -o%s %s",
                     SHUI.COMPILER.command.data,
-                    SHUI.MODULE.sourceFiles.data[i].data,
+                    sourceFile->data,
                     objPath.data,
                     commandBuffer);
 
             if (headerCacheDirty)
             {
-                SHUI_HeaderCacheUpdate(&SHUI.MODULE.name, &SHUI.MODULE.sourceFiles.data[i]);
+                SHUI_HeaderCacheUpdate(&SHUI.MODULE.name, sourceFile);
             }
 
             skipLibPacking = 0;
@@ -1396,20 +1402,21 @@ static void SHUI_CompileLibraryDynamic(const SHUI_String *directory)
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
         SHUI_String objPath = {0};
+        const SHUI_String *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
 
 #ifdef SHUC_ENABLE_INCREMENTAL
         char headerCacheDirty = 0;
-        if (SHUI_RequiresCompilation(&SHUI.MODULE.name, &SHUI.MODULE.sourceFiles.data[i], &objPath, &headerCacheDirty))
+        if (SHUI_RequiresCompilation(&SHUI.MODULE.name, sourceFile, &objPath, &headerCacheDirty))
         {
             SHU_Run("%s -c -fPIC %s -o%s %s",
                     SHUI.COMPILER.command.data,
-                    SHUI.MODULE.sourceFiles.data[i].data,
+                    sourceFile->data,
                     objPath.data,
                     commandBuffer);
 
             if (headerCacheDirty)
             {
-                SHUI_HeaderCacheUpdate(&SHUI.MODULE.name, &SHUI.MODULE.sourceFiles.data[i]);
+                SHUI_HeaderCacheUpdate(&SHUI.MODULE.name, sourceFile);
             }
 
             skipLibPacking = 0;
