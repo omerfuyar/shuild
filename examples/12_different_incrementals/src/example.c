@@ -11,5 +11,5 @@ int main(void)
     printf("This is a DEBUG build.\n");
 #endif
 
-    printf("sum of 10 and 21 is : %d", sum(10, 21));
+    printf("sum of 10 and 21 is : %d\n", sum(10, 21));
 }

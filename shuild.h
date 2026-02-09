@@ -17,7 +17,11 @@
 // define SHUC_NO_MODULE_LOG to disable module logs.
 // define SHUC_NO_RUN_LOG to disable command run logs.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
+// define SHUC_SHORT_LOG to shorten log messages.
+// define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
+
+#define SHUC_ENABLE_INCREMENTAL
 
 #pragma once
 
@@ -249,24 +253,46 @@ long SHU_GetFileEditTime(const char *file);
 /// @param ... Variadic arguments for the formatted message.
 void SHU_Log(int terminate, const char *header, const char *format, ...);
 
-#define LogFormat "%s:%d:%s : "
+#ifdef SHUC_LOG_FORMAT
+#ifndef SHUC_LOG_FORMAT_VALUES
+#error SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES must be defined at once
+#endif
+#endif
+
+#ifdef SHUC_LOG_FORMAT_VALUES
+#ifndef SHUC_LOG_FORMAT
+#error SHUC_LOG_FORMAT_VALUES and SHUC_LOG_FORMAT must be defined at once
+#endif
+#endif
+
+#ifdef SHUC_SHORT_LOG
+#define SHUC_LOG_FORMAT "%d : "
+#define SHUC_LOG_FORMAT_VALUES __LINE__
+#endif
+
+#ifndef SHUC_LOG_FORMAT
+#ifndef SHUC_LOG_FORMAT_VALUES
+#define SHUC_LOG_FORMAT "%s:%d:%s : "
+#define SHUC_LOG_FORMAT_VALUES __FILE__, __LINE__, __func__
+#endif
+#endif
 
 #define SHU_LogInfo(format, ...)                                                                             \
     do                                                                                                       \
     {                                                                                                        \
-        SHU_Log(0, SHUM_COLOR_GREEN("INFO"), LogFormat format, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+        SHU_Log(0, SHUM_COLOR_GREEN("INFO"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
     } while (0)
 
 #define SHU_LogWarning(format, ...)                                                                              \
     do                                                                                                           \
     {                                                                                                            \
-        SHU_Log(0, SHUM_COLOR_YELLOW("WARNING"), LogFormat format, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+        SHU_Log(0, SHUM_COLOR_YELLOW("WARNING"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
     } while (0)
 
 #define SHU_LogError(code, format, ...)                                                                        \
     do                                                                                                         \
     {                                                                                                          \
-        SHU_Log(code, SHUM_COLOR_RED("ERROR"), LogFormat format, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+        SHU_Log(code, SHUM_COLOR_RED("ERROR"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
     } while (0)
 
 #define SHU_Assert(condition, format, ...)                                                                                             \
@@ -274,7 +300,7 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
     {                                                                                                                                  \
         if (!(condition))                                                                                                              \
         {                                                                                                                              \
-            SHU_Log(SHUM_ERROR_ASSERTION, SHUM_COLOR_RED("ASSERTION"), LogFormat format, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+            SHU_Log(SHUM_ERROR_ASSERTION, SHUM_COLOR_RED("ASSERTION"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
         }                                                                                                                              \
     } while (0)
 
@@ -393,6 +419,10 @@ void SHU_ModuleLinkLibrary(const char *library);
 
 typedef unsigned int SHUI_Size;
 
+#ifdef SHUC_ENABLE_INCREMENTAL
+typedef unsigned long long SHUI_Hash;
+#endif
+
 typedef struct SHUI_String
 {
     SHUI_Size length;
@@ -405,6 +435,10 @@ typedef struct SHUI_StringList
     SHUI_Size capacity;
     SHUI_String *data;
 } SHUI_StringList;
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *objectFile);
+#endif
 
 static struct
 {
@@ -807,105 +841,8 @@ static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
     return attr.st_mtime;
 }
 
-// todo find a common way to store cache information
-
 static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 {
-    /*
-    SHU_AssertNullPtr(sourceName);
-    SHU_AssertNullPtr(argv);
-
-    SHUI_String executableFile = SHUI.currentExecutableDirectory;
-    SHUI_Size executableNameIndex = executableFile.length - 1;
-    while (executableNameIndex > 0 && argv[0][executableNameIndex] != SHUM_PATH_SEPARATOR)
-    {
-        executableNameIndex--;
-    }
-
-    SHUI_SAppendC(&executableFile, argv[0] + executableNameIndex);
-
-    SHUI_String sourceFile = executableFile;
-    SHUI_SAppendC(&sourceFile, sourceName);
-
-    time_t executableTime = SHUI_UGetFileEditTime(&executableFile);
-    time_t sourceTime = SHUI_UGetFileEditTime(&sourceFile);
-
-    if (executableTime < sourceTime)
-    {
-        goto rebuild;
-    }
-
-    SHUI_String outputFile = sourceFile;
-    SHUI_SAppendC(&outputFile, ".tmp");
-
-    SHU_UtilRun("%s -MM %s -MF %s",
-                SHUI.COMPILER.command.data,
-                sourceFile.data,
-                outputFile.data);
-
-    FILE *outputFileHandle = fopen(outputFile.data, "r");
-    SHU_Assert(outputFileHandle != NULL, "File open failed for '%s'", outputFile.data);
-
-    SHUI_String lineBuffer = {0};
-    while (fgets(lineBuffer.data, SHUC_MAX_STRING_SIZE, outputFileHandle) != NULL)
-    {
-        lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
-
-        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 &&
-            strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) != 0)
-        {
-            continue;
-        }
-
-        SHUI_Size headerPathStartIndex = 0;
-        while (headerPathStartIndex < lineBuffer.length && lineBuffer.data[headerPathStartIndex] != SHUM_PATH_SEPARATOR)
-        {
-            headerPathStartIndex++;
-        }
-
-        if (headerPathStartIndex > 1 && strncmp(lineBuffer.data + headerPathStartIndex - 2, "..", 2) == 0)
-        {
-            headerPathStartIndex -= 2;
-        }
-
-        SHUI_Size junkAtEnd = (strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) == 0) ? 1 : 3;
-
-        SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - junkAtEnd, lineBuffer.data + headerPathStartIndex);
-
-        time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
-
-        if (executableTime < headerTime)
-        {
-            goto cleanRebuild;
-        }
-    }
-
-    fclose(outputFileHandle);
-    SHUI_UDeleteSingleFile(&outputFile);
-    return;
-
-cleanRebuild:
-    fclose(outputFileHandle);
-    SHUI_UDeleteSingleFile(&outputFile);
-
-rebuild:
-    SHU_LogWarning(SHUM_COLOR_MAGENTA("Build source has changed, rebuilding..."));
-
-    //SHUI_String oldExeName = executableFile;
-    //SHUI_SAppendC(&oldExeName, ".old");
-    //SHUI_URenameFile(&executableFile, &oldExeName);
-
-    SHUI_UDeleteSingleFile(&executableFile);
-
-    SHU_UtilRun("%s %s " SHUM_FLAGS_OPTIMIZATION_HIGH " -o%s",
-                SHUI.COMPILER.command.data,
-                sourceFile.data,
-                executableFile.data);
-
-    SHU_UtilSpawnProcess(executableFile.data, argv);
-    */
-
     SHU_AssertNullPtr(sourceName);
     SHU_AssertNullPtr(argv);
     SHU_Assert(argc > 0, "Invalid argument count");
@@ -916,6 +853,7 @@ rebuild:
     {
         exeNameIndex--;
     }
+    const char *exeLeafName = argv[0] + exeNameIndex;
 
     SHUI_Size srcNameIndex = (SHUI_Size)strlen(sourceName) - 1;
 
@@ -923,38 +861,68 @@ rebuild:
     {
         srcNameIndex--;
     }
+    const char *srcLeafName = sourceName + srcNameIndex;
 
-    const char *exeName = argv[0] + exeNameIndex;
-    const char *srcName = sourceName + srcNameIndex;
+    SHUI_String absExePath = SHUI.currentExecutableDirectory;
+    SHUI_SAppendC(&absExePath, exeLeafName);
 
-    time_t exeTime = SHU_GetFileEditTime(exeName);
-    time_t sourceTime = SHU_GetFileEditTime(srcName);
+    SHUI_String absSrcPath = SHUI.currentExecutableDirectory;
+    SHUI_SAppendC(&absSrcPath, srcLeafName);
 
-    if (exeTime >= sourceTime)
+    time_t exeTime = SHUI_UGetFileEditTime(&absExePath);
+    time_t sourceTime = SHUI_UGetFileEditTime(&absSrcPath);
+
+    char rebuild = (exeTime < sourceTime);
+
+    if (!rebuild)
+    {
+        SHUI_String depFileMap = SHUI.currentExecutableDirectory;
+        SHUI_SAppendC(&depFileMap, exeLeafName);
+        SHUI_SAppendC(&depFileMap, "." SHUM_DEFAULT_CACHE_DATA_EXTENSION);
+
+        SHU_UtilRun("%s -MM %s -MF %s", SHUI.COMPILER.command.data, absSrcPath.data, depFileMap.data);
+
+        if (SHUI_CDependencyDirty(&depFileMap, &absExePath))
+        {
+            rebuild = 1;
+        }
+
+        SHUI_UDeleteSingleFile(&depFileMap);
+    }
+
+    if (!rebuild)
     {
         return;
     }
 
-    SHU_LogInfo(SHUM_COLOR_MAGENTA("Build source has changed, rebuilding..."));
+    SHU_LogInfo(SHUM_COLOR_MAGENTA("Build source or dependencies have changed, rebuilding..."));
 
-    char oldExeName[SHUC_MAX_STRING_SIZE] = {0};
-    snprintf(oldExeName, sizeof(oldExeName), "%s.old", exeName);
-    SHU_UtilRenameFile(exeName, oldExeName);
+    SHUI_String oldExePath = absExePath;
+    SHUI_SAppendC(&oldExePath, ".old");
+    SHUI_URenameFile(&absExePath, &oldExePath);
 
-    SHU_UtilRun("%s %s " SHUM_FLAGS_DEBUG " -o%s",
-                SHUI.COMPILER.command.data,
-                srcName,
-                exeName);
+    int result = SHU_UtilRun("%s -o%s %s" SHUM_FLAGS_DEBUG,
+                             SHUI.COMPILER.command.data,
+                             absExePath.data,
+                             absSrcPath.data);
 
-    SHU_UtilSpawnProcess(exeName, argv);
+    if (result != 0)
+    {
+        SHUI_URenameFile(&oldExePath, &absExePath);
+        SHU_LogError(result, "Failed to rebuild build script.");
+    }
+
+    SHUI_UDeleteSingleFile(&oldExePath);
+
+    SHU_UtilSpawnProcess(absExePath.data, argv);
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-static unsigned long long SHUI_CHashState()
+static SHUI_Hash SHUI_CModuleStateHash()
 {
-    unsigned long long hash = 14695981039346656037ULL;
+    SHUI_Hash hash = 14695981039346656037ULL;
 
-#define SHUI_HASH_BYTE(byte) hash = ((hash ^ (unsigned long long)(byte)) * 1099511628211ULL)
+#define SHUI_HASH_BYTE(byte) hash = ((hash ^ (SHUI_Hash)(byte)) * 1099511628211ULL)
 #define SHUI_HASH_MIX() hash ^= (hash >> 17)
 
     for (SHUI_Size i = 0; i < SHUI.cacheDirectory.length; i++)
@@ -1043,7 +1011,7 @@ static unsigned long long SHUI_CHashState()
     return hash;
 }
 
-static void SHUI_CModuleUpdate(const SHUI_String *moduleName)
+static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
 {
     SHUI_String moduleCacheFile = {0};
     SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
@@ -1052,7 +1020,7 @@ static void SHUI_CModuleUpdate(const SHUI_String *moduleName)
     SHUI_SFormat(&moduleCacheDir, "%s%s%c", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR);
     SHUI_UMakeDirectoryRecursive(&moduleCacheDir);
 
-    unsigned long long currentConfig = SHUI_CHashState();
+    SHUI_Hash currentConfig = SHUI_CModuleStateHash();
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "w+");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
@@ -1060,7 +1028,7 @@ static void SHUI_CModuleUpdate(const SHUI_String *moduleName)
     fclose(cacheFileHandle);
 }
 
-static char SHUI_CModuleRequiresCleanup(const SHUI_String *moduleName)
+static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 {
     SHUI_String moduleCacheFile = {0};
     SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
@@ -1070,7 +1038,7 @@ static char SHUI_CModuleRequiresCleanup(const SHUI_String *moduleName)
         return 1;
     }
 
-    unsigned long long currentConfig = SHUI_CHashState();
+    SHUI_Hash currentConfig = SHUI_CModuleStateHash();
 
     char buffer[32] = {0};
 
@@ -1079,12 +1047,12 @@ static char SHUI_CModuleRequiresCleanup(const SHUI_String *moduleName)
     fread(buffer, 1, sizeof(buffer), cacheFileHandle);
     fclose(cacheFileHandle);
 
-    unsigned long long savedConfig = strtoull(buffer, NULL, 10);
+    SHUI_Hash savedConfig = strtoull(buffer, NULL, 10);
 
     return currentConfig != savedConfig;
 }
 
-static void SHUI_CHeaderUpdate(const SHUI_String *moduleName, const SHUI_String *sourceFile)
+static void SHUI_CDependencyUpdate(const SHUI_String *sourceFile, const SHUI_String *dependencyFile)
 {
     char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     SHUI_Size includeBufferIndex = 0;
@@ -1096,184 +1064,134 @@ static void SHUI_CHeaderUpdate(const SHUI_String *moduleName, const SHUI_String 
                                                   SHUI.MODULE.includeDirectories.data[i].data);
     }
 
+    SHU_UtilRun("%s -MM %s -MF %s %s",
+                SHUI.COMPILER.command.data,
+                sourceFile->data,
+                dependencyFile->data,
+                includeBuffer);
+}
+
+static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *targetFile)
+{
+    time_t objectTime = SHUI_UGetFileEditTime(targetFile);
+
+    FILE *depFHandle = fopen(dependencyFile->data, "r");
+    SHU_Assert(depFHandle != NULL, "File open failed for '%s'", dependencyFile->data);
+
+    fseek(depFHandle, 0, SEEK_END);
+    long depFLength = ftell(depFHandle);
+    fseek(depFHandle, 0, SEEK_SET);
+
+    char *depFBuffer = (char *)malloc((size_t)depFLength + 1);
+    SHU_Assert(depFBuffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)depFLength + 1);
+
+    fread(depFBuffer, 1, (size_t)depFLength, depFHandle);
+    depFBuffer[depFLength] = '\0';
+    fclose(depFHandle);
+
+    SHUI_Size depFOffset = 0;
+    while (depFOffset < depFLength && depFBuffer[depFOffset] != ':')
+    {
+        depFOffset++;
+    }
+    depFOffset++;
+
+    SHUI_Size fileStartIndex = 0;
+
+    while (depFOffset < depFLength)
+    {
+        char c = depFBuffer[depFOffset];
+
+        if (c == '\\' &&
+            depFOffset + 1 < depFLength &&
+            (depFBuffer[depFOffset + 1] == '\r' ||
+             depFBuffer[depFOffset + 1] == '\n'))
+        {
+            depFOffset++;
+            continue;
+        }
+
+        if (c == ' ' || c == '\n' || c == '\r' || c == '\t')
+        {
+            if (fileStartIndex != 0)
+            {
+                SHUI_String dependentFile = {0};
+                SHUI_SFormat(&dependentFile, "%.*s", depFOffset - fileStartIndex, depFBuffer + fileStartIndex);
+
+                time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
+
+                if (objectTime < dependentTime)
+                {
+                    free(depFBuffer);
+                    return 1;
+                }
+
+                fileStartIndex = 0;
+            }
+        }
+        else if (fileStartIndex == 0)
+        {
+            fileStartIndex = depFOffset;
+        }
+
+        depFOffset++;
+    }
+
+    if (fileStartIndex != 0)
+    {
+        SHUI_String dependentFile = {0};
+        SHUI_SFormat(&dependentFile, "%.*s", depFOffset - fileStartIndex, depFBuffer + fileStartIndex);
+
+        time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
+
+        if (objectTime < dependentTime)
+        {
+            free(depFBuffer);
+            return 1;
+        }
+    }
+
+    free(depFBuffer);
+    return 0;
+}
+
+static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_String *retObjectFile, SHUI_String *retDependencyFile)
+{
     SHUI_Size fileStartIndex = SHUI.MODULE.root.length;
 
-    SHUI_String dependencyFile = {0};
-    SHUI_SFormat(&dependencyFile, "%s%s%c%.*s%s",
+    SHUI_SFormat(retDependencyFile, "%s%s%c%.*s%s",
                  SHUI.cacheDirectory.data,
-                 moduleName->data,
+                 SHUI.MODULE.name.data,
                  SHUM_PATH_SEPARATOR,
                  sourceFile->length - fileStartIndex - 1,
                  sourceFile->data + fileStartIndex,
                  SHUM_DEFAULT_CACHE_DATA_EXTENSION);
 
-    {
-        SHUI_Size lastSeparatorIndex = dependencyFile.length - 1;
-        while (lastSeparatorIndex > 0 && dependencyFile.data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
-        {
-            lastSeparatorIndex--;
-        }
-
-        SHUI_String objectDirectory = {0};
-        SHUI_SFormat(&objectDirectory, "%.*s", lastSeparatorIndex + 1, dependencyFile.data);
-        SHUI_UMakeDirectoryRecursive(&objectDirectory);
-    }
-
-    SHU_UtilRun("%s -MM %s -MF %s %s",
-                SHUI.COMPILER.command.data,
-                sourceFile->data,
-                dependencyFile.data,
-                includeBuffer);
-
-    SHUI_String bufferFile = dependencyFile;
-    SHUI_SAppendC(&bufferFile, ".tmp");
-
-    FILE *dependencyFileHandle = fopen(dependencyFile.data, "r");
-    SHU_Assert(dependencyFileHandle != NULL, "File open failed for '%s'", dependencyFile.data);
-
-    FILE *bufferFileHandle = fopen(bufferFile.data, "w+");
-    SHU_Assert(bufferFileHandle != NULL, "File open failed for '%s'", bufferFile.data);
-
-    SHUI_String lineBuffer = {0};
-    while (fgets(lineBuffer.data, SHUC_MAX_STRING_SIZE, dependencyFileHandle) != NULL)
-    {
-        lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
-
-        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 &&
-            strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) != 0)
-        {
-            fputs(lineBuffer.data, bufferFileHandle);
-            continue;
-        }
-
-        SHUI_Size headerPathStartIndex = 0;
-        while (headerPathStartIndex < lineBuffer.length && lineBuffer.data[headerPathStartIndex] != SHUM_PATH_SEPARATOR)
-        {
-            headerPathStartIndex++;
-        }
-
-        if (headerPathStartIndex > 1 && strncmp(lineBuffer.data + headerPathStartIndex - 2, "..", 2) == 0)
-        {
-            headerPathStartIndex -= 2;
-        }
-
-        SHUI_Size junkAtEnd = (strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) == 0) ? 1 : 3;
-
-        SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - junkAtEnd, lineBuffer.data + headerPathStartIndex);
-
-        time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
-
-        fprintf(bufferFileHandle, "%ld%s", headerTime, lineBuffer.data);
-    }
-
-    fclose(bufferFileHandle);
-    fclose(dependencyFileHandle);
-
-    SHUI_UDeleteSingleFile(&dependencyFile);
-    SHUI_URenameFile(&bufferFile, &dependencyFile);
-}
-
-static char SHUI_CUnitRequiresCompilation(const SHUI_String *moduleName, const SHUI_String *sourceFile, SHUI_String *retObjectFile, char *headerCacheDirty)
-{
-    char returnCondition = 0;
-    SHUI_Size fileStartIndex = SHUI.MODULE.root.length;
-
-    SHUI_SFormat(retObjectFile, "%s%s%c%.*s%s",
-                 SHUI.cacheDirectory.data,
-                 moduleName->data, SHUM_PATH_SEPARATOR,
-                 sourceFile->length - fileStartIndex - 1,
-                 sourceFile->data + fileStartIndex,
+    SHUI_SFormat(retObjectFile, "%.*s%s",
+                 retDependencyFile->length - 3, // - SHUM_DEFAULT_CACHE_DATA_EXTENSION length
+                 retDependencyFile->data,
                  SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
+    if (SHUI_UFileExists(retObjectFile) != SHUM_FILE_REGULAR ||
+        SHUI_UFileExists(retDependencyFile) != SHUM_FILE_REGULAR ||
+        SHUI_CDependencyDirty(retDependencyFile, retObjectFile) != 0)
     {
-        SHUI_Size lastSeparatorIndex = retObjectFile->length - 1;
-        while (lastSeparatorIndex > 0 && retObjectFile->data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
-        {
-            lastSeparatorIndex--;
-        }
-
-        SHUI_String objectDirectory = {0};
-        SHUI_SFormat(&objectDirectory, "%.*s", lastSeparatorIndex + 1, retObjectFile->data);
-        SHUI_UMakeDirectoryRecursive(&objectDirectory);
+        goto dirty;
     }
 
-    if (SHUI_UFileExists(retObjectFile) != SHUM_FILE_REGULAR)
+    return 0;
+
+dirty:
+    SHUI_Size lastSeparatorIndex = retObjectFile->length - 1;
+    while (lastSeparatorIndex > 0 && retObjectFile->data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
     {
-        returnCondition = 1;
-        goto headerCheck; // just skip the code below
+        lastSeparatorIndex--;
     }
 
-    time_t sourceTime = SHUI_UGetFileEditTime(sourceFile);
-    time_t objectTime = SHUI_UGetFileEditTime(retObjectFile);
-
-    if (sourceTime > objectTime)
-    {
-        returnCondition = 1;
-    }
-
-headerCheck:
-
-    SHUI_String dependencyFile = {0};
-    SHUI_SFormat(&dependencyFile, "%s%s%c%.*s%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, sourceFile->length - fileStartIndex - 1, sourceFile->data + fileStartIndex, SHUM_DEFAULT_CACHE_DATA_EXTENSION);
-
-    if (SHUI_UFileExists(&dependencyFile) != SHUM_FILE_REGULAR)
-    {
-        *headerCacheDirty = 1;
-        returnCondition = 1;
-        goto out;
-    }
-
-    FILE *dependencyFileHandle = fopen(dependencyFile.data, "r");
-    SHU_Assert(dependencyFileHandle != NULL, "File open failed for '%s'", dependencyFile.data);
-
-    SHUI_String lineBuffer = {0};
-    while (fgets(lineBuffer.data, SHUC_MAX_STRING_SIZE, dependencyFileHandle) != NULL)
-    {
-        lineBuffer.length = (SHUI_Size)strlen(lineBuffer.data);
-
-        if (strncmp(lineBuffer.data + lineBuffer.length - 5, ".h \\\n", 5) != 0 &&
-            strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) != 0)
-        {
-            continue;
-        }
-
-        SHUI_Size headerPathStartIndex = 0;
-        while (headerPathStartIndex < lineBuffer.length && lineBuffer.data[headerPathStartIndex] != SHUM_PATH_SEPARATOR)
-        {
-            headerPathStartIndex++;
-        }
-
-        if (headerPathStartIndex > 1 && strncmp(lineBuffer.data + headerPathStartIndex - 2, "..", 2) == 0)
-        {
-            headerPathStartIndex -= 2;
-        }
-
-        SHUI_Size junkAtEnd = (strncmp(lineBuffer.data + lineBuffer.length - 3, ".h\n", 3) == 0) ? 1 : 3;
-
-        char timeStampBuffer[32] = {0};
-        memcpy(timeStampBuffer, lineBuffer.data, headerPathStartIndex - 1);
-
-        time_t headerCacheTime = strtol(timeStampBuffer, NULL, 10);
-        SHU_Assert(headerCacheTime > 0, "Invalid header cache time parsed from dependency file '%s'.", dependencyFile.data);
-
-        SHUI_String headerFile = {0};
-        SHUI_SFormat(&headerFile, "%.*s", lineBuffer.length - headerPathStartIndex - junkAtEnd, lineBuffer.data + headerPathStartIndex);
-
-        time_t headerTime = SHUI_UGetFileEditTime(&headerFile);
-
-        if (headerTime > headerCacheTime)
-        {
-            *headerCacheDirty = 1;
-            returnCondition = 1;
-            break;
-        }
-    }
-
-    fclose(dependencyFileHandle);
-
-out:
-    return returnCondition;
+    SHUI_String objectDirectory = {0};
+    SHUI_SFormat(&objectDirectory, "%.*s", lastSeparatorIndex + 1, retObjectFile->data);
+    SHUI_UMakeDirectoryRecursive(&objectDirectory);
+    return 1;
 }
 #endif
 
@@ -1401,21 +1319,18 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
 #ifdef SHUC_ENABLE_INCREMENTAL
         SHUI_String objectFile = {0};
+        SHUI_String dependencyFile = {0};
 
-        char headerCacheDirty = 0;
-        if (SHUI_CUnitRequiresCompilation(&SHUI.MODULE.name, sourceFile, &objectFile, &headerCacheDirty))
+        if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -c %s %s %s -o%s",
+            SHU_UtilRun("%s -o%s -c %s %s %s",
                         SHUI.COMPILER.command.data,
+                        objectFile.data,
                         sourceFile->data,
                         flagBuffer,
-                        includeBuffer,
-                        objectFile.data);
+                        includeBuffer);
 
-            if (headerCacheDirty)
-            {
-                SHUI_CHeaderUpdate(&SHUI.MODULE.name, sourceFile);
-            }
+            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
             skipExePacking = 0;
         }
@@ -1479,23 +1394,21 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
-        SHUI_String objPath = {0};
+        SHUI_String objectFile = {0};
         const SHUI_String *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-        char headerCacheDirty = 0;
-        if (SHUI_CUnitRequiresCompilation(&SHUI.MODULE.name, sourceFile, &objPath, &headerCacheDirty))
+        SHUI_String dependencyFile = {0};
+
+        if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -c %s -o%s %s",
+            SHU_UtilRun("%s -o%s -c %s %s",
                         SHUI.COMPILER.command.data,
+                        objectFile.data,
                         sourceFile->data,
-                        objPath.data,
                         commandBuffer);
 
-            if (headerCacheDirty)
-            {
-                SHUI_CHeaderUpdate(&SHUI.MODULE.name, sourceFile);
-            }
+            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
             skipLibPacking = 0;
         }
@@ -1506,14 +1419,14 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
                      sourceFile->data,
                      SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
-        SHU_UtilRun("%s -c %s -o%s %s",
+        SHU_UtilRun("%s -o%s -c %s %s",
                     SHUI.COMPILER.command.data,
-                    sourceFile->data,
                     objPath.data,
+                    sourceFile->data,
                     commandBuffer);
 #endif
 
-        SHUI_SLAdd(&objFiles, &objPath);
+        SHUI_SLAdd(&objFiles, &objectFile);
     }
 
     // commands for objects
@@ -1580,38 +1493,36 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.sourceFiles.count; i++)
     {
-        SHUI_String objPath = {0};
+        SHUI_String objectFile = {0};
         const SHUI_String *sourceFile = &SHUI.MODULE.sourceFiles.data[i];
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-        char headerCacheDirty = 0;
-        if (SHUI_CUnitRequiresCompilation(&SHUI.MODULE.name, sourceFile, &objPath, &headerCacheDirty))
+        SHUI_String dependencyFile = {0};
+
+        if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -c -fPIC %s -o%s %s",
+            SHU_UtilRun("%s -o%s -c -fPIC %s %s",
                         SHUI.COMPILER.command.data,
+                        objectFile.data,
                         sourceFile->data,
-                        objPath.data,
                         commandBuffer);
 
-            if (headerCacheDirty)
-            {
-                SHUI_CHeaderUpdate(&SHUI.MODULE.name, sourceFile);
-            }
+            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
             skipLibPacking = 0;
         }
 
-        SHUI_SLAdd(&objFiles, &objPath);
+        SHUI_SLAdd(&objFiles, &objectFile);
 #else
         skipLibPacking = 0;
 
         SHUI_SFormat(&objPath, "%.*s%s", sourceFile->length - 1, sourceFile->data,
                      SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
-        SHU_UtilRun("%s -c -fPIC %s -o%s %s",
+        SHU_UtilRun("%s -o%s -c -fPIC %s %s",
                     SHUI.COMPILER.command.data,
-                    sourceFile->data,
                     objPath.data,
+                    sourceFile->data,
                     commandBuffer);
 
         SHUI_SLAdd(&objFiles, &objPath);
@@ -1855,7 +1766,6 @@ void SHU_Log(int terminate, const char *header, const char *format, ...)
 #pragma endregion Utility
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-
 #pragma region Cache
 
 void SHU_CacheConfigure(const char *cacheDirectory)
@@ -2115,11 +2025,11 @@ void SHU_ModuleCompile(const char *directory, char module)
     }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-    if (SHUI_CModuleRequiresCleanup(&SHUI.MODULE.name))
+    if (SHUI_CModuleStateDirty(&SHUI.MODULE.name))
     {
         SHU_LogInfo("Build cache not initialized or changed, Cleaning up cache for %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
         SHU_CacheClearModule(SHUI.MODULE.name.data);
-        SHUI_CModuleUpdate(&SHUI.MODULE.name);
+        SHUI_CModuleStateUpdate(&SHUI.MODULE.name);
     }
 #endif
 
