@@ -21,8 +21,6 @@
 // define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
-#define SHUC_ENABLE_INCREMENTAL
-
 #pragma once
 
 #pragma region Platform Detection
