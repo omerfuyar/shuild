@@ -187,6 +187,10 @@
 
 #ifdef SHUC_ENABLE_INCREMENTAL
 #define SHUM_DEFAULT_CACHE_DIRECTORY ".shu/"
+
+#ifndef SHUC_MODULE_FILE_EXTENSION
+#define SHUC_MODULE_FILE_EXTENSION "shum"
+#endif
 #endif
 
 #ifndef SHUC_FILE_EXTENSION
@@ -1099,10 +1103,19 @@ static SHUI_Hash SHUI_CModuleStateHash()
 static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
 {
     SHUI_String moduleCacheFile = {0};
-    SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUC_FILE_EXTENSION);
+    SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s",
+                 SHUI.cacheDirectory.data,
+                 moduleName->data,
+                 SHUM_PATH_SEPARATOR,
+                 moduleName->data,
+                 SHUC_MODULE_FILE_EXTENSION);
 
     SHUI_String moduleCacheDir = {0};
-    SHUI_SFormat(&moduleCacheDir, "%s%s%c", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR);
+    SHUI_SFormat(&moduleCacheDir, "%s%s%c",
+                 SHUI.cacheDirectory.data,
+                 moduleName->data,
+                 SHUM_PATH_SEPARATOR);
+
     SHUI_UMakeDirectoryRecursive(&moduleCacheDir);
 
     SHUI_Hash currentConfig = SHUI_CModuleStateHash();
@@ -1116,7 +1129,12 @@ static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
 static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 {
     SHUI_String moduleCacheFile = {0};
-    SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s", SHUI.cacheDirectory.data, moduleName->data, SHUM_PATH_SEPARATOR, moduleName->data, SHUC_FILE_EXTENSION);
+    SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s",
+                 SHUI.cacheDirectory.data,
+                 moduleName->data,
+                 SHUM_PATH_SEPARATOR,
+                 moduleName->data,
+                 SHUC_MODULE_FILE_EXTENSION);
 
     if (SHUI_UFileExists(&moduleCacheFile) != SHUM_FILE_REGULAR)
     {
