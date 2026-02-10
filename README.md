@@ -38,13 +38,13 @@ A minimal simple shuild source file example:
 #include "shuild.h"
 
 int main() {
-    SHU_CompilerConfigure(...);
+    SHU_CompilerTryConfigure("gcc");
     
-    SHU_ModuleBegin("myApp");
+    SHU_ModuleBegin("myApp", "");
 
     //... Specify include directories, source directories, targets, links etc.
 
-    SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/", SHUM_MODULE_EXECUTABLE);
 
     return 0;
 }
