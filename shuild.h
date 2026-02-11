@@ -912,6 +912,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
         depFOffset++;
     }
 
+    /*
     if (fileStartIndex != 0)
     {
         SHUI_String dependentFile = {0};
@@ -925,6 +926,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
             return 1;
         }
     }
+    */
 
     free(depFBuffer);
     return 0;
@@ -936,42 +938,45 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHU_AssertNullPtr(argv);
     SHU_Assert(argc > 0, "Invalid argument count");
 
-    SHUI_Size exeNameIndex = (SHUI_Size)strlen(argv[0]) - 1;
+    SHUI_Size exeNameStartIndex = (SHUI_Size)strlen(argv[0]) - 1;
 
-    while (exeNameIndex > 0 && argv[0][exeNameIndex - 1] != SHUM_PATH_SEPARATOR && argv[0][exeNameIndex - 1] != '/' && argv[0][exeNameIndex - 1] != '\\')
+    while (exeNameStartIndex > 0 && argv[0][exeNameStartIndex - 1] != SHUM_PATH_SEPARATOR)
     {
-        exeNameIndex--;
+        exeNameStartIndex--;
     }
-    const char *exeLeafName = argv[0] + exeNameIndex;
+    const char *executableFileName = argv[0] + exeNameStartIndex;
 
-    SHUI_Size srcNameIndex = (SHUI_Size)strlen(sourceName) - 1;
+    SHUI_Size sourceNameStartIndex = (SHUI_Size)strlen(sourceName) - 1;
 
-    while (srcNameIndex > 0 && sourceName[srcNameIndex - 1] != SHUM_PATH_SEPARATOR && sourceName[srcNameIndex - 1] != '/' && sourceName[srcNameIndex - 1] != '\\')
+    while (sourceNameStartIndex > 0 && sourceName[sourceNameStartIndex - 1] != SHUM_PATH_SEPARATOR)
     {
-        srcNameIndex--;
+        sourceNameStartIndex--;
     }
-    const char *srcLeafName = sourceName + srcNameIndex;
+    const char *sourceFileName = sourceName + sourceNameStartIndex;
 
-    SHUI_String absExePath = SHUI.currentExecutableDirectory;
-    SHUI_SAppendC(&absExePath, exeLeafName);
+    SHUI_String executablePath = SHUI.currentExecutableDirectory;
+    SHUI_SAppendC(&executablePath, executableFileName);
 
-    SHUI_String absSrcPath = SHUI.currentExecutableDirectory;
-    SHUI_SAppendC(&absSrcPath, srcLeafName);
+    SHUI_String sourcePath = SHUI.currentExecutableDirectory;
+    SHUI_SAppendC(&sourcePath, sourceFileName);
 
-    time_t exeTime = SHUI_UGetFileEditTime(&absExePath);
-    time_t sourceTime = SHUI_UGetFileEditTime(&absSrcPath);
+    time_t exeTime = SHUI_UGetFileEditTime(&executablePath);
+    time_t sourceTime = SHUI_UGetFileEditTime(&sourcePath);
 
     char rebuild = (exeTime < sourceTime);
 
     if (!rebuild)
     {
         SHUI_String depFileMap = SHUI.currentExecutableDirectory;
-        SHUI_SAppendC(&depFileMap, exeLeafName);
+        SHUI_SAppendC(&depFileMap, executableFileName);
         SHUI_SAppendC(&depFileMap, "." SHUC_FILE_EXTENSION);
 
-        SHU_UtilRun("%s -MM %s -MF %s", SHUI.COMPILER.command.data, absSrcPath.data, depFileMap.data);
+        SHU_UtilRun("%s -MM %s -MF %s",
+                    SHUI.COMPILER.command.data,
+                    sourcePath.data,
+                    depFileMap.data);
 
-        if (SHUI_CDependencyDirty(&depFileMap, &absExePath))
+        if (SHUI_CDependencyDirty(&depFileMap, &executablePath))
         {
             rebuild = 1;
         }
@@ -986,24 +991,24 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 
     SHU_LogInfo(SHUM_COLOR_MAGENTA("Build source or dependencies have changed, rebuilding..."));
 
-    SHUI_String oldExePath = absExePath;
+    SHUI_String oldExePath = executablePath;
     SHUI_SAppendC(&oldExePath, ".old");
-    SHUI_URenameFile(&absExePath, &oldExePath);
+    SHUI_URenameFile(&executablePath, &oldExePath);
 
     int result = SHU_UtilRun("%s -o%s %s" SHUM_FLAGS_DEBUG,
                              SHUI.COMPILER.command.data,
-                             absExePath.data,
-                             absSrcPath.data);
+                             executablePath.data,
+                             sourcePath.data);
 
     if (result != 0)
     {
-        SHUI_URenameFile(&oldExePath, &absExePath);
+        SHUI_URenameFile(&oldExePath, &executablePath);
         SHU_LogError(result, "Failed to rebuild build script.");
     }
 
     SHUI_UDeleteSingleFile(&oldExePath);
 
-    SHU_UtilSpawnProcess(absExePath.data, argv);
+    SHU_UtilSpawnProcess(executablePath.data, argv);
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -1370,15 +1375,16 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
     if (!skipExePacking)
     {
-        SHU_UtilRun("%s %s %s %s %s %s -o%s%s",
+        SHU_UtilRun("%s -o%s%s%s %s %s %s %s %s",
                     SHUI.COMPILER.command.data,
+                    directory->data,
+                    SHUI.MODULE.name.data,
+                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "",
                     includeBuffer,
                     sourceBuffer,
                     linkDirectoryBuffer,
                     linkBuffer,
-                    flagBuffer,
-                    directory->data,
-                    SHUI.MODULE.name.data);
+                    flagBuffer);
     }
     else
     {
@@ -1684,14 +1690,20 @@ void SHU_UtilCreateDirectory(const char *directory)
     SHUI_String directoryStr = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&directoryStr, directory);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHUI_SNormalizePath(&directoryStr);
-#endif
-
-    if (directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+    if (directoryStr.data[directoryStr.length - 1] != '/')
     {
         SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
     }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    else
+    {
+        directoryStr.data[directoryStr.length - 1] = '\\';
+    }
+#endif
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHUI_SNormalizePath(&directoryStr);
+#endif
 
     if (SHUI_UFileExists(&directoryStr) == SHUM_FILE_INVALID)
     {
@@ -1794,10 +1806,16 @@ void SHU_CacheConfigure(const char *cacheDirectory)
     SHUI.cacheDirectory = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&SHUI.cacheDirectory, cacheDirectory);
 
-    if (SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    if (SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] != '/')
     {
         SHUI_SAppendC(&SHUI.cacheDirectory, SHUM_PATH_SEPARATOR_STR);
     }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    else
+    {
+        SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] = '\\';
+    }
+#endif
 
     SHUI_UMakeDirectoryRecursive(&SHUI.cacheDirectory);
 
@@ -1856,7 +1874,7 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
         pathLength = (SHUI_Size)readlink("/proc/self/exe", pathBuffer, sizeof(pathBuffer));
 #endif
 
-        while (pathLength > 0 && pathBuffer[pathLength - 1] != SHUM_PATH_SEPARATOR && pathBuffer[pathLength - 1] != '/' && pathBuffer[pathLength - 1] != '\\')
+        while (pathLength > 0 && pathBuffer[pathLength - 1] != SHUM_PATH_SEPARATOR)
         {
             pathBuffer[--pathLength] = '\0';
         }
@@ -1959,10 +1977,16 @@ void SHU_ModuleBegin(const char *name, const char *root)
     {
         SHUI_SAppendC(&SHUI.MODULE.root, root);
 
-        if (SHUI.MODULE.root.data[SHUI.MODULE.root.length - 1] != SHUM_PATH_SEPARATOR)
+        if (SHUI.MODULE.root.data[SHUI.MODULE.root.length - 1] != '/')
         {
             SHUI_SAppendC(&SHUI.MODULE.root, SHUM_PATH_SEPARATOR_STR);
         }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+        else
+        {
+            SHUI.MODULE.root.data[SHUI.MODULE.root.length - 1] = '\\';
+        }
+#endif
     }
 }
 
@@ -1973,14 +1997,20 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     SHUI_String correctedDirectory = SHUI.MODULE.root;
     SHUI_SAppendC(&correctedDirectory, directory);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    SHUI_SNormalizePath(&correctedDirectory);
-#endif
-
-    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    if (correctedDirectory.data[correctedDirectory.length - 1] != '/')
     {
         SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
     }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    else
+    {
+        correctedDirectory.data[correctedDirectory.length - 1] = '\\';
+    }
+#endif
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    SHUI_SNormalizePath(&correctedDirectory);
+#endif
 
     SHUI_SLAdd(&SHUI.MODULE.includeDirectories, &correctedDirectory);
 }
@@ -2028,14 +2058,20 @@ void SHU_ModuleCompile(const char *directory, char module)
     {
         SHUI_SAppendC(&directoryStr, directory);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-        SHUI_SNormalizePath(&directoryStr);
-#endif
-
-        if (directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+        if (directoryStr.data[directoryStr.length - 1] != '/')
         {
             SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
         }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+        else
+        {
+            directoryStr.data[directoryStr.length - 1] = '\\';
+        }
+#endif
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+        SHUI_SNormalizePath(&directoryStr);
+#endif
 
         if (SHUI_UFileExists(&directoryStr) != SHUM_FILE_DIRECTORY)
         {
@@ -2080,6 +2116,9 @@ void SHU_ModuleCompile(const char *directory, char module)
 #ifndef SHUC_NO_MODULE_LOG
     SHU_LogInfo("%s " SHUM_COLOR_MAGENTA("'%s'") " successfully compiled.\n", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
 #endif
+
+    SHUI_SZero(SHUI.MODULE.name);
+    SHUI_SZero(SHUI.MODULE.root);
 }
 
 void SHU_ModuleAddLibraryDirectory(const char *directory)
@@ -2089,6 +2128,17 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     SHUI_String correctedDirectory = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&correctedDirectory, directory);
 
+    if (correctedDirectory.data[correctedDirectory.length - 1] != '/')
+    {
+        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
+    }
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    else
+    {
+        correctedDirectory.data[correctedDirectory.length - 1] = '\\';
+    }
+#endif
+
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SNormalizePath(&correctedDirectory);
 #endif
@@ -2096,11 +2146,6 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     if (SHUI_UFileExists(&correctedDirectory) != SHUM_FILE_DIRECTORY)
     {
         SHU_LogError(SHUM_ERROR_INVALID, "File '%s' to add library directory does not exists or not a directory.", correctedDirectory.data);
-    }
-
-    if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
-    {
-        SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
     }
 
     SHUI_SLAdd(&SHUI.MODULE.EXECUTABLE.linkDirectories, &correctedDirectory);

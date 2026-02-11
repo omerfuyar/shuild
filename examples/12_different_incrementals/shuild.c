@@ -10,7 +10,7 @@
 int main(int argc, char **argv)
 {
     SHU_CompilerTryConfigure("gcc");
-    SHU_UtilAutomate(argc, argv);
+    // SHU_UtilAutomate(argc, argv);
 
     // Configure the cache directory of the current project.
     SHU_CacheConfigure(".shu/debug/");
