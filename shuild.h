@@ -1700,9 +1700,7 @@ void SHU_UtilCreateDirectory(const char *directory)
     {
         directoryStr.data[directoryStr.length - 1] = '\\';
     }
-#endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SNormalizePath(&directoryStr);
 #endif
 
@@ -1816,6 +1814,8 @@ void SHU_CacheConfigure(const char *cacheDirectory)
     {
         SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] = '\\';
     }
+
+    SHUI_SNormalizePath(&SHUI.cacheDirectory);
 #endif
 
     SHUI_UMakeDirectoryRecursive(&SHUI.cacheDirectory);
@@ -2007,9 +2007,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     {
         correctedDirectory.data[correctedDirectory.length - 1] = '\\';
     }
-#endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SNormalizePath(&correctedDirectory);
 #endif
 
@@ -2068,9 +2066,7 @@ void SHU_ModuleCompile(const char *directory, char module)
         {
             directoryStr.data[directoryStr.length - 1] = '\\';
         }
-#endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
         SHUI_SNormalizePath(&directoryStr);
 #endif
 
@@ -2138,9 +2134,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     {
         correctedDirectory.data[correctedDirectory.length - 1] = '\\';
     }
-#endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     SHUI_SNormalizePath(&correctedDirectory);
 #endif
 
