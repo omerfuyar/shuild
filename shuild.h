@@ -883,6 +883,14 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
              depFBuffer[depFOffset + 1] == '\n'))
         {
             depFOffset++;
+
+            while (depFOffset < depFLength &&
+                   (depFBuffer[depFOffset] == '\r' ||
+                    depFBuffer[depFOffset] == '\n'))
+            {
+                depFOffset++;
+            }
+
             continue;
         }
 
