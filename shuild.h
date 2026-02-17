@@ -1002,7 +1002,6 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 
     if (result == 0)
     {
-        SHUI_UDeleteSingleFile(&oldExePath);
         SHU_UtilSpawnProcess(executablePath.data, argv);
     }
     else

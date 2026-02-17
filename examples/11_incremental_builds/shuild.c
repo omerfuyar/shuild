@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
     // The cache will be configured as '.shu' in current executable directory.
     SHU_CompilerTryConfigure("gcc");
-    // SHU_UtilAutomate(argc, argv);
+    SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
     SHU_ModuleAddIncludeDirectory("include/");
