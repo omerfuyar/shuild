@@ -995,20 +995,21 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_SAppendC(&oldExePath, ".old");
     SHUI_URenameFile(&executablePath, &oldExePath);
 
-    int result = SHU_UtilRun("%s -o%s %s" SHUM_FLAGS_DEBUG,
+    int result = SHU_UtilRun("%s -o %s %s" SHUM_FLAGS_OPTIMIZATION_HIGH,
                              SHUI.COMPILER.command.data,
                              executablePath.data,
                              sourcePath.data);
 
-    if (result != 0)
+    if (result == 0)
+    {
+        SHUI_UDeleteSingleFile(&oldExePath);
+        SHU_UtilSpawnProcess(executablePath.data, argv);
+    }
+    else
     {
         SHUI_URenameFile(&oldExePath, &executablePath);
         SHU_LogError(result, "Failed to rebuild build script.");
     }
-
-    SHUI_UDeleteSingleFile(&oldExePath);
-
-    SHU_UtilSpawnProcess(executablePath.data, argv);
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -1347,7 +1348,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o%s -c %s %s %s",
+            SHU_UtilRun("%s -o %s -c %s %s %s",
                         SHUI.COMPILER.command.data,
                         objectFile.data,
                         sourceFile->data,
@@ -1375,7 +1376,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
     if (!skipExePacking)
     {
-        SHU_UtilRun("%s -o%s%s%s %s %s %s %s %s",
+        SHU_UtilRun("%s -o %s%s%s %s %s %s %s %s",
                     SHUI.COMPILER.command.data,
                     directory->data,
                     SHUI.MODULE.name.data,
@@ -1427,7 +1428,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o%s -c %s %s",
+            SHU_UtilRun("%s -o %s -c %s %s",
                         SHUI.COMPILER.command.data,
                         objectFile.data,
                         sourceFile->data,
@@ -1444,7 +1445,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
                      sourceFile->data,
                      SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
-        SHU_UtilRun("%s -o%s -c %s %s",
+        SHU_UtilRun("%s -o %s -c %s %s",
                     SHUI.COMPILER.command.data,
                     objectFile.data,
                     sourceFile->data,
@@ -1526,7 +1527,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o%s -c -fPIC %s %s",
+            SHU_UtilRun("%s -o %s -c -fPIC %s %s",
                         SHUI.COMPILER.command.data,
                         objectFile.data,
                         sourceFile->data,
@@ -1544,7 +1545,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
         SHUI_SFormat(&objectFile, "%.*s%s", sourceFile->length - 1, sourceFile->data,
                      SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
 
-        SHU_UtilRun("%s -o%s -c -fPIC %s %s",
+        SHU_UtilRun("%s -o %s -c -fPIC %s %s",
                     SHUI.COMPILER.command.data,
                     objectFile.data,
                     sourceFile->data,
@@ -1568,7 +1569,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
-        SHU_UtilRun("%s -shared -o%slib%s.%s %s",
+        SHU_UtilRun("%s -shared -o %slib%s.%s %s",
                     SHUI.COMPILER.command.data,
                     directory->data,
                     SHUI.MODULE.name.data,
