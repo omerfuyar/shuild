@@ -271,8 +271,8 @@ void SHU_Log(int terminate, const char *header, const char *format, ...);
 #endif
 
 #ifdef SHUC_SHORT_LOG
-#define SHUC_LOG_FORMAT "%d : "
-#define SHUC_LOG_FORMAT_VALUES __LINE__
+#define SHUC_LOG_FORMAT "%s : "
+#define SHUC_LOG_FORMAT_VALUES __FILE__
 #endif
 
 #ifndef SHUC_LOG_FORMAT
