@@ -865,6 +865,14 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     fclose(depFHandle);
 
     SHUI_Size depFOffset = 0;
+
+#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+    if (depFLength >= 2 && depFBuffer[1] == ':')
+    {
+        depFOffset = 2;
+    }
+#endif
+
     while (depFOffset < depFLength && depFBuffer[depFOffset] != ':')
     {
         depFOffset++;
