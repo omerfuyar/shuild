@@ -850,7 +850,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
 {
     time_t objectTime = SHUI_UGetFileEditTime(targetFile);
 
-    FILE *depFHandle = fopen(dependencyFile->data, "r");
+    FILE *depFHandle = fopen(dependencyFile->data, "rb");
     SHU_Assert(depFHandle != NULL, "File open failed for '%s'", dependencyFile->data);
 
     fseek(depFHandle, 0, SEEK_END);
@@ -865,14 +865,6 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     fclose(depFHandle);
 
     SHUI_Size depFOffset = 0;
-
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    if (depFLength >= 2 && depFBuffer[1] == ':')
-    {
-        depFOffset = 2;
-    }
-#endif
-
     while (depFOffset < depFLength && depFBuffer[depFOffset] != ':')
     {
         depFOffset++;
