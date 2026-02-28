@@ -1710,7 +1710,6 @@ int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
 #ifndef SHUC_NO_RUN_LOG
         SHU_LogInfo("Process " SHUM_COLOR_CYAN("'%s'") " executed successfully.", executable);
 #endif
-        exit(result);
     }
 
     return result;
