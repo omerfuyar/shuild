@@ -218,7 +218,7 @@ int SHU_UtilRun(const char *commandFormat, ...);
 /// @param executable Path to executable.
 /// @param argv Arguments array (NULL terminated).
 /// @return Exit code of the process.
-int SHU_UtilSpawnProcess(const char *executable, char *const *argv);
+int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv);
 
 /// @brief Platform-specific helper to get executable path.
 /// @return Address of the executable path string. Do not free or edit it.
@@ -921,7 +921,6 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
         depFOffset++;
     }
 
-    /*
     if (fileStartIndex != 0)
     {
         SHUI_String dependentFile = {0};
@@ -935,7 +934,6 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
             return 1;
         }
     }
-    */
 
     free(depFBuffer);
     return 0;
@@ -1011,7 +1009,8 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 
     if (result == 0)
     {
-        SHU_UtilSpawnProcess(executablePath.data, argv);
+        int spawnResult = SHU_UtilSpawnProcessSync(executablePath.data, argv);
+        exit(spawnResult);
     }
     else
     {
@@ -1252,7 +1251,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
             SHUI_SFormat(&subDir, "%s%s\\", path->data, ffd.cFileName);
             SHUI_MAddSourceDirectoryRecursive(&subDir);
         }
-        else if (strstr(ffd.cFileName, ".c") != NULL)
+        else if (strncmp(ffd.cFileName + strlen(ffd.cFileName) - 2, ".c", 2) == 0)
         {
             SHUI_String newFile = *path;
             SHUI_SAppendC(&newFile, ffd.cFileName);
@@ -1287,7 +1286,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
             SHUI_SFormat(&subDir, "%s%s/", path->data, entry->d_name);
             SHUI_MAddSourceDirectoryRecursive(&subDir);
         }
-        else if (strstr(entry->d_name, ".c") != NULL)
+        else if (strncmp(entry->d_name + strlen(entry->d_name) - 2, ".c", 2) == 0)
         {
             SHUI_String newFile = *path;
             SHUI_SAppendC(&newFile, entry->d_name);
@@ -1301,6 +1300,8 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
 
 static void SHUI_MCompileExecutable(const SHUI_String *directory)
 {
+    SHUI_SLAdd(&SHUI.MODULE.EXECUTABLE.linkDirectories, &SHUI.currentExecutableDirectory);
+
     char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     SHUI_Size includeBufferIndex = 0;
     for (SHUI_Size i = 0; i < SHUI.MODULE.includeDirectories.count; i++)
@@ -1382,13 +1383,51 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 #endif
     }
 
+    SHUI_String outFile = {0};
+
+    SHUI_SFormat(&outFile, "%s%s%s",
+                 directory->data,
+                 SHUI.MODULE.name.data,
+                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+
+    SHU_LogInfo("Compiling executable '%s'...", outFile.data);
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+    if (SHUI_UFileExists(&outFile) != SHUM_FILE_REGULAR)
+    {
+        skipExePacking = 0;
+        goto out;
+    }
+
+    time_t exeTime = SHUI_UGetFileEditTime(&outFile);
+
+    for (SHUI_Size i = 0; i < SHUI.MODULE.EXECUTABLE.linkDirectories.count; i++)
+    {
+        for (SHUI_Size j = 0; j < SHUI.MODULE.EXECUTABLE.links.count; j++)
+        {
+            SHUI_String libFile = {0};
+
+            SHUI_SFormat(&libFile, "%slib%s.%s",
+                         SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data,
+                         SHUI.MODULE.EXECUTABLE.links.data[j].data,
+                         SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "lib" : "a");
+
+            if (SHUI_UFileExists(&libFile) == SHUM_FILE_REGULAR &&
+                SHUI_UGetFileEditTime(&libFile) > exeTime)
+            {
+                skipExePacking = 0;
+                goto out;
+            }
+        }
+    }
+#endif
+out:
+
     if (!skipExePacking)
     {
-        SHU_UtilRun("%s -o %s%s%s %s %s %s %s %s",
+        SHU_UtilRun("%s -o %s %s %s %s %s %s",
                     SHUI.COMPILER.command.data,
-                    directory->data,
-                    SHUI.MODULE.name.data,
-                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "",
+                    outFile.data,
                     includeBuffer,
                     sourceBuffer,
                     linkDirectoryBuffer,
@@ -1632,7 +1671,7 @@ int SHU_UtilRun(const char *commandFormat, ...)
     return result;
 }
 
-int SHU_UtilSpawnProcess(const char *executable, char *const *argv)
+int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
 {
     int result = 0;
 
