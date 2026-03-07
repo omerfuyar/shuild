@@ -23,6 +23,9 @@
 
 #pragma once
 
+/// @brief Build flags to build shuild.c files
+#define SHUILD_BUILD "-O3 -Wno-format-truncation"
+
 #pragma region Platform Detection
 
 #define SHUM_PLATFORM_UNKNOWN 0
@@ -125,6 +128,10 @@
 
 #ifndef SHUC_ARRAY_RESIZE_FACTOR
 #define SHUC_ARRAY_RESIZE_FACTOR 2.0f
+#endif
+
+#ifndef SHUC_MAX_HASH_BUFFER_SIZE
+#define SHUC_MAX_HASH_BUFFER_SIZE 32
 #endif
 
 #define SHUM_ERROR 1
@@ -862,7 +869,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     char *depFBuffer = (char *)malloc((size_t)depFLength + 1);
     SHU_Assert(depFBuffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)depFLength + 1);
 
-    fread(depFBuffer, 1, (size_t)depFLength, depFHandle);
+    SHU_Assert(fread(depFBuffer, 1, (size_t)depFLength, depFHandle) == depFLength, "Buffer overflow for '%s'", moduleCacheFile.data);
     depFBuffer[depFLength] = '\0';
     fclose(depFHandle);
 
@@ -1157,11 +1164,11 @@ static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 
     SHUI_Hash currentConfig = SHUI_CModuleStateHash();
 
-    char buffer[32] = {0};
+    char buffer[SHUC_MAX_HASH_BUFFER_SIZE] = {0};
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "r");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
-    fread(buffer, 1, sizeof(buffer), cacheFileHandle);
+    SHU_Assert(fread(buffer, 1, sizeof(buffer), cacheFileHandle) < sizeof(buffer), "Buffer overflow for '%s'", moduleCacheFile.data);
     fclose(cacheFileHandle);
 
     SHUI_Hash savedConfig = strtoull(buffer, NULL, 10);
