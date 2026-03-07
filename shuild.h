@@ -162,6 +162,7 @@
 #define SHUM_FLAGS_STANDARD_C17 " -std=c17"
 #define SHUM_FLAGS_STANDARD_C23 " -std=c23"
 #define SHUM_FLAGS_STANDARD_C2Y " -std=c2y"
+#define SHUM_FLAGS_STANDARD_C2X " -std=c2x"
 
 #define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
                                         : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
@@ -1214,6 +1215,8 @@ static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_St
     return 0;
 
 dirty:
+	{} //suppress warnings
+
     SHUI_Size lastSeparatorIndex = retObjectFile->length - 1;
     while (lastSeparatorIndex > 0 && retObjectFile->data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
     {
