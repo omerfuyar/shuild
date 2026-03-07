@@ -368,6 +368,10 @@ void SHU_CompilerClearFlags();
 /// @return Length of the flags string.
 unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
 
+/// @brief Gets the identifier of the configured compiler.
+/// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
+char SHU_CompilerGetIdentifier();
+
 #pragma endregion Compiler
 
 #pragma region Module
@@ -2015,6 +2019,11 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
     buffer[bufferIndex] = '\0';
 
     return bufferIndex;
+}
+
+char SHU_CompilerGetIdentifier()
+{
+	return SHUI.COMPILER.identifier;
 }
 
 #pragma endregion Compiler
