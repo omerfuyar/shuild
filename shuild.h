@@ -869,7 +869,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     char *depFBuffer = (char *)malloc((size_t)depFLength + 1);
     SHU_Assert(depFBuffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)depFLength + 1);
 
-    SHU_Assert(fread(depFBuffer, 1, (size_t)depFLength, depFHandle) == depFLength, "Buffer overflow for '%s'", moduleCacheFile.data);
+    SHU_Assert(fread(depFBuffer, 1, (size_t)depFLength, depFHandle) == depFLength, "Buffer overflow for '%s'", dependencyFile->data);
     depFBuffer[depFLength] = '\0';
     fclose(depFHandle);
 
