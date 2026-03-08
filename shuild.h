@@ -1014,7 +1014,7 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_SAppendC(&oldExePath, ".old");
     SHUI_URenameFile(&executablePath, &oldExePath);
 
-    int result = SHU_UtilRun("%s -o %s %s" SHUM_FLAGS_OPTIMIZATION_HIGH,
+    int result = SHU_UtilRun("%s -o %s %s" SHUILD_BUILD,
                              SHUI.COMPILER.command.data,
                              executablePath.data,
                              sourcePath.data);
