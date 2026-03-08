@@ -24,7 +24,7 @@
 #pragma once
 
 /// @brief Build flags to build shuild.c files
-#define SHUILD_BUILD "-O3 -Wno-format-truncation"
+#define SHUILD_BUILD " -O3 -Wno-format-truncation"
 
 #pragma region Platform Detection
 
