@@ -108,7 +108,7 @@
 
 #pragma endregion Compiler Detection
 
-#pragma region Constants and Configurations
+#pragma region Configurations and Constants
 
 #ifndef SHUC_MAX_COMMAND_BUFFER_SIZE
 #define SHUC_MAX_COMMAND_BUFFER_SIZE 4096
@@ -132,6 +132,42 @@
 
 #ifndef SHUC_MAX_HASH_BUFFER_SIZE
 #define SHUC_MAX_HASH_BUFFER_SIZE 32
+#endif
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+#define SHUC_DEFAULT_CACHE_DIRECTORY ".shu/"
+
+#ifndef SHUC_MODULE_FILE_EXTENSION
+#define SHUC_MODULE_FILE_EXTENSION "shum"
+#endif
+#endif
+
+#ifndef SHUC_FILE_EXTENSION
+#define SHUC_FILE_EXTENSION "shu"
+#endif
+
+#ifdef SHUC_LOG_FORMAT
+#ifndef SHUC_LOG_FORMAT_VALUES
+#error SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES must be defined at once
+#endif
+#endif
+
+#ifdef SHUC_LOG_FORMAT_VALUES
+#ifndef SHUC_LOG_FORMAT
+#error SHUC_LOG_FORMAT_VALUES and SHUC_LOG_FORMAT must be defined at once
+#endif
+#endif
+
+#ifdef SHUC_SHORT_LOG
+#define SHUC_LOG_FORMAT "%s : "
+#define SHUC_LOG_FORMAT_VALUES __FILE__
+#endif
+
+#ifndef SHUC_LOG_FORMAT
+#ifndef SHUC_LOG_FORMAT_VALUES
+#define SHUC_LOG_FORMAT "%s:%d:%s : "
+#define SHUC_LOG_FORMAT_VALUES __FILE__, __LINE__, __func__
+#endif
 #endif
 
 #define SHUM_ERROR 1
@@ -194,19 +230,7 @@
 #define SHUM_PATH_SEPARATOR_STR "/"
 #endif
 
-#ifdef SHUC_ENABLE_INCREMENTAL
-#define SHUM_DEFAULT_CACHE_DIRECTORY ".shu/"
-
-#ifndef SHUC_MODULE_FILE_EXTENSION
-#define SHUC_MODULE_FILE_EXTENSION "shum"
-#endif
-#endif
-
-#ifndef SHUC_FILE_EXTENSION
-#define SHUC_FILE_EXTENSION "shu"
-#endif
-
-#pragma endregion
+#pragma endregion Configurations and Constants
 
 #pragma region Shuild Declarations
 
@@ -266,30 +290,6 @@ long SHU_GetFileEditTime(const char *file);
 /// @param format Formatted message of the log.
 /// @param ... Variadic arguments for the formatted message.
 void SHU_Log(int terminate, const char *header, const char *format, ...);
-
-#ifdef SHUC_LOG_FORMAT
-#ifndef SHUC_LOG_FORMAT_VALUES
-#error SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES must be defined at once
-#endif
-#endif
-
-#ifdef SHUC_LOG_FORMAT_VALUES
-#ifndef SHUC_LOG_FORMAT
-#error SHUC_LOG_FORMAT_VALUES and SHUC_LOG_FORMAT must be defined at once
-#endif
-#endif
-
-#ifdef SHUC_SHORT_LOG
-#define SHUC_LOG_FORMAT "%s : "
-#define SHUC_LOG_FORMAT_VALUES __FILE__
-#endif
-
-#ifndef SHUC_LOG_FORMAT
-#ifndef SHUC_LOG_FORMAT_VALUES
-#define SHUC_LOG_FORMAT "%s:%d:%s : "
-#define SHUC_LOG_FORMAT_VALUES __FILE__, __LINE__, __func__
-#endif
-#endif
 
 #define SHU_LogInfo(format, ...)                                                                             \
     do                                                                                                       \
@@ -1226,7 +1226,8 @@ static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_St
     return 0;
 
 dirty:
-	{} //suppress warnings
+{
+} // suppress warnings
 
     SHUI_Size lastSeparatorIndex = retObjectFile->length - 1;
     while (lastSeparatorIndex > 0 && retObjectFile->data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
@@ -1944,7 +1945,7 @@ void SHU_CompilerConfigure(char compiler, const char *compilerCommand)
         SHUI_SAppendC(&SHUI.currentExecutableDirectory, pathBuffer);
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-        SHU_CacheConfigure(SHUM_DEFAULT_CACHE_DIRECTORY);
+        SHU_CacheConfigure(SHUC_DEFAULT_CACHE_DIRECTORY);
 #endif
     }
 }
@@ -2023,7 +2024,7 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
 
 char SHU_CompilerGetIdentifier()
 {
-	return SHUI.COMPILER.identifier;
+    return SHUI.COMPILER.identifier;
 }
 
 #pragma endregion Compiler
