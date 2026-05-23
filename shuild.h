@@ -369,13 +369,13 @@ void SHU_CompilerClearFlags();
 unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize);
 
 ///!!! This function is not meant to be used directly. Use SHU_CompilerAddDefinitions macro instead. !!!
-void SHU_CompilerAddDefinition(const char *defineName, const char *defineValue, ...);
+void SHU_CompilerAddDefinition(const char *macros, ...);
 
 /// @brief Add a definition to current compiler flags.
-/// @param defineName Name of the macro to define.
-/// @param defineValue Value of the previous macro in parameters. Leave NULL to just define macro without value.
-/// @note Parameters must be complete pairs. (eg. ("DEBUG", NULL, "BUFFER_SIZE", "31", "MY_STR", "\"this is my string\""))
-#define SHU_CompilerAddDefinitions(defineName, defineValue, ...) SHU_CompilerAddDefinition(defineName, defineValue, ##__VA_ARGS__, NULL)
+/// @param defineName Name of the macro to define. Use with quotes
+/// @param defineValue Value of the previous macro in parameters. Leave NULL to just define macro without value. use with quotes, \"\" for strings
+/// @note Parameters must be complete name,value pairs. (eg. ("DEBUG", NULL, "BUFFER_SIZE", "31", "MY_STR", "\"this is my string\""))
+#define SHU_CompilerAddDefinitions(macros, ...) SHU_CompilerAddDefinition(macros, ##__VA_ARGS__, NULL)
 
 /// @brief Gets the identifier of the configured compiler.
 /// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
@@ -2031,21 +2031,30 @@ unsigned long SHU_CompilerGetFlags(char *buffer, unsigned long bufferSize)
     return bufferIndex;
 }
 
-void SHU_CompilerAddDefinition(const char *defineName, const char *defineValue, ...)
+void SHU_CompilerAddDefinition(const char *macros, ...)
 {
     va_list args;
-    va_start(args, defineName);
+    va_start(args, macros);
 
     //! maybe redundant
-    const char *currentName = defineName;
-    const char *currentValue = defineValue;
-    while (currentName != NULL)
+    const char *currentMacro = macros;
+    while (currentMacro != NULL)
     {
         SHUI_String flag = {0};
-        SHUI_SFormat(&flag, "-D%s=%s", currentName, currentValue);
+
+        SHUI_SAppendC(&flag, "-D'");
+        SHUI_SAppendC(&flag, currentMacro);
+        currentMacro = va_arg(args, const char *);
+
+        if (currentMacro != NULL)
+        {
+            SHUI_SAppendC(&flag, "=");
+            SHUI_SAppendC(&flag, currentMacro);
+        }
+        SHUI_SAppendC(&flag, "'");
         SHUI_SLAdd(&SHUI.COMPILER.flags, &flag);
-        currentName = va_arg(args, const char *);
-        defineValue = va_arg(args, const char *);
+
+        currentMacro = va_arg(args, const char *);
     }
 
     va_end(args);

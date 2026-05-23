@@ -11,7 +11,11 @@ int main(void)
 #endif
 
 #ifdef FOO
-    printf("the FOO value is : %d\n", FOO);
+    printf("the FOO value is : '%s'\n", FOO);
+#endif
+
+#ifdef BAR
+    printf("BAR macro is defined\n");
 #endif
 
     return 0;

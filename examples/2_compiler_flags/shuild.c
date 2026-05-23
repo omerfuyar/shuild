@@ -11,9 +11,10 @@ int main(void)
     SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "gcc");
 
     // Append custom flags to the current compiler flags.
-    SHU_CompilerAddFlags("-DFOO=13");
     SHU_CompilerAddFlags("-O0");
     SHU_CompilerAddFlags("-g -Wall");
+
+    SHU_CompilerAddDefinitions("BAZ", NULL, "FOO", "\"foo,bar,baz\"");
 
     SHU_ModuleBegin("exampleDebug", NULL);
     SHU_ModuleAddSourceFile("example.c");
@@ -26,6 +27,7 @@ int main(void)
 
     // Clears all of the accumulated flags and starts a new buffer.
     SHU_CompilerSetFlags("-O3 -DNDEBUG");
+    SHU_CompilerAddDefinitions("FOO", "\"this is debug foo\"");
 
     SHU_ModuleBegin("exampleRelease", NULL);
     SHU_ModuleAddSourceFile("example.c");

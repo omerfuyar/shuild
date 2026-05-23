@@ -8,6 +8,7 @@ build/
 *.obj
 .shu
 *.shu
+*.out
 *.log
 
 example
