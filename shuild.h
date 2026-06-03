@@ -424,6 +424,7 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <stdarg.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
 #include <windows.h>
@@ -433,7 +434,6 @@ void SHU_ModuleLinkLibrary(const char *library);
 #else
 #include <unistd.h>
 #include <dirent.h>
-#include <errno.h>
 #include <ftw.h>
 #include <sys/wait.h>
 #endif
