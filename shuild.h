@@ -1540,9 +1540,10 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
-        SHU_UtilRun("%s rcs %slib%s.%s %s",
+        SHU_UtilRun("%s rcs %s%s%s.%s %s",
                     SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar",
                     directory->data,
+                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
                     SHUI.MODULE.name.data,
                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "lib" : "a",
                     commandBuffer);
@@ -1640,9 +1641,10 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
-        SHU_UtilRun("%s -shared -o %slib%s.%s %s",
+        SHU_UtilRun("%s -shared -o %s%s%s.%s %s",
                     SHUI.COMPILER.command.data,
                     directory->data,
+                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
                     SHUI.MODULE.name.data,
                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "dll" : "so",
                     commandBuffer);
