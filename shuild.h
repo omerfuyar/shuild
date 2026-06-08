@@ -254,7 +254,7 @@ int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv);
 
 /// @brief Platform-specific helper to get executable path.
 /// @return Address of the executable path string. Do not free or edit it.
-const char *SHU_UtilGetExecutablePath();
+const char *SHU_UtilGetExecutablePath(void);
 
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
@@ -360,7 +360,7 @@ void SHU_CompilerAddFlags(const char *flags);
 void SHU_CompilerSetFlags(const char *flags);
 
 /// @brief Clears the current compiler flags.
-void SHU_CompilerClearFlags();
+void SHU_CompilerClearFlags(void);
 
 /// @brief Gets the current configured compiler flags.
 /// @param buffer Buffer to write flags.
@@ -379,7 +379,7 @@ void SHU_CompilerAddDefinition(const char *macros, ...);
 
 /// @brief Gets the identifier of the configured compiler.
 /// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
-char SHU_CompilerGetIdentifier();
+char SHU_CompilerGetIdentifier(void);
 
 #pragma endregion Compiler
 
@@ -1046,22 +1046,22 @@ static SHUI_Hash SHUI_CModuleStateHash()
     SHUI_Hash hash = 14695981039346656037ULL;
 
 #define SHUI_HASH_BYTE(byte) hash = ((hash ^ (SHUI_Hash)(byte)) * 1099511628211ULL)
-#define SHUI_HASH_MIX() hash ^= (hash >> 17)
+#define SHUI_HASH_MIX hash ^= (hash >> 17)
 
     for (SHUI_Size i = 0; i < SHUI.cacheDirectory.length; i++)
     {
         SHUI_HASH_BYTE(SHUI.cacheDirectory.data[i]);
     }
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     SHUI_HASH_BYTE(SHUI.COMPILER.identifier);
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     for (SHUI_Size i = 0; i < SHUI.COMPILER.command.length; i++)
     {
         SHUI_HASH_BYTE(SHUI.COMPILER.command.data[i]);
     }
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     SHUI_HASH_BYTE(SHUI.COMPILER.flags.count); // Include count to differentiate empty lists
     for (SHUI_Size i = 0; i < SHUI.COMPILER.flags.count; i++)
@@ -1070,26 +1070,26 @@ static SHUI_Hash SHUI_CModuleStateHash()
         {
             SHUI_HASH_BYTE(SHUI.COMPILER.flags.data[i].data[j]);
         }
-        SHUI_HASH_MIX();
+        SHUI_HASH_MIX;
     }
 
     for (SHUI_Size i = 0; i < SHUI.currentExecutableDirectory.length; i++)
     {
         SHUI_HASH_BYTE(SHUI.currentExecutableDirectory.data[i]);
     }
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.name.length; i++)
     {
         SHUI_HASH_BYTE(SHUI.MODULE.name.data[i]);
     }
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     for (SHUI_Size i = 0; i < SHUI.MODULE.root.length; i++)
     {
         SHUI_HASH_BYTE(SHUI.MODULE.root.data[i]);
     }
-    SHUI_HASH_MIX();
+    SHUI_HASH_MIX;
 
     SHUI_HASH_BYTE(SHUI.MODULE.includeDirectories.count);
     for (SHUI_Size i = 0; i < SHUI.MODULE.includeDirectories.count; i++)
@@ -1098,7 +1098,7 @@ static SHUI_Hash SHUI_CModuleStateHash()
         {
             SHUI_HASH_BYTE(SHUI.MODULE.includeDirectories.data[i].data[j]);
         }
-        SHUI_HASH_MIX();
+        SHUI_HASH_MIX;
     }
 
     SHUI_HASH_BYTE(SHUI.MODULE.sourceFiles.count);
@@ -1108,7 +1108,7 @@ static SHUI_Hash SHUI_CModuleStateHash()
         {
             SHUI_HASH_BYTE(SHUI.MODULE.sourceFiles.data[i].data[j]);
         }
-        SHUI_HASH_MIX();
+        SHUI_HASH_MIX;
     }
 
     SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.linkDirectories.count);
@@ -1118,7 +1118,7 @@ static SHUI_Hash SHUI_CModuleStateHash()
         {
             SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data[j]);
         }
-        SHUI_HASH_MIX();
+        SHUI_HASH_MIX;
     }
 
     SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.links.count);
@@ -1128,7 +1128,7 @@ static SHUI_Hash SHUI_CModuleStateHash()
         {
             SHUI_HASH_BYTE(SHUI.MODULE.EXECUTABLE.links.data[i].data[j]);
         }
-        SHUI_HASH_MIX();
+        SHUI_HASH_MIX;
     }
 
     return hash;
@@ -1741,7 +1741,7 @@ int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
     return result;
 }
 
-const char *SHU_UtilGetExecutablePath()
+const char *SHU_UtilGetExecutablePath(void)
 {
     return SHUI.currentExecutableDirectory.data;
 }
@@ -1910,7 +1910,7 @@ void SHU_CacheClearModule(const char *moduleName)
     SHUI_UMakeDirectoryRecursive(&moduleCacheDirectory);
 }
 
-void SHU_CacheClearAll()
+void SHU_CacheClearAll(void)
 {
     SHU_Assert(SHUI.cacheDirectory.length > 0, "Cache directory is not configured.");
 
@@ -2002,7 +2002,7 @@ void SHU_CompilerSetFlags(const char *flags)
     SHU_CompilerAddFlags(flags);
 }
 
-void SHU_CompilerClearFlags()
+void SHU_CompilerClearFlags(void)
 {
     if (SHUI.COMPILER.flags.data != NULL)
     {
@@ -2062,7 +2062,7 @@ void SHU_CompilerAddDefinition(const char *macros, ...)
     va_end(args);
 }
 
-char SHU_CompilerGetIdentifier()
+char SHU_CompilerGetIdentifier(void)
 {
     return SHUI.COMPILER.identifier;
 }
