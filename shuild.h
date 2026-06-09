@@ -1342,8 +1342,9 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
     {
         linkDirectoryBufferIndex += (SHUI_Size)snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
                                                         sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
-                                                        "-L%s -Wl,-rpath,%s ",
+                                                        "-L%s -Wl%s,%s ",
                                                         SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data,
+                                                        SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : ",-rpath",
                                                         SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data);
     }
 
