@@ -415,7 +415,7 @@ void SHU_ModuleLinkLibrary(const char *library);
 
 #pragma endregion Shuild Declarations
 
-#pragma region Shuild Implementations
+#pragma region Shuild Definitions
 
 #ifdef SHUILD_IMPLEMENTATION
 
@@ -2267,4 +2267,4 @@ void SHU_ModuleLinkLibrary(const char *library)
 
 #endif // SHUILD_IMPLEMENTATION
 
-#pragma endregion Shuild Implementations
+#pragma endregion Shuild Definitions
