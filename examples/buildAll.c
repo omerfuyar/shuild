@@ -1,5 +1,5 @@
 #define SHUC_SHORT_LOG
-#define SHUILD_IMPLEMENTATION
+#define SHU_IMPLEMENTATION
 #include "../shuild.h"
 
 void ShuildShuild(const char *name, const char *arg)

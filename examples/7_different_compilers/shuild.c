@@ -1,4 +1,4 @@
-#define SHUILD_IMPLEMENTATION
+#define SHU_IMPLEMENTATION
 #include "../../shuild.h"
 
 /*

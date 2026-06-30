@@ -1,12 +1,11 @@
 .vscode
 *.exe
 *.old
-*.ilk
+ignore*
 *.pdb
 build/
 *.o
 *.obj
-.shu
 *.shu
 *.out
 *.log

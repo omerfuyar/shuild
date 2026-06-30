@@ -5,7 +5,7 @@
 // #define SHUC_NO_MODULE_LOG
 // #define SHUC_NO_RUN_LOG
 #define SHUC_SHORT_LOG // Show minimal logs
-#define SHUILD_IMPLEMENTATION
+#define SHU_IMPLEMENTATION
 #include "../../shuild.h"
 
 /*

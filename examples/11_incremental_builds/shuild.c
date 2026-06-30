@@ -1,4 +1,4 @@
-#define SHUILD_IMPLEMENTATION
+#define SHU_IMPLEMENTATION
 #define SHUC_ENABLE_INCREMENTAL
 #include "../../shuild.h"
 
