@@ -1917,7 +1917,7 @@ void SHU_CompilerClearFlags(void)
 
 usz SHU_CompilerGetFlags(char *buffer, usz bufferSize)
 {
-    unsigned long bufferIndex = 0;
+    usz bufferIndex = 0;
 
     for (usz i = 0; i < SHUI.COMPILER.flags.count; i++)
     {
@@ -1927,10 +1927,10 @@ usz SHU_CompilerGetFlags(char *buffer, usz bufferSize)
             break;
         }
 
-        bufferIndex += (unsigned long)snprintf(buffer + bufferIndex,
-                                               bufferSize - bufferIndex,
-                                               "%s ",
-                                               SHUI.COMPILER.flags.data[i].data);
+        bufferIndex += (usz)snprintf(buffer + bufferIndex,
+                                     bufferSize - bufferIndex,
+                                     "%s ",
+                                     SHUI.COMPILER.flags.data[i].data);
     }
 
     buffer[bufferIndex] = '\0';
