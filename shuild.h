@@ -13,7 +13,7 @@
 #ifdef SHU
 #include SHU
 #else
-#include "shu.h"
+#include "../shu/shu.h"
 #endif
 #endif
 
@@ -191,6 +191,9 @@ typedef enum SHUModuleType
                                                                                   : "Unknown")
 
 #pragma region Utility
+
+///!!! This function is not meant to be used directly. Use SHU_UtilAutomate macro instead. !!!
+void SHUI_UAutomate(int argc, char **argv, const char *sourceName);
 
 /// @brief Enables autonomously rebuilding the build script when the source or header is edited. It works only if the build system is one script. Run after configuring the compiler.
 /// @param argc Argument count from main function.
@@ -881,7 +884,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     return 0;
 }
 
-static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
+void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 {
     SHU_AssertNullPtr(sourceName);
     SHU_AssertNullPtr(argv);
