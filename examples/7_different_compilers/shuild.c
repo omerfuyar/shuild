@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -12,7 +13,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    SHU_LogInfo("Compiler info which used to build the shuild source : %s : %d", SHUM_HOST_COMPILER_STRING, SHUM_HOST_COMPILER_VERSION);
+    SHU_LogInfo("Compiler info which used to build the shuild source : %s : %d", SHUM_COMPILER_GET_STRING(SHUM_HOST_COMPILER), SHUM_HOST_COMPILER_VERSION);
     SHU_LogInfo("Compiler command which will be used to build the project : %s", argv[1]);
 
     SHU_CompilerTryConfigure(argv[1]);
@@ -24,7 +25,7 @@ int main(int argc, char **argv)
 
     SHU_ModuleBegin(buffer, NULL);
     SHU_ModuleAddSourceFile("example.c");
-    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("", SHUModuleType_Executable);
 
     return 0;
 }

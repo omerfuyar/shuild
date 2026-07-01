@@ -1,4 +1,4 @@
-#define SHUC_SHORT_LOG
+#define SHU "../shu/shu.h"
 #define SHU_IMPLEMENTATION
 #include "../shuild.h"
 
@@ -8,7 +8,7 @@ void ShuildShuild(const char *name, const char *arg)
     char buffer[SHUC_MAX_STRING_SIZE] = {0};
     snprintf(buffer, SHUC_MAX_STRING_SIZE, "%s/shuild.c", name);
     SHU_ModuleAddSourceFile(buffer);
-    SHU_ModuleCompile(name, SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile(name, SHUModuleType_Executable);
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
     snprintf(buffer, SHUC_MAX_STRING_SIZE, ".\\%s\\shuild.exe %s", name, arg == NULL ? "" : arg);
@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 
     SHU_CompilerAddFlags(SHUM_FLAGS_OPTIMIZATION_HIGH);
     SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation");
+    SHU_CompilerAddDefinitions("SHU", "\"../../shu/shu.h\"");
 
     ShuildShuild("1_single_source", NULL);
     ShuildShuild("2_compiler_flags", NULL);

@@ -1,5 +1,6 @@
 #define SHU_IMPLEMENTATION
 #define SHUC_ENABLE_INCREMENTAL
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -20,7 +21,7 @@ int main(int argc, char **argv)
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceFile("src/");
 
-    SHU_ModuleCompile("build/lib/", SHUM_MODULE_LIBRARY_STATIC);
+    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddIncludeDirectory("include/");
@@ -30,7 +31,7 @@ int main(int argc, char **argv)
 
     SHU_ModuleLinkLibrary("exampleLib");
 
-    SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
     return 0;
 }

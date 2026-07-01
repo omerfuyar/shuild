@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -19,7 +20,7 @@ int main(void)
     // Same function can be used
     SHU_ModuleAddSourceFile("src/");
 
-    SHU_ModuleCompile(NULL, SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile(NULL, SHUModuleType_Executable);
 
     return 0;
 }

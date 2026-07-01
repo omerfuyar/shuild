@@ -4,7 +4,6 @@
 // define SHUC_NO_MODULE_LOG to disable module logs.
 // define SHUC_NO_RUN_LOG to disable command run logs.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
-// define SHUC_SHORT_LOG to shorten log messages.
 // define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
@@ -31,27 +30,25 @@
 #if defined(_WIN32)
 /// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
 #define SHUM_HOST_PLATFORM SHUM_PLATFORM_WINDOWS
-/// @brief Name of the host platform.
-#define SHUM_HOST_PLATFORM_STRING "WINDOWS"
-
 #elif defined(__linux__)
 /// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
 #define SHUM_HOST_PLATFORM SHUM_PLATFORM_LINUX
-/// @brief Name of the host platform.
-#define SHUM_HOST_PLATFORM_STRING "LINUX"
-
 #elif defined(__APPLE__) && defined(__MACH__)
 /// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
 #define SHUM_HOST_PLATFORM SHUM_PLATFORM_MACOS
-/// @brief Name of the host platform.
-#define SHUM_HOST_PLATFORM_STRING "MACOS"
-
 #else
 /// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
 #define SHUM_HOST_PLATFORM SHUM_PLATFORM_UNKNOWN
-/// @brief Name of the host platform.
-#define SHUM_HOST_PLATFORM_STRING "UNKNOWN"
 #endif
+
+/// @brief Get the name of the given platform.
+#define SHUM_PLATFORM_GET_STRING(platform) (platform == SHUM_PLATFORM_LINUX     ? "Linux"   \
+                                            : platform == SHUM_PLATFORM_WINDOWS ? "Windows" \
+                                            : platform == SHUM_PLATFORM_MACOS   ? "MacOS"   \
+                                                                                : "Unknown")
+
+/// @brief Either the given platform is the host compiler or not.
+#define SHUM_PLATFORM_IS_HOST(platform) (SHUM_HOST_PLATFORM == platform)
 
 #pragma endregion Platform Detection
 
@@ -66,31 +63,30 @@
 #define SHUM_HOST_COMPILER SHUM_COMPILER_CLANG
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
-/// @brief Name of the host compiler.
-#define SHUM_HOST_COMPILER_STRING "CLANG"
-/// @brief Default command of the host compiler.
-#define SHUM_HOST_COMPILER_COMMAND "clang"
-
 #elif defined(__GNUC__)
 /// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
 #define SHUM_HOST_COMPILER SHUM_COMPILER_GCC
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-/// @brief Name of the host compiler.
-#define SHUM_HOST_COMPILER_STRING "GCC"
-/// @brief Default command of the host compiler.
-#define SHUM_HOST_COMPILER_COMMAND "gcc"
-
 #else
 /// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
 #define SHUM_HOST_COMPILER SHUM_COMPILER_UNKNOWN
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION 0
-/// @brief Name of the host compiler.
-#define SHUM_HOST_COMPILER_STRING "UNKNOWN"
-/// @brief Default command of the host compiler.
-#define SHUM_HOST_COMPILER_COMMAND "UNKNOWN"
 #endif
+
+/// @brief Get the name of the given compiler.
+#define SHUM_COMPILER_GET_STRING(compiler) (compiler == SHUM_COMPILER_CLANG ? "Clang" \
+                                            : compiler == SHUM_COMPILER_GCC ? "GCC"   \
+                                                                            : "Unknown")
+
+/// @brief Get the command of the given compiler.
+#define SHUM_COMPILER_GET_COMMAND(compiler) (compiler == SHUM_COMPILER_CLANG ? "clang" \
+                                             : compiler == SHUM_COMPILER_GCC ? "gcc"   \
+                                                                             : "Unknown")
+
+/// @brief Either the given compiler is the host compiler or not.
+#define SHUM_COMPILER_IS_HOST(compiler) (SHUM_HOST_COMPILER == compiler)
 
 #pragma endregion Compiler Detection
 
@@ -132,46 +128,6 @@
 #define SHUC_FILE_EXTENSION "shu"
 #endif
 
-#ifdef SHUC_LOG_FORMAT
-#ifndef SHUC_LOG_FORMAT_VALUES
-#error SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES must be defined at once
-#endif
-#endif
-
-#ifdef SHUC_LOG_FORMAT_VALUES
-#ifndef SHUC_LOG_FORMAT
-#error SHUC_LOG_FORMAT_VALUES and SHUC_LOG_FORMAT must be defined at once
-#endif
-#endif
-
-#ifdef SHUC_SHORT_LOG
-#define SHUC_LOG_FORMAT "%s : "
-#define SHUC_LOG_FORMAT_VALUES __FILE__
-#endif
-
-#ifndef SHUC_LOG_FORMAT
-#ifndef SHUC_LOG_FORMAT_VALUES
-#define SHUC_LOG_FORMAT "%s:%d:%s : "
-#define SHUC_LOG_FORMAT_VALUES __FILE__, __LINE__, __func__
-#endif
-#endif
-
-#define SHUM_ERROR 1
-#define SHUM_ERROR_NULL 2
-#define SHUM_ERROR_INDEX 3
-#define SHUM_ERROR_UNKNOWN 4
-#define SHUM_ERROR_INTERNAL 5
-#define SHUM_ERROR_INVALID 5
-#define SHUM_ERROR_ASSERTION 6
-
-#define SHUM_FILE_INVALID 0
-#define SHUM_FILE_REGULAR 1
-#define SHUM_FILE_DIRECTORY 2
-
-#define SHUM_MODULE_EXECUTABLE 0
-#define SHUM_MODULE_LIBRARY_STATIC 1
-#define SHUM_MODULE_LIBRARY_DYNAMIC 2
-
 #define SHUM_FLAGS_DEBUG " -g"
 
 #define SHUM_FLAGS_OPTIMIZATION_DEBUG " -Og"
@@ -193,11 +149,6 @@
 #define SHUM_FLAGS_STANDARD_C2Y " -std=c2y"
 #define SHUM_FLAGS_STANDARD_C2X " -std=c2x"
 
-#define SHUM_MODULE_GET_STRING(module) (module == SHUM_MODULE_EXECUTABLE        ? "Executable"      \
-                                        : module == SHUM_MODULE_LIBRARY_STATIC  ? "Static Library"  \
-                                        : module == SHUM_MODULE_LIBRARY_DYNAMIC ? "Dynamic Library" \
-                                                                                : "Unknown")
-
 #define SHUM_COLOR_RESET "\x1b[0m"
 #define SHUM_COLOR_RED(string) "\x1b[31m" string SHUM_COLOR_RESET
 #define SHUM_COLOR_GREEN(string) "\x1b[32m" string SHUM_COLOR_RESET
@@ -208,7 +159,7 @@
 #define SHUM_COLOR_WHITE(string) "\x1b[37m" string SHUM_COLOR_RESET
 #define SHUM_COLOR_BOLD(string) "\x1b[1m" string SHUM_COLOR_RESET
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
 #define SHUM_PATH_SEPARATOR '\\'
 #define SHUM_PATH_SEPARATOR_STR "\\"
 #else
@@ -220,6 +171,25 @@
 
 #pragma region Declarations
 
+typedef enum SHUFileType
+{
+    SHUFileType_Invalid,
+    SHUFileType_Regular,
+    SHUFileType_Directory,
+} SHUFileType;
+
+typedef enum SHUModuleType
+{
+    SHUModuleType_Executable,
+    SHUModuleType_LibraryStatic,
+    SHUModuleType_LibraryDynamic,
+} SHUModuleType;
+
+#define SHUModuleType_GetString(module) (module == SHUModuleType_Executable       ? "Executable"      \
+                                         : module == SHUModuleType_LibraryStatic  ? "Static Library"  \
+                                         : module == SHUModuleType_LibraryDynamic ? "Dynamic Library" \
+                                                                                  : "Unknown")
+
 #pragma region Utility
 
 /// @brief Enables autonomously rebuilding the build script when the source or header is edited. It works only if the build system is one script. Run after configuring the compiler.
@@ -230,13 +200,13 @@
 /// @brief Internal command runner function.
 /// @param command Command to run with system. (eg. clang example.c -o example)
 /// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
-int SHU_UtilRun(const char *commandFormat, ...);
+i32 SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
 /// @brief Spawns a new process synchronously.
 /// @param executable Path to executable.
 /// @param argv Arguments array (NULL terminated).
 /// @return Exit code of the process.
-int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv);
+i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv);
 
 /// @brief Platform-specific helper to get executable path.
 /// @return Address of the executable path string. Do not free or edit it.
@@ -245,7 +215,7 @@ const char *SHU_UtilGetExecutablePath(void);
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
 /// @return SHUM_FILE_<...> macro accordingly.
-char SHU_UtilFileExists(const char *file);
+SHUFileType SHU_UtilFileExists(const char *file);
 
 /// @brief Creates a directory relative to current executable if the directory doesn't exists.
 /// @param directory Directory to create (eg. resources/)
@@ -268,43 +238,7 @@ void SHU_UtilRenameFile(const char *file, const char *name);
 /// @brief Gets the edit time of a file.
 /// @param file File to get time of edit.
 /// @return Timestamp of the file if found.
-long SHU_GetFileEditTime(const char *file);
-
-/// @brief Internal variadic logging function.
-/// @param terminate Exit code if not 0.
-/// @param header Header of the log.
-/// @param format Formatted message of the log.
-/// @param ... Variadic arguments for the formatted message.
-void SHU_Log(int terminate, const char *header, const char *format, ...);
-
-#define SHU_LogInfo(format, ...)                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        SHU_Log(0, SHUM_COLOR_GREEN("INFO"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
-    } while (0)
-
-#define SHU_LogWarning(format, ...)                                                                              \
-    do                                                                                                           \
-    {                                                                                                            \
-        SHU_Log(0, SHUM_COLOR_YELLOW("WARNING"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
-    } while (0)
-
-#define SHU_LogError(code, format, ...)                                                                        \
-    do                                                                                                         \
-    {                                                                                                          \
-        SHU_Log(code, SHUM_COLOR_RED("ERROR"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
-    } while (0)
-
-#define SHU_Assert(condition, format, ...)                                                                                             \
-    do                                                                                                                                 \
-    {                                                                                                                                  \
-        if (!(condition))                                                                                                              \
-        {                                                                                                                              \
-            SHU_Log(SHUM_ERROR_ASSERTION, SHUM_COLOR_RED("ASSERTION"), SHUC_LOG_FORMAT format, SHUC_LOG_FORMAT_VALUES, ##__VA_ARGS__); \
-        }                                                                                                                              \
-    } while (0)
-
-#define SHU_AssertNullPtr(ptr) SHU_Assert(ptr != NULL, "Null pointer assertion failed: " #ptr " is NULL.");
+i64 SHU_GetFileEditTime(const char *file);
 
 #pragma endregion Utility
 
@@ -320,7 +254,7 @@ void SHU_CacheConfigure(const char *cacheDirectory);
 void SHU_CacheClear(const char *moduleName);
 
 /// @brief Clears the cache directory.
-void SHU_CacheClearAll();
+void SHU_CacheClearAll(void);
 
 #pragma endregion Cache
 
@@ -352,20 +286,20 @@ void SHU_CompilerClearFlags(void);
 /// @param buffer Buffer to write flags.
 /// @param bufferSize Size of the buffer.
 /// @return Length of the flags string.
-unsigned long SHU_CompilerGetFlags(char *buffer, usz bufferSize);
+usz SHU_CompilerGetFlags(char *buffer, usz bufferSize);
 
 ///!!! This function is not meant to be used directly. Use SHU_CompilerAddDefinitions macro instead. !!!
-void SHU_CompilerAddDefinition(const char *macros, ...);
+void SHUI_CompilerAddDefinition(const char *macros, ...);
 
 /// @brief Add a definition to current compiler flags.
 /// @param defineName Name of the macro to define. Use with quotes
-/// @param defineValue Value of the previous macro in parameters. Leave NULL to just define macro without value. use with quotes, \"\" for strings
+/// @param defineValue Value of the previous macro in parameters. Leave NULL to just define macro without value. use backslash-ed quotes inside (\"\") for string macros.
 /// @note Parameters must be complete name,value pairs. (eg. ("DEBUG", NULL, "BUFFER_SIZE", "31", "MY_STR", "\"this is my string\""))
-#define SHU_CompilerAddDefinitions(macros, ...) SHU_CompilerAddDefinition(macros, ##__VA_ARGS__, NULL)
+#define SHU_CompilerAddDefinitions(macros, ...) SHUI_CompilerAddDefinition(macros, ##__VA_ARGS__, NULL)
 
 /// @brief Gets the identifier of the configured compiler.
 /// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
-char SHU_CompilerGetIdentifier(void);
+u8 SHU_CompilerGetIdentifier(void);
 
 #pragma endregion Compiler
 
@@ -386,7 +320,7 @@ void SHU_ModuleAddSourceFile(const char *file);
 
 /// @brief Internal generic module compile function for both libraries and executables.
 /// @param directory Output directory of the library file without the name. Relative to current executable directory. (eg. build/)
-/// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUM_MODULE_LIBRARY_STATIC)
+/// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUModuleType_LibraryStatic)
 void SHU_ModuleCompile(const char *directory, u8 module);
 
 /// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
@@ -412,7 +346,7 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <sys/stat.h>
 #include <errno.h>
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
 #include <windows.h>
 #include <process.h>
 #include <direct.h>
@@ -424,14 +358,14 @@ void SHU_ModuleLinkLibrary(const char *library);
 #include <ftw.h>
 #endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
 #include <mach-o/dyld.h>
 #endif
 
 #pragma region Internals
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-typedef unsigned long long SHUI_Hash;
+typedef u64 SHUI_Hash;
 #endif
 
 typedef struct SHUI_String
@@ -483,6 +417,7 @@ static struct
 
 #define SHUI_SZero(string) memset(&string, 0, sizeof(SHUI_String));
 
+/*
 static void SHUI_SAppend(SHUI_String *string, const SHUI_String *stringToAppend)
 {
     SHU_Assert(string->length + stringToAppend->length < SHUC_MAX_STRING_SIZE, "Appending string length '%u' to '%u' exceeds maximum path size '%d'.", stringToAppend->length, string->length, SHUC_MAX_STRING_SIZE - 1);
@@ -491,18 +426,20 @@ static void SHUI_SAppend(SHUI_String *string, const SHUI_String *stringToAppend)
     string->length += stringToAppend->length;
     string->data[string->length] = '\0';
 }
+*/
 
 static void SHUI_SAppendC(SHUI_String *string, const char *stringToAppend)
 {
     usz stringLength = (usz)strlen(stringToAppend);
 
-    SHU_Assert(string->length + stringLength < SHUC_MAX_STRING_SIZE, "Appending string length '%u' to '%u' exceeds maximum path size '%d'.", stringLength, string->length, SHUC_MAX_STRING_SIZE - 1);
+    SHU_Assert(string->length + stringLength < SHUC_MAX_STRING_SIZE, "Appending string length '%zu' to '%zu' exceeds maximum path size '%d'.", stringLength, string->length, SHUC_MAX_STRING_SIZE - 1);
 
     memcpy(string->data + string->length, stringToAppend, stringLength);
     string->length += stringLength;
     string->data[string->length] = '\0';
 }
 
+static void SHUI_SFormat(SHUI_String *string, const char *format, ...) __attribute__((format(printf, 2, 3)));
 static void SHUI_SFormat(SHUI_String *string, const char *format, ...)
 {
     va_list args;
@@ -511,7 +448,7 @@ static void SHUI_SFormat(SHUI_String *string, const char *format, ...)
     va_end(args);
 }
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
 static void SHUI_SNormalizePath(SHUI_String *string)
 {
     for (usz i = 0; i < string->length; i++)
@@ -533,7 +470,7 @@ static SHUI_StringList SHUI_SLCreate(usz capacity)
 
     if (list.data == NULL)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: Memory allocation failed for size '%zu'.", sizeof(SHUI_String) * capacity);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: Memory allocation failed for size '%zu'.", sizeof(SHUI_String) * capacity);
     }
 
     return list;
@@ -559,7 +496,7 @@ static void SHUI_SLResize(SHUI_StringList *list, usz newCapacity)
 
     if (list->data == NULL)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: Memory reallocation failed for size '%zu'.", sizeof(SHUI_String) * newCapacity);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: Memory reallocation failed for size '%zu'.", sizeof(SHUI_String) * newCapacity);
     }
 }
 
@@ -577,33 +514,33 @@ static void SHUI_SLAdd(SHUI_StringList *list, const SHUI_String *string)
     list->data[list->count++] = *string;
 }
 
-static char SHUI_UFileExists(const SHUI_String *path)
+static SHUFileType SHUI_UFileExists(const SHUI_String *path)
 {
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     DWORD attributes = GetFileAttributesA(path->data);
 
     if (attributes == INVALID_FILE_ATTRIBUTES)
     {
-        return SHUM_FILE_INVALID;
+        return SHUFileType_Invalid;
     }
 
     if (attributes & FILE_ATTRIBUTE_DIRECTORY)
     {
-        return SHUM_FILE_DIRECTORY;
+        return SHUFileType_Directory;
     }
 
-    return SHUM_FILE_REGULAR;
+    return SHUFileType_Regular;
 #else
     struct stat stats;
     if (stat(path->data, &stats) == 0)
     {
         if (S_ISDIR(stats.st_mode))
         {
-            return SHUM_FILE_DIRECTORY;
+            return SHUFileType_Directory;
         }
-        return SHUM_FILE_REGULAR;
+        return SHUFileType_Regular;
     }
-    return SHUM_FILE_INVALID;
+    return SHUFileType_Invalid;
 #endif
 }
 
@@ -611,7 +548,7 @@ static void SHUI_UMakeDirectory(const SHUI_String *path)
 {
     int result = 0;
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     result = _mkdir(path->data);
 #else
     result = mkdir(path->data, 0755);
@@ -651,12 +588,12 @@ static void SHUI_UDeleteSingleFile(const SHUI_String *path)
     }
 }
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
 static void SHUI_UDeleteDirectory(const SHUI_String *path)
 {
     int result = 0;
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     result = _rmdir(path->data);
 #else
     result = rmdir(path->data);
@@ -684,17 +621,17 @@ static int SHUI_UNftwCallback(const char *fpath, const struct stat *sb, int type
 
 static void SHUI_UDeleteRecursive(const SHUI_String *path)
 {
-    char fileType = SHUI_UFileExists(path);
+    SHUFileType fileType = SHUI_UFileExists(path);
 
-    SHU_Assert(fileType != SHUM_FILE_INVALID, "File '%s' does not exist.", path->data);
+    SHU_Assert(fileType != SHUFileType_Invalid, "File '%s' does not exist.", path->data);
 
-    if (fileType == SHUM_FILE_REGULAR)
+    if (fileType == SHUFileType_Regular)
     {
         SHUI_UDeleteSingleFile(path);
         return;
     }
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     WIN32_FIND_DATAA ffd;
     char pattern[SHUC_MAX_STRING_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s\\*", path->data);
@@ -711,7 +648,7 @@ static void SHUI_UDeleteRecursive(const SHUI_String *path)
             continue;
 
         SHUI_String subPath = {0};
-        subPath.length = snprintf(subPath.data, SHUC_MAX_STRING_SIZE, "%s\\%s", path->data, ffd.cFileName);
+        subPath.length = (usz)snprintf(subPath.data, SHUC_MAX_STRING_SIZE, "%s\\%s", path->data, ffd.cFileName);
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
@@ -751,26 +688,26 @@ static void SHUI_UCopySingleFile(const SHUI_String *src, const SHUI_String *dst)
 
 static void SHUI_UCopyRecursive(const SHUI_String *src, const SHUI_String *dst)
 {
-    char fileType = SHUI_UFileExists(src);
+    SHUFileType fileType = SHUI_UFileExists(src);
 
-    SHU_Assert(fileType != SHUM_FILE_INVALID, "File '%s' does not exist", src->data);
+    SHU_Assert(fileType != SHUFileType_Invalid, "File '%s' does not exist", src->data);
 
-    if (fileType == SHUM_FILE_REGULAR)
+    if (fileType == SHUFileType_Regular)
     {
         SHUI_UCopySingleFile(src, dst);
         return;
     }
 
-    char destinationType = SHUI_UFileExists(dst);
+    SHUFileType destinationType = SHUI_UFileExists(dst);
 
-    SHU_Assert(destinationType != SHUM_FILE_REGULAR, "Directory '%s' already exist as a regular file", src->data);
+    SHU_Assert(destinationType != SHUFileType_Regular, "Directory '%s' already exist as a regular file", src->data);
 
-    if (destinationType == SHUM_FILE_INVALID)
+    if (destinationType == SHUFileType_Invalid)
     {
         SHUI_UMakeDirectoryRecursive(dst);
     }
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     WIN32_FIND_DATAA ffd;
     char pattern[SHUC_MAX_STRING_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s\\*", src->data);
@@ -778,7 +715,7 @@ static void SHUI_UCopyRecursive(const SHUI_String *src, const SHUI_String *dst)
     HANDLE hFind = FindFirstFileA(pattern, &ffd);
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: Directory open failed for '%s'.", src->data);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", src->data);
     }
 
     do
@@ -801,7 +738,7 @@ static void SHUI_UCopyRecursive(const SHUI_String *src, const SHUI_String *dst)
     DIR *dir = opendir(src->data);
     if (!dir)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: Directory open failed for '%s'.", src->data);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", src->data);
     }
 
     struct dirent *entry;
@@ -826,7 +763,7 @@ static void SHUI_UCopyRecursive(const SHUI_String *src, const SHUI_String *dst)
 
 static void SHUI_URenameFile(const SHUI_String *file, const SHUI_String *name)
 {
-    if (SHUI_UFileExists(name) != SHUM_FILE_INVALID)
+    if (SHUI_UFileExists(name) != SHUFileType_Invalid)
     {
         SHUI_UDeleteRecursive(name);
     }
@@ -846,7 +783,7 @@ static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
 
     if (result != 0)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: File attribute getting failed for '%s'.", file->data);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: File attribute getting failed for '%s'.", file->data);
     }
 
     return attr.st_mtime;
@@ -860,7 +797,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     SHU_Assert(depFHandle != NULL, "File open failed for '%s'", dependencyFile->data);
 
     fseek(depFHandle, 0, SEEK_END);
-    long depFLength = ftell(depFHandle);
+    usz depFLength = (usz)ftell(depFHandle);
     fseek(depFHandle, 0, SEEK_SET);
 
     char *depFBuffer = (char *)malloc((size_t)depFLength + 1);
@@ -905,7 +842,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
             if (fileStartIndex != 0)
             {
                 SHUI_String dependentFile = {0};
-                SHUI_SFormat(&dependentFile, "%.*s", depFOffset - fileStartIndex, depFBuffer + fileStartIndex);
+                SHUI_SFormat(&dependentFile, "%.*s", (int)(depFOffset - fileStartIndex), depFBuffer + fileStartIndex);
 
                 time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
 
@@ -929,7 +866,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     if (fileStartIndex != 0)
     {
         SHUI_String dependentFile = {0};
-        SHUI_SFormat(&dependentFile, "%.*s", depFOffset - fileStartIndex, depFBuffer + fileStartIndex);
+        SHUI_SFormat(&dependentFile, "%.*s", (int)(depFOffset - fileStartIndex), depFBuffer + fileStartIndex);
 
         time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
 
@@ -1007,14 +944,14 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_SAppendC(&oldExePath, ".old");
     SHUI_URenameFile(&executablePath, &oldExePath);
 
-    int result = SHU_UtilRun("%s -o %s %s" SHUILD_BUILD,
+    i32 result = SHU_UtilRun("%s -o %s %s" SHUILD_BUILD,
                              SHUI.COMPILER.command.data,
                              executablePath.data,
                              sourcePath.data);
 
     if (result == 0)
     {
-        int spawnResult = SHU_UtilSpawnProcessSync(executablePath.data, argv);
+        i32 spawnResult = SHU_UtilSpawnProcessSync(executablePath.data, argv);
         exit(spawnResult);
     }
     else
@@ -1025,7 +962,7 @@ static void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-static SHUI_Hash SHUI_CModuleStateHash()
+static SHUI_Hash SHUI_CModuleStateHash(void)
 {
     SHUI_Hash hash = 14695981039346656037ULL;
 
@@ -1154,7 +1091,7 @@ static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
                  moduleName->data,
                  SHUC_MODULE_FILE_EXTENSION);
 
-    if (SHUI_UFileExists(&moduleCacheFile) != SHUM_FILE_REGULAR)
+    if (SHUI_UFileExists(&moduleCacheFile) != SHUFileType_Regular)
     {
         return 1;
     }
@@ -1200,17 +1137,17 @@ static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_St
                  SHUI.cacheDirectory.data,
                  SHUI.MODULE.name.data,
                  SHUM_PATH_SEPARATOR,
-                 sourceFile->length - fileStartIndex - 1,
+                 (int)(sourceFile->length - fileStartIndex - 1),
                  sourceFile->data + fileStartIndex,
                  SHUC_FILE_EXTENSION);
 
     SHUI_SFormat(retObjectFile, "%.*s%s",
-                 retDependencyFile->length - 3, // - SHUC_FILE_EXTENSION length
+                 (int)(retDependencyFile->length - 3), // - SHUC_FILE_EXTENSION length
                  retDependencyFile->data,
-                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
 
-    if (SHUI_UFileExists(retObjectFile) != SHUM_FILE_REGULAR ||
-        SHUI_UFileExists(retDependencyFile) != SHUM_FILE_REGULAR ||
+    if (SHUI_UFileExists(retObjectFile) != SHUFileType_Regular ||
+        SHUI_UFileExists(retDependencyFile) != SHUFileType_Regular ||
         SHUI_CDependencyDirty(retDependencyFile, retObjectFile) != 0)
     {
         goto dirty;
@@ -1229,7 +1166,7 @@ dirty:
     }
 
     SHUI_String objectDirectory = {0};
-    SHUI_SFormat(&objectDirectory, "%.*s", lastSeparatorIndex + 1, retObjectFile->data);
+    SHUI_SFormat(&objectDirectory, "%.*s", (int)(lastSeparatorIndex + 1), retObjectFile->data);
     SHUI_UMakeDirectoryRecursive(&objectDirectory);
     return 1;
 }
@@ -1237,7 +1174,7 @@ dirty:
 
 static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
 {
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     WIN32_FIND_DATAA ffd = {0};
     char pattern[SHUC_MAX_STRING_SIZE] = {0};
     snprintf(pattern, sizeof(pattern), "%s*", path->data);
@@ -1273,7 +1210,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
 
     if (!dir)
     {
-        SHU_LogError(SHUM_ERROR_INTERNAL, "Internal: Directory open failed for '%s'.", path->data);
+        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", path->data);
     }
 
     struct dirent *entry;
@@ -1328,7 +1265,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
                                                   sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
                                                   "-L%s -Wl%s,%s ",
                                                   SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data,
-                                                  SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : ",-rpath",
+                                                  SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
                                                   SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data);
     }
 
@@ -1397,12 +1334,12 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
     SHUI_SFormat(&outFile, "%s%s%s",
                  directory->data,
                  SHUI.MODULE.name.data,
-                 SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? ".exe" : "");
 
     SHU_LogInfo("Compiling executable '%s'...", outFile.data);
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-    if (SHUI_UFileExists(&outFile) != SHUM_FILE_REGULAR)
+    if (SHUI_UFileExists(&outFile) != SHUFileType_Regular)
     {
         skipExePacking = 0;
         goto out;
@@ -1419,9 +1356,9 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
             SHUI_SFormat(&libFile, "%slib%s.%s",
                          SHUI.MODULE.EXECUTABLE.linkDirectories.data[i].data,
                          SHUI.MODULE.EXECUTABLE.links.data[j].data,
-                         SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "lib" : "a");
+                         SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a");
 
-            if (SHUI_UFileExists(&libFile) == SHUM_FILE_REGULAR &&
+            if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
                 SHUI_UGetFileEditTime(&libFile) > exeTime)
             {
                 skipExePacking = 0;
@@ -1429,8 +1366,8 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
             }
         }
     }
-#endif
 out:
+#endif
 
     if (!skipExePacking)
     {
@@ -1497,9 +1434,9 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 #else
         skipLibPacking = 0;
 
-        SHUI_SFormat(&objectFile, "%.*s%s", sourceFile->length - 1,
+        SHUI_SFormat(&objectFile, "%.*s%s", (int)(sourceFile->length - 1),
                      sourceFile->data,
-                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
+                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
 
         SHU_UtilRun("%s -o %s -c %s %s",
                     SHUI.COMPILER.command.data,
@@ -1528,9 +1465,9 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
         SHU_UtilRun("%s rcs %s%s%s.%s %s",
                     SHUI.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar",
                     directory->data,
-                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
+                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
                     SHUI.MODULE.name.data,
-                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "lib" : "a",
+                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a",
                     commandBuffer);
     }
     else
@@ -1599,8 +1536,8 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 #else
         skipLibPacking = 0;
 
-        SHUI_SFormat(&objectFile, "%.*s%s", sourceFile->length - 1, sourceFile->data,
-                     SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "obj" : "o");
+        SHUI_SFormat(&objectFile, "%.*s%s", (int)(sourceFile->length - 1), sourceFile->data,
+                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
 
         SHU_UtilRun("%s -o %s -c -fPIC %s %s",
                     SHUI.COMPILER.command.data,
@@ -1629,9 +1566,9 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
         SHU_UtilRun("%s -shared -o %s%s%s.%s %s",
                     SHUI.COMPILER.command.data,
                     directory->data,
-                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "" : "lib",
+                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
                     SHUI.MODULE.name.data,
-                    SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS ? "dll" : "so",
+                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so",
                     commandBuffer);
     }
     else
@@ -1653,7 +1590,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
 #pragma region Utility
 
-int SHU_UtilRun(const char *commandFormat, ...)
+i32 SHU_UtilRun(const char *commandFormat, ...)
 {
     SHU_AssertNullPtr(commandFormat);
 
@@ -1668,7 +1605,7 @@ int SHU_UtilRun(const char *commandFormat, ...)
     SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), commandBuffer);
 #endif
 
-    int result = system(commandBuffer);
+    i32 result = system(commandBuffer);
 
     if (result != 0)
     {
@@ -1682,16 +1619,16 @@ int SHU_UtilRun(const char *commandFormat, ...)
     return result;
 }
 
-int SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
+i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
 {
-    int result = 0;
+    i32 result = 0;
 
 #ifndef SHUC_NO_RUN_LOG
     SHU_LogInfo("Spawning process : " SHUM_COLOR_CYAN("'%s'"), executable);
 #endif
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    result = (int)_spawnv(_P_WAIT, executable, (const char *const *)argv);
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    result = (i32)_spawnv(_P_WAIT, executable, (const char *const *)argv);
 #else
     pid_t pid = fork();
 
@@ -1731,7 +1668,7 @@ const char *SHU_UtilGetExecutablePath(void)
     return SHUI.currentExecutableDirectory.data;
 }
 
-char SHU_UtilFileExists(const char *file)
+SHUFileType SHU_UtilFileExists(const char *file)
 {
     SHU_AssertNullPtr(file);
 
@@ -1752,7 +1689,7 @@ void SHU_UtilCreateDirectory(const char *directory)
     {
         SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
     }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     else
     {
         directoryStr.data[directoryStr.length - 1] = '\\';
@@ -1761,7 +1698,7 @@ void SHU_UtilCreateDirectory(const char *directory)
     SHUI_SNormalizePath(&directoryStr);
 #endif
 
-    if (SHUI_UFileExists(&directoryStr) == SHUM_FILE_INVALID)
+    if (SHUI_UFileExists(&directoryStr) == SHUFileType_Invalid)
     {
         SHUI_UMakeDirectoryRecursive(&directoryStr);
     }
@@ -1774,7 +1711,7 @@ void SHU_UtilDeleteFile(const char *file)
     SHUI_String fileStr = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     SHUI_SNormalizePath(&fileStr);
 #endif
 
@@ -1792,12 +1729,12 @@ void SHU_UtilCopyFile(const char *file, const char *directory)
     SHUI_String fileStr = SHUI.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     SHUI_SNormalizePath(&directoryStr);
     SHUI_SNormalizePath(&fileStr);
 #endif
 
-    if (SHUI_UFileExists(&directoryStr) == SHUM_FILE_INVALID)
+    if (SHUI_UFileExists(&directoryStr) == SHUFileType_Invalid)
     {
         SHUI_UMakeDirectoryRecursive(&directoryStr);
     }
@@ -1819,7 +1756,7 @@ void SHU_UtilRenameFile(const char *file, const char *name)
     SHUI_URenameFile(&fileStr, &nameStr);
 }
 
-long SHU_GetFileEditTime(const char *file)
+i64 SHU_GetFileEditTime(const char *file)
 {
     SHU_AssertNullPtr(file);
 
@@ -1828,26 +1765,6 @@ long SHU_GetFileEditTime(const char *file)
     SHUI_SAppendC(&fileStr, file);
 
     return SHUI_UGetFileEditTime(&fileStr);
-}
-
-void SHU_Log(int terminate, const char *header, const char *format, ...)
-{
-    SHU_AssertNullPtr(header);
-    SHU_AssertNullPtr(format);
-
-    char messageBuffer[SHUC_MAX_MESSAGE_BUFFER_SIZE] = {0};
-
-    va_list args;
-    va_start(args, format);
-    vsnprintf(messageBuffer, sizeof(messageBuffer), format, args);
-    va_end(args);
-
-    printf(SHUM_COLOR_BOLD("[") "%s" SHUM_COLOR_BOLD("]") " : %s\n", header, messageBuffer);
-
-    if (terminate != 0)
-    {
-        exit(terminate);
-    }
 }
 
 #pragma endregion Utility
@@ -1866,7 +1783,7 @@ void SHU_CacheConfigure(const char *cacheDirectory)
     {
         SHUI_SAppendC(&SHUI.cacheDirectory, SHUM_PATH_SEPARATOR_STR);
     }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     else
     {
         SHUI.cacheDirectory.data[SHUI.cacheDirectory.length - 1] = '\\';
@@ -1887,7 +1804,7 @@ void SHU_CacheClearModule(const char *moduleName)
     SHUI_String moduleCacheDirectory = SHUI.cacheDirectory;
     SHUI_SAppendC(&moduleCacheDirectory, moduleName);
 
-    if (SHUI_UFileExists(&moduleCacheDirectory) != SHUM_FILE_INVALID)
+    if (SHUI_UFileExists(&moduleCacheDirectory) != SHUFileType_Invalid)
     {
         SHUI_UDeleteRecursive(&moduleCacheDirectory);
     }
@@ -1922,9 +1839,9 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
         char pathBuffer[SHUC_MAX_STRING_SIZE] = {0};
         usz pathLength = 0;
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
         pathLength = GetModuleFileNameA(NULL, (LPSTR)pathBuffer, (DWORD)sizeof(pathBuffer));
-#elif SHUM_HOST_PLATFORM == SHUM_PLATFORM_MACOS
+#elif SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
         uint32_t size = (uint32_t)sizeof(pathBuffer);
         _NSGetExecutablePath(pathBuffer, &size);
         pathLength = (usz)strlen(pathBuffer);
@@ -1950,7 +1867,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
 {
     if (compilerCommand == NULL || strlen(compilerCommand) == 0)
     {
-        SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_HOST_COMPILER_COMMAND);
+        SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER));
     }
     else if (strcmp(compilerCommand, "clang") == 0)
     {
@@ -1966,7 +1883,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Unknown compiler command '%s'. Use " SHUM_COLOR_BLUE("SHU_CompilerConfigure") " to configure it manually.", compilerCommand);
+        SHU_LogError(SHUResult_Err, "Unknown compiler command '%s'. Use " SHUM_COLOR_BLUE("SHU_CompilerConfigure") " to configure it manually.", compilerCommand);
     }
 }
 
@@ -1995,7 +1912,7 @@ void SHU_CompilerClearFlags(void)
     }
 }
 
-unsigned long SHU_CompilerGetFlags(char *buffer, usz bufferSize)
+usz SHU_CompilerGetFlags(char *buffer, usz bufferSize)
 {
     unsigned long bufferIndex = 0;
 
@@ -2018,7 +1935,7 @@ unsigned long SHU_CompilerGetFlags(char *buffer, usz bufferSize)
     return bufferIndex;
 }
 
-void SHU_CompilerAddDefinition(const char *macros, ...)
+void SHUI_CompilerAddDefinition(const char *macros, ...)
 {
     va_list args;
     va_start(args, macros);
@@ -2029,16 +1946,22 @@ void SHU_CompilerAddDefinition(const char *macros, ...)
     {
         SHUI_String flag = {0};
 
-        SHUI_SAppendC(&flag, "-D'");
+        SHUI_SAppendC(&flag, "-D");
         SHUI_SAppendC(&flag, currentMacro);
         currentMacro = va_arg(args, const char *);
 
         if (currentMacro != NULL)
         {
-            SHUI_SAppendC(&flag, "=");
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+            SHUI_SAppendC(&flag, "=\"\"");
             SHUI_SAppendC(&flag, currentMacro);
+            SHUI_SAppendC(&flag, "\"\"");
+#else
+            SHUI_SAppendC(&flag, "='");
+            SHUI_SAppendC(&flag, currentMacro);
+            SHUI_SAppendC(&flag, "'");
+#endif
         }
-        SHUI_SAppendC(&flag, "'");
         SHUI_SLAdd(&SHUI.COMPILER.flags, &flag);
 
         currentMacro = va_arg(args, const char *);
@@ -2047,7 +1970,7 @@ void SHU_CompilerAddDefinition(const char *macros, ...)
     va_end(args);
 }
 
-char SHU_CompilerGetIdentifier(void)
+u8 SHU_CompilerGetIdentifier(void)
 {
     return SHUI.COMPILER.identifier;
 }
@@ -2073,7 +1996,7 @@ void SHU_ModuleBegin(const char *name, const char *root)
         {
             SHUI_SAppendC(&SHUI.MODULE.root, SHUM_PATH_SEPARATOR_STR);
         }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
         else
         {
             SHUI.MODULE.root.data[SHUI.MODULE.root.length - 1] = '\\';
@@ -2093,7 +2016,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     {
         SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
     }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     else
     {
         correctedDirectory.data[correctedDirectory.length - 1] = '\\';
@@ -2112,12 +2035,12 @@ void SHU_ModuleAddSourceFile(const char *file)
     SHUI_String correctedDirectory = SHUI.MODULE.root;
     SHUI_SAppendC(&correctedDirectory, file);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     SHUI_SNormalizePath(&correctedDirectory);
 #endif
 
-    char fileType = SHUI_UFileExists(&correctedDirectory);
-    if (fileType == SHUM_FILE_DIRECTORY)
+    SHUFileType fileType = SHUI_UFileExists(&correctedDirectory);
+    if (fileType == SHUFileType_Directory)
     {
         if (correctedDirectory.data[correctedDirectory.length - 1] != SHUM_PATH_SEPARATOR)
         {
@@ -2126,20 +2049,20 @@ void SHU_ModuleAddSourceFile(const char *file)
 
         SHUI_MAddSourceDirectoryRecursive(&correctedDirectory);
     }
-    else if (fileType == SHUM_FILE_REGULAR)
+    else if (fileType == SHUFileType_Regular)
     {
         SHUI_SLAdd(&SHUI.MODULE.sourceFiles, &correctedDirectory);
     }
     else
     {
-        SHU_LogError(SHUM_ERROR_INVALID, "File '%s' to add source does not exists.", correctedDirectory.data);
+        SHU_LogError(SHUResult_ErrNotFound, "File '%s' to add source does not exists.", correctedDirectory.data);
     }
 }
 
 void SHU_ModuleCompile(const char *directory, u8 module)
 {
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
+    SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUI.MODULE.name.data);
 #endif
 
     SHUI_String directoryStr = SHUI.currentExecutableDirectory;
@@ -2152,7 +2075,7 @@ void SHU_ModuleCompile(const char *directory, u8 module)
         {
             SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
         }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
         else
         {
             directoryStr.data[directoryStr.length - 1] = '\\';
@@ -2161,7 +2084,7 @@ void SHU_ModuleCompile(const char *directory, u8 module)
         SHUI_SNormalizePath(&directoryStr);
 #endif
 
-        if (SHUI_UFileExists(&directoryStr) != SHUM_FILE_DIRECTORY)
+        if (SHUI_UFileExists(&directoryStr) != SHUFileType_Directory)
         {
             SHUI_UMakeDirectoryRecursive(&directoryStr);
         }
@@ -2170,7 +2093,7 @@ void SHU_ModuleCompile(const char *directory, u8 module)
 #ifdef SHUC_ENABLE_INCREMENTAL
     if (SHUI_CModuleStateDirty(&SHUI.MODULE.name))
     {
-        SHU_LogInfo("Build cache not initialized or changed, Cleaning up cache for %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
+        SHU_LogInfo("Build cache not initialized or changed, Cleaning up cache for %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUI.MODULE.name.data);
         SHU_CacheClearModule(SHUI.MODULE.name.data);
         SHUI_CModuleStateUpdate(&SHUI.MODULE.name);
     }
@@ -2178,21 +2101,21 @@ void SHU_ModuleCompile(const char *directory, u8 module)
 
     switch (module)
     {
-    case SHUM_MODULE_EXECUTABLE:
+    case SHUModuleType_Executable:
         SHUI_MCompileExecutable(&directoryStr);
         break;
-    case SHUM_MODULE_LIBRARY_STATIC:
+    case SHUModuleType_LibraryStatic:
         SHUI_MCompileLibraryStatic(&directoryStr);
         break;
-    case SHUM_MODULE_LIBRARY_DYNAMIC:
+    case SHUModuleType_LibraryDynamic:
         SHUI_MCompileLibraryDynamic(&directoryStr);
         break;
     default:
-        SHU_LogError(SHUM_ERROR_UNKNOWN, "Invalid module type passed to SHU_ModuleCompile.");
+        SHU_LogError(SHUResult_Err, "Invalid module type passed to SHU_ModuleCompile.");
         break;
     }
 
-    if (module == SHUM_MODULE_EXECUTABLE)
+    if (module == SHUModuleType_Executable)
     {
         SHUI_SLDestroy(&SHUI.MODULE.EXECUTABLE.linkDirectories);
         SHUI_SLDestroy(&SHUI.MODULE.EXECUTABLE.links);
@@ -2202,7 +2125,7 @@ void SHU_ModuleCompile(const char *directory, u8 module)
     SHUI_SLDestroy((SHUI_StringList *)&SHUI.MODULE.sourceFiles);
 
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("%s " SHUM_COLOR_MAGENTA("'%s'") " successfully compiled.\n", SHUM_MODULE_GET_STRING(module), SHUI.MODULE.name.data);
+    SHU_LogInfo("%s " SHUM_COLOR_MAGENTA("'%s'") " successfully compiled.\n", SHUModuleType_GetString(module), SHUI.MODULE.name.data);
 #endif
 
     SHUI_SZero(SHUI.MODULE.name);
@@ -2220,7 +2143,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     {
         SHUI_SAppendC(&correctedDirectory, SHUM_PATH_SEPARATOR_STR);
     }
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     else
     {
         correctedDirectory.data[correctedDirectory.length - 1] = '\\';
@@ -2229,9 +2152,9 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     SHUI_SNormalizePath(&correctedDirectory);
 #endif
 
-    if (SHUI_UFileExists(&correctedDirectory) != SHUM_FILE_DIRECTORY)
+    if (SHUI_UFileExists(&correctedDirectory) != SHUFileType_Directory)
     {
-        SHU_LogError(SHUM_ERROR_INVALID, "File '%s' to add library directory does not exists or not a directory.", correctedDirectory.data);
+        SHU_LogError(SHUResult_ErrNotFound, "File '%s' to add library directory does not exists or not a directory.", correctedDirectory.data);
     }
 
     SHUI_SLAdd(&SHUI.MODULE.EXECUTABLE.linkDirectories, &correctedDirectory);

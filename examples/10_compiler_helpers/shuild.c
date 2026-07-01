@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
-    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("", SHUModuleType_Executable);
 
     return 0;
 }

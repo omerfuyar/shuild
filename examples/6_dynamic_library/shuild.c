@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -13,7 +14,7 @@ int main(void)
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceFile("src/");
     // Same thing with previous example but as dynamic.
-    SHU_ModuleCompile("build/lib/", SHUM_MODULE_LIBRARY_DYNAMIC);
+    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
 
     SHU_ModuleBegin("example", NULL);
     SHU_ModuleAddIncludeDirectory("include/");
@@ -24,7 +25,7 @@ int main(void)
     SHU_ModuleAddLibraryDirectory("build/lib/");
     SHU_ModuleLinkLibrary("exampleLib");
 
-    SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
     return 0;
 }

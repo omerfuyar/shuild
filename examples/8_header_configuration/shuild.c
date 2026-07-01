@@ -6,6 +6,7 @@
 // #define SHUC_NO_RUN_LOG
 #define SHUC_SHORT_LOG // Show minimal logs
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -19,7 +20,7 @@ int main(void)
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");
-    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("", SHUModuleType_Executable);
 
     return 0;
 }

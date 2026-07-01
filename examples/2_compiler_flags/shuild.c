@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -20,7 +21,7 @@ int main(void)
     SHU_ModuleAddSourceFile("example.c");
 
     // Leave the output directory NULL to set it current executable directory.
-    SHU_ModuleCompile(NULL, SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile(NULL, SHUModuleType_Executable);
 
     // After compilation, all module configurations resets.
     // Compiler configuration doesn't change.
@@ -33,7 +34,7 @@ int main(void)
     SHU_ModuleAddSourceFile("example.c");
 
     // Same behaviour as the one above.
-    SHU_ModuleCompile("", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("", SHUModuleType_Executable);
 
     // Clear the flags entirely.
     SHU_CompilerClearFlags();

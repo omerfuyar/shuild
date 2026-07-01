@@ -56,6 +56,8 @@ int main() {
 
 You can see more complete examples in the `example` folder.
 
+[SHU](https://github.com/omerfuyar/shu) must be cloned to the same directory with shuild to properly run examples
+
 Every function starts with `SHU_` is documented in `shuild.h`.
 
 I also have a [Game Framework](https://github.com/omerfuyar/Code-Romeo) and [Example Game](https://github.com/omerfuyar/Code-Juliett) projects that supports/uses this build system.

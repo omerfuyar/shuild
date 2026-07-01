@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -20,7 +21,7 @@ int main(void)
     // Compile the module, output the artifacts to 'build/' relative to current executable directory.
     // Trailing path separator is not mandatory but definitely recommended.
     // This is NOT relative to modules root directory.
-    SHU_ModuleCompile("build/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
     return 0;
 }

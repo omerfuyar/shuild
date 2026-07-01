@@ -1,4 +1,5 @@
 #define SHU_IMPLEMENTATION
+#include "../../../shu/shu.h"
 #include "../../shuild.h"
 
 /*
@@ -13,7 +14,7 @@ int main(void)
     SHU_ModuleAddIncludeDirectory("include/");
     SHU_ModuleAddSourceFile("src/");
     // Compile (archive) the module as a static library.
-    SHU_ModuleCompile("build/lib/", SHUM_MODULE_LIBRARY_STATIC);
+    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
 
     SHU_ModuleBegin("example", NULL);
     SHU_ModuleAddIncludeDirectory("include/");
@@ -29,7 +30,7 @@ int main(void)
     // todo this design is confusing, consider moving module
     //! identification to ModuleBegin
 
-    SHU_ModuleCompile("build/bin/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
     return 0;
 }
