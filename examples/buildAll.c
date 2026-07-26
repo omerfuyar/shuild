@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 
     SHU_CompilerAddFlags(SHUM_FLAGS_OPTIMIZATION_HIGH);
     SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation");
-    SHU_CompilerAddDefinitions("SHU", "\"../../shu/shu.h\"");
+    SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", "\"../../shu/shu.h\"");
 
     ShuildShuild("1_single_source", NULL);
     ShuildShuild("2_compiler_flags", NULL);
