@@ -324,7 +324,7 @@ void SHU_ModuleAddSourceFile(const char *file);
 /// @brief Internal generic module compile function for both libraries and executables.
 /// @param directory Output directory of the library file without the name. Relative to current executable directory. (eg. build/)
 /// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUModuleType_LibraryStatic)
-void SHU_ModuleCompile(const char *directory, u8 module);
+void SHU_ModuleCompile(const char *directory, SHUModuleType module);
 
 /// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
 /// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
@@ -2062,7 +2062,7 @@ void SHU_ModuleAddSourceFile(const char *file)
     }
 }
 
-void SHU_ModuleCompile(const char *directory, u8 module)
+void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 {
 #ifndef SHUC_NO_MODULE_LOG
     SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUILD.MODULE.name.data);
