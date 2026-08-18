@@ -886,8 +886,8 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
 
 void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 {
-    SHU_CheckPanicNullPointer(sourceName);
-    SHU_CheckPanicNullPointer(argv);
+    SHU_AssertNullPointer(sourceName);
+    SHU_AssertNullPointer(argv);
     SHU_Assert(argc > 0, "Invalid argument count");
 
     usz exeNameStartIndex = (usz)strlen(argv[0]) - 1;
@@ -1595,7 +1595,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
 i32 SHU_UtilRun(const char *commandFormat, ...)
 {
-    SHU_CheckPanicNullPointer(commandFormat);
+    SHU_AssertNullPointer(commandFormat);
 
     char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
 
@@ -1673,7 +1673,7 @@ const char *SHU_UtilGetExecutablePath(void)
 
 SHUFileType SHU_UtilFileExists(const char *file)
 {
-    SHU_CheckPanicNullPointer(file);
+    SHU_AssertNullPointer(file);
 
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
@@ -1683,7 +1683,7 @@ SHUFileType SHU_UtilFileExists(const char *file)
 
 void SHU_UtilCreateDirectory(const char *directory)
 {
-    SHU_CheckPanicNullPointer(directory);
+    SHU_AssertNullPointer(directory);
 
     SHUI_String directoryStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&directoryStr, directory);
@@ -1709,7 +1709,7 @@ void SHU_UtilCreateDirectory(const char *directory)
 
 void SHU_UtilDeleteFile(const char *file)
 {
-    SHU_CheckPanicNullPointer(file);
+    SHU_AssertNullPointer(file);
 
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
@@ -1723,8 +1723,8 @@ void SHU_UtilDeleteFile(const char *file)
 
 void SHU_UtilCopyFile(const char *file, const char *directory)
 {
-    SHU_CheckPanicNullPointer(file);
-    SHU_CheckPanicNullPointer(directory);
+    SHU_AssertNullPointer(file);
+    SHU_AssertNullPointer(directory);
 
     SHUI_String directoryStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&directoryStr, directory);
@@ -1747,8 +1747,8 @@ void SHU_UtilCopyFile(const char *file, const char *directory)
 
 void SHU_UtilRenameFile(const char *file, const char *name)
 {
-    SHU_CheckPanicNullPointer(file);
-    SHU_CheckPanicNullPointer(name);
+    SHU_AssertNullPointer(file);
+    SHU_AssertNullPointer(name);
 
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
     SHUI_String nameStr = SHUILD.currentExecutableDirectory;
@@ -1761,7 +1761,7 @@ void SHU_UtilRenameFile(const char *file, const char *name)
 
 i64 SHU_GetFileEditTime(const char *file)
 {
-    SHU_CheckPanicNullPointer(file);
+    SHU_AssertNullPointer(file);
 
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
 
@@ -1777,7 +1777,7 @@ i64 SHU_GetFileEditTime(const char *file)
 
 void SHU_CacheConfigure(const char *cacheDirectory)
 {
-    SHU_CheckPanicNullPointer(cacheDirectory);
+    SHU_AssertNullPointer(cacheDirectory);
 
     SHUILD.cacheDirectory = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&SHUILD.cacheDirectory, cacheDirectory);
@@ -1831,7 +1831,7 @@ void SHU_CacheClearAll(void)
 
 void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
 {
-    SHU_CheckPanicNullPointer(compilerCommand);
+    SHU_AssertNullPointer(compilerCommand);
 
     SHUILD.COMPILER.identifier = compiler;
     SHUI_SZero(SHUILD.COMPILER.command);
@@ -1892,7 +1892,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
 
 void SHU_CompilerAddFlags(const char *flags)
 {
-    SHU_CheckPanicNullPointer(flags);
+    SHU_AssertNullPointer(flags);
 
     SHUI_String Sflags = {0};
     SHUI_SAppendC(&Sflags, flags);
@@ -1901,7 +1901,7 @@ void SHU_CompilerAddFlags(const char *flags)
 
 void SHU_CompilerSetFlags(const char *flags)
 {
-    SHU_CheckPanicNullPointer(flags);
+    SHU_AssertNullPointer(flags);
 
     SHU_CompilerClearFlags();
     SHU_CompilerAddFlags(flags);
@@ -1984,7 +1984,7 @@ u8 SHU_CompilerGetIdentifier(void)
 
 void SHU_ModuleBegin(const char *name, const char *root)
 {
-    SHU_CheckPanicNullPointer(name);
+    SHU_AssertNullPointer(name);
 
     SHUI_SZero(SHUILD.MODULE.name);
     SHUI_SAppendC(&SHUILD.MODULE.name, name);
@@ -2010,7 +2010,7 @@ void SHU_ModuleBegin(const char *name, const char *root)
 
 void SHU_ModuleAddIncludeDirectory(const char *directory)
 {
-    SHU_CheckPanicNullPointer(directory);
+    SHU_AssertNullPointer(directory);
 
     SHUI_String correctedDirectory = SHUILD.MODULE.root;
     SHUI_SAppendC(&correctedDirectory, directory);
@@ -2033,7 +2033,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
 
 void SHU_ModuleAddSourceFile(const char *file)
 {
-    SHU_CheckPanicNullPointer(file);
+    SHU_AssertNullPointer(file);
 
     SHUI_String correctedDirectory = SHUILD.MODULE.root;
     SHUI_SAppendC(&correctedDirectory, file);
@@ -2137,7 +2137,7 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 
 void SHU_ModuleAddLibraryDirectory(const char *directory)
 {
-    SHU_CheckPanicNullPointer(directory);
+    SHU_AssertNullPointer(directory);
 
     SHUI_String correctedDirectory = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&correctedDirectory, directory);
@@ -2165,7 +2165,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 
 void SHU_ModuleLinkLibrary(const char *library)
 {
-    SHU_CheckPanicNullPointer(library);
+    SHU_AssertNullPointer(library);
 
     SHUI_String libraryStr = {0};
     SHUI_SAppendC(&libraryStr, library);
