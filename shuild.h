@@ -254,7 +254,8 @@ i64 SHU_GetFileEditTime(const char *file);
 void SHU_CacheConfigure(const char *cacheDirectory);
 
 /// @brief Clears the cache for a module
-void SHU_CacheClear(const char *moduleName);
+/// @param moduleName Name of the module whose cache directory should be cleared.
+void SHU_CacheClearModule(const char *moduleName);
 
 /// @brief Clears the cache directory.
 void SHU_CacheClearAll(void);
@@ -286,10 +287,9 @@ void SHU_CompilerSetFlags(const char *flags);
 void SHU_CompilerClearFlags(void);
 
 /// @brief Gets the current configured compiler flags.
-/// @param buffer Buffer to write flags.
-/// @param bufferSize Size of the buffer.
-/// @return Length of the flags string.
-usz SHU_CompilerGetFlags(char *buffer, usz bufferSize);
+/// @param buffer Slice to write the flags string into. buffer.data must not be NULL.
+/// @return Length of the flags string written into buffer.
+usz SHU_CompilerGetFlags(SHUSlice buffer);
 
 ///!!! This function is not meant to be used directly. Use SHU_CompilerAddDefinitions macro instead. !!!
 void SHUI_CompilerAddDefinition(const char *macros, ...);
@@ -385,7 +385,7 @@ typedef struct SHUI_StringList
 } SHUI_StringList;
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *objectFile);
+static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *objectFile);
 #endif
 
 static struct
@@ -549,7 +549,7 @@ static SHUFileType SHUI_UFileExists(const SHUI_String *path)
 
 static void SHUI_UMakeDirectory(const SHUI_String *path)
 {
-    int result = 0;
+    i32 result = 0;
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     result = _mkdir(path->data);
@@ -583,7 +583,7 @@ static void SHUI_UMakeDirectoryRecursive(const SHUI_String *path)
 
 static void SHUI_UDeleteSingleFile(const SHUI_String *path)
 {
-    int result = remove(path->data);
+    i32 result = remove(path->data);
 
     if (result != 0)
     {
@@ -594,7 +594,7 @@ static void SHUI_UDeleteSingleFile(const SHUI_String *path)
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
 static void SHUI_UDeleteDirectory(const SHUI_String *path)
 {
-    int result = 0;
+    i32 result = 0;
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
     result = _rmdir(path->data);
@@ -771,7 +771,7 @@ static void SHUI_URenameFile(const SHUI_String *file, const SHUI_String *name)
         SHUI_UDeleteRecursive(name);
     }
 
-    int result = rename(file->data, name->data);
+    i32 result = rename(file->data, name->data);
 
     if (result != 0)
     {
@@ -782,7 +782,7 @@ static void SHUI_URenameFile(const SHUI_String *file, const SHUI_String *name)
 static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
 {
     struct stat attr;
-    int result = stat(file->data, &attr);
+    i32 result = stat(file->data, &attr);
 
     if (result != 0)
     {
@@ -792,7 +792,7 @@ static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
     return attr.st_mtime;
 }
 
-static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *targetFile)
+static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *targetFile)
 {
     time_t objectTime = SHUI_UGetFileEditTime(targetFile);
 
@@ -852,7 +852,7 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
                 if (objectTime < dependentTime)
                 {
                     free(depFBuffer);
-                    return 1;
+                    return true;
                 }
 
                 fileStartIndex = 0;
@@ -876,12 +876,12 @@ static char SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
         if (objectTime < dependentTime)
         {
             free(depFBuffer);
-            return 1;
+            return true;
         }
     }
 
     free(depFBuffer);
-    return 0;
+    return false;
 }
 
 void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
@@ -915,7 +915,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     time_t exeTime = SHUI_UGetFileEditTime(&executablePath);
     time_t sourceTime = SHUI_UGetFileEditTime(&sourcePath);
 
-    char rebuild = (exeTime < sourceTime);
+    bool rebuild = (exeTime < sourceTime);
 
     if (!rebuild)
     {
@@ -930,7 +930,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 
         if (SHUI_CDependencyDirty(&depFileMap, &executablePath))
         {
-            rebuild = 1;
+            rebuild = true;
         }
 
         SHUI_UDeleteSingleFile(&depFileMap);
@@ -1084,7 +1084,7 @@ static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
     fclose(cacheFileHandle);
 }
 
-static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
+static bool SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 {
     SHUI_String moduleCacheFile = {0};
     SHUI_SFormat(&moduleCacheFile, "%s%s%c%s.%s",
@@ -1096,7 +1096,7 @@ static char SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 
     if (SHUI_UFileExists(&moduleCacheFile) != SHUFileType_Regular)
     {
-        return 1;
+        return true;
     }
 
     SHUI_Hash currentConfig = SHUI_CModuleStateHash();
@@ -1132,7 +1132,7 @@ static void SHUI_CDependencyUpdate(const SHUI_String *sourceFile, const SHUI_Str
                 includeBuffer);
 }
 
-static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_String *retObjectFile, SHUI_String *retDependencyFile)
+static bool SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_String *retObjectFile, SHUI_String *retDependencyFile)
 {
     usz fileStartIndex = SHUILD.MODULE.root.length;
 
@@ -1151,12 +1151,12 @@ static char SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_St
 
     if (SHUI_UFileExists(retObjectFile) != SHUFileType_Regular ||
         SHUI_UFileExists(retDependencyFile) != SHUFileType_Regular ||
-        SHUI_CDependencyDirty(retDependencyFile, retObjectFile) != 0)
+        SHUI_CDependencyDirty(retDependencyFile, retObjectFile))
     {
         goto dirty;
     }
 
-    return 0;
+    return false;
 
 dirty:
 {
@@ -1171,7 +1171,7 @@ dirty:
     SHUI_String objectDirectory = {0};
     SHUI_SFormat(&objectDirectory, "%.*s", (int)(lastSeparatorIndex + 1), retObjectFile->data);
     SHUI_UMakeDirectoryRecursive(&objectDirectory);
-    return 1;
+    return true;
 }
 #endif
 
@@ -1292,7 +1292,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
                                          SHUILD.COMPILER.flags.data[i].data);
     }
 
-    char skipExePacking = 1;
+    bool skipExePacking = true;
 
     char sourceBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
     usz sourceBufferIndex = 0;
@@ -1315,7 +1315,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
             SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
-            skipExePacking = 0;
+            skipExePacking = false;
         }
 
         sourceBufferIndex += (usz)snprintf(sourceBuffer + sourceBufferIndex,
@@ -1323,7 +1323,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
                                            "%s ",
                                            objectFile.data);
 #else
-        skipExePacking = 0;
+        skipExePacking = false;
 
         sourceBufferIndex += (usz)snprintf(sourceBuffer + sourceBufferIndex,
                                            sizeof(sourceBuffer) - sourceBufferIndex,
@@ -1344,7 +1344,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 #ifdef SHUC_ENABLE_INCREMENTAL
     if (SHUI_UFileExists(&outFile) != SHUFileType_Regular)
     {
-        skipExePacking = 0;
+        skipExePacking = false;
         goto out;
     }
 
@@ -1364,7 +1364,7 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
             if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
                 SHUI_UGetFileEditTime(&libFile) > exeTime)
             {
-                skipExePacking = 0;
+                skipExePacking = false;
                 goto out;
             }
         }
@@ -1412,7 +1412,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
     SHUI_StringList objFiles = SHUI_SLCreate(SHUILD.MODULE.sourceFiles.count);
 
-    char skipLibPacking = 1;
+    bool skipLibPacking = true;
 
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
@@ -1432,10 +1432,10 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
             SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
-            skipLibPacking = 0;
+            skipLibPacking = false;
         }
 #else
-        skipLibPacking = 0;
+        skipLibPacking = false;
 
         SHUI_SFormat(&objectFile, "%.*s%s", (int)(sourceFile->length - 1),
                      sourceFile->data,
@@ -1512,7 +1512,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
     SHUI_StringList objFiles = SHUI_SLCreate(SHUILD.MODULE.sourceFiles.count);
 
-    char skipLibPacking = 1;
+    bool skipLibPacking = true;
 
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
@@ -1532,12 +1532,12 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
             SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
 
-            skipLibPacking = 0;
+            skipLibPacking = false;
         }
 
         SHUI_SLAdd(&objFiles, &objectFile);
 #else
-        skipLibPacking = 0;
+        skipLibPacking = false;
 
         SHUI_SFormat(&objectFile, "%.*s%s", (int)(sourceFile->length - 1), sourceFile->data,
                      SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
@@ -1845,7 +1845,7 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
         pathLength = GetModuleFileNameA(NULL, (LPSTR)pathBuffer, (DWORD)sizeof(pathBuffer));
 #elif SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
-        uint32_t size = (uint32_t)sizeof(pathBuffer);
+        u32 size = (u32)sizeof(pathBuffer);
         _NSGetExecutablePath(pathBuffer, &size);
         pathLength = (usz)strlen(pathBuffer);
 #else
@@ -1915,25 +1915,28 @@ void SHU_CompilerClearFlags(void)
     }
 }
 
-usz SHU_CompilerGetFlags(char *buffer, usz bufferSize)
+usz SHU_CompilerGetFlags(SHUSlice buffer)
 {
+    SHU_AssertNullPointer(buffer.data);
+
+    char *chars = (char *)buffer.data;
     usz bufferIndex = 0;
 
     for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
     {
-        if (bufferIndex > bufferSize - 2)
+        if (bufferIndex > buffer.size - 2)
         {
             SHU_LogWarning("Buffer too small for compiler flags. Output truncated.");
             break;
         }
 
-        bufferIndex += (usz)snprintf(buffer + bufferIndex,
-                                     bufferSize - bufferIndex,
+        bufferIndex += (usz)snprintf(chars + bufferIndex,
+                                     buffer.size - bufferIndex,
                                      "%s ",
                                      SHUILD.COMPILER.flags.data[i].data);
     }
 
-    buffer[bufferIndex] = '\0';
+    chars[bufferIndex] = '\0';
 
     return bufferIndex;
 }

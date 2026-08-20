@@ -47,7 +47,7 @@ int main() {
 
     //... Specify include directories, source directories, targets, links etc.
 
-    SHU_ModuleCompile("build/", SHUM_MODULE_EXECUTABLE);
+    SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
     return 0;
 }
