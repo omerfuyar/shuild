@@ -472,7 +472,7 @@ static SHUI_StringList SHUI_SLCreate(usz capacity)
     list.capacity = capacity;
 
     if (list.data == NULL)
-    {
+    { // todo make these errors assertions
         SHU_LogError(SHUResult_ErrInternal, "Internal: Memory allocation failed for size '%zu'.", sizeof(SHUI_String) * capacity);
     }
 
