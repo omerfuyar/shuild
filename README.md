@@ -1,7 +1,7 @@
 # Shuild
 Shuild (SHU buILD) is a portable, cross platform project builder library.
 
-It uses the [SHU](https://github.com/omerfuyar/shu) system. By defining `SHU`, you can tell the library where to find `shu.h`.
+It uses the [SHU](https://github.com/omerfuyar/shu) system. By defining `SHU` you can tell the library where to find `shu.h` or include it yourself  before any shu... library to prevent any complication. See [SHU](https://github.com/omerfuyar/shu) repo for more information.
 
 Goal is to create a system that is easy to use without leaving the development environment of C. A system that does not require any new syntax or concept to learn. Similar to the build system of Zig. 
 
