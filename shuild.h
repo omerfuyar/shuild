@@ -7,6 +7,8 @@
 // define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
+// todo add macro helpers like module(...){...} for easy module begin and compile, like shujsn, shuarg or clay.
+
 #pragma once
 
 #ifndef SHU_HEADER
@@ -1159,8 +1161,8 @@ static bool SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_St
     return false;
 
 dirty:
-{
-} // suppress warnings
+    {
+    } // suppress warnings
 
     usz lastSeparatorIndex = retObjectFile->length - 1;
     while (lastSeparatorIndex > 0 && retObjectFile->data[lastSeparatorIndex] != SHUM_PATH_SEPARATOR)
