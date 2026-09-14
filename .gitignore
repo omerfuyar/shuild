@@ -1,7 +1,8 @@
 .vscode
 *.exe
 *.old
-ignore*
+ignore.*
+*.ignore
 *.pdb
 build/
 *.o
