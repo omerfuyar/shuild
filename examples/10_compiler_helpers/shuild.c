@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
 
@@ -8,6 +7,7 @@
 
 int main(int argc, char **argv)
 {
+
     SHU_CompilerTryConfigure("gcc");
 
     if (argc < 2)
@@ -21,7 +21,7 @@ int main(int argc, char **argv)
         // These macros are defined in the header and
         // probably only compatible with gcc and clang.
         SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG);
-        SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_HIGH SHUM_FLAGS_WARNING_ERROR);
+        SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_MID SHUM_FLAGS_WARNING_ERROR);
     }
     else if (!strcmp("r", argv[1]))
     {

@@ -8,6 +8,7 @@
 // define SHUC_MAX_<...> <limit> to customize limits.
 
 // todo add macro helpers like module(...){...} for easy module begin and compile, like shujsn, shuarg or clay.
+// todo rename macros to SHUILD_<...>
 
 #pragma once
 
@@ -280,6 +281,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand);
 /// @brief Adds flags to the compiler configuration.
 /// @param flags Flags to add. Can include multiple flags separated by spaces as you want. (eg. -DFOO=31)
 void SHU_CompilerAddFlags(const char *flags);
+// todo make it a macro
 
 /// @brief Clears and sets the compiler flags, replacing all existing ones.
 /// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
@@ -1082,7 +1084,7 @@ static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "w+");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
-    fprintf(cacheFileHandle, "%llu", currentConfig);
+    fprintf(cacheFileHandle, "%lu", currentConfig);
     fclose(cacheFileHandle);
 }
 

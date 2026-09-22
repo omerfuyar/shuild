@@ -1,5 +1,6 @@
-#define SHU "../shu/shu.h"
+#define SHUC_NO_RUN_LOG
 #define SHU_IMPLEMENTATION
+#include "../../shu/shu.h"
 #include "../shuild.h"
 
 void ShuildShuild(const char *name, const char *arg)
@@ -26,9 +27,9 @@ int main(int argc, char **argv)
     SHU_CompilerTryConfigure("gcc");
     SHU_UtilAutomate(argc, argv);
 
-    SHU_CompilerAddFlags(SHUM_FLAGS_OPTIMIZATION_HIGH);
-    SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation");
-    SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", "\"../../shu/shu.h\"");
+    SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW);
+    SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation" SHUM_FLAGS_DEBUG SHUM_FLAGS_STANDARD_C23);
+    SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", NULL, "SHUC_NO_RUN_LOG", NULL);
 
     ShuildShuild("1_single_source", NULL);
     ShuildShuild("2_compiler_flags", NULL);

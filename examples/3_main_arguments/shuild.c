@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
 
@@ -9,6 +8,7 @@
 
 int main(int argc, char **argv)
 {
+
     // 'Try' configure will guess the compiler in your system
     // (like 'cc', 'gcc' or 'clang') and configure it for you.
     // Leave it empty to use the host compiler that compiled this script.

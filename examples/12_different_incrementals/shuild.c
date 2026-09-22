@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #define SHUC_ENABLE_INCREMENTAL
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
@@ -8,7 +7,7 @@
     more effectively.
 */
 
-int main(int argc, char **argv)
+int main(void)
 {
     SHU_CompilerTryConfigure("gcc");
     // SHU_UtilAutomate(argc, argv);

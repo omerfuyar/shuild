@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
 

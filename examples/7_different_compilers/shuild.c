@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
 
@@ -8,6 +7,7 @@
 
 int main(int argc, char **argv)
 {
+
     if (argc < 2)
     {
         return 1;

@@ -1,4 +1,3 @@
-#define SHU_IMPLEMENTATION
 #define SHUC_ENABLE_INCREMENTAL
 #include "../../../shu/shu.h"
 #include "../../shuild.h"
@@ -13,6 +12,7 @@
 
 int main(int argc, char **argv)
 {
+
     // The cache will be configured as '.shu' in current executable directory.
     SHU_CompilerTryConfigure("gcc");
     SHU_UtilAutomate(argc, argv);
