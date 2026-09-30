@@ -1801,7 +1801,7 @@ void SHU_CacheConfigure(const char *cacheDirectory)
 
     SHUI_UMakeDirectoryRecursive(&SHUILD.cacheDirectory);
 
-    SHU_LogInfo("Configured cache directory at " SHUM_COLOR_CYAN("'%s'") "\n", SHUILD.cacheDirectory.data);
+    SHU_LogInfo("Configured cache directory at " SHUM_COLOR_CYAN("'%s'"), SHUILD.cacheDirectory.data);
 }
 
 void SHU_CacheClearModule(const char *moduleName)
