@@ -274,7 +274,7 @@ void SHU_CacheClearAll(void);
 /// @param compilerCommand Command to invoke the compiler. (eg. clang)
 void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 
-/// @brief Tries to configure the compiler by the command of it by checking regular commands. Default is the host (compiler that shuild.c compiled) compiler.
+/// @brief Tries to configure the compiler by checking gcc or clang substring inside the string. Default is the host (compiler that shuild.c compiled) compiler.
 /// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc). If NULL, uses the host compiler command default.
 void SHU_CompilerTryConfigure(const char *compilerCommand);
 
@@ -1876,15 +1876,11 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     {
         SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER));
     }
-    else if (strcmp(compilerCommand, "clang") == 0)
+    else if (strstr(compilerCommand, "clang") != 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_CLANG, compilerCommand);
     }
-    else if (strcmp(compilerCommand, "gcc") == 0)
-    {
-        SHU_CompilerConfigure(SHUM_COMPILER_GCC, compilerCommand);
-    }
-    else if (strcmp(compilerCommand, "cc") == 0)
+    else if (strstr(compilerCommand, "gcc") != 0)
     {
         SHU_CompilerConfigure(SHUM_COMPILER_GCC, compilerCommand);
     }
