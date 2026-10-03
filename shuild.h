@@ -2068,7 +2068,7 @@ void SHU_ModuleAddSourceFile(const char *file)
 void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 {
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("\nStarting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUILD.MODULE.name.data);
+    SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUILD.MODULE.name.data);
 #endif
 
     SHUI_String directoryStr = SHUILD.currentExecutableDirectory;
