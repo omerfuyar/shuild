@@ -44,6 +44,7 @@ int main(int argc, char **argv)
     ShuildShuild("10_compiler_helpers", "r");
     ShuildShuild("11_incremental_builds", NULL);
     ShuildShuild("12_different_incrementals", NULL);
+    ShuildShuild("13_utility_functions", NULL);
 
     if (argc > 1) // run all
     {
@@ -65,6 +66,7 @@ int main(int argc, char **argv)
         SHU_UtilRun("11_incremental_builds\\build\\bin\\example.exe");
         SHU_UtilRun("12_different_incrementals\\build\\debug\\example.exe");
         SHU_UtilRun("12_different_incrementals\\build\\release\\example.exe");
+        SHU_UtilRun("13_utility_functions\\build\\example.exe");
 #else
         SHU_UtilRun("./1_single_source/build/example");
         SHU_UtilRun("./2_compiler_flags/exampleDebug");
@@ -81,6 +83,7 @@ int main(int argc, char **argv)
         SHU_UtilRun("./11_incremental_builds/build/bin/example");
         SHU_UtilRun("./12_different_incrementals/build/debug/example");
         SHU_UtilRun("./12_different_incrementals/build/release/example");
+        SHU_UtilRun("./13_utility_functions/build/example");
 #endif
     }
 
