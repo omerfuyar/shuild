@@ -188,6 +188,12 @@ typedef enum SHUModuleType
     SHUModuleType_LibraryDynamic,
 } SHUModuleType;
 
+/// @brief Function that SHU_UtilListDirectory calls for each entry.
+/// @param path Path of the entry, relative to current executable. Directories end with a separator. (eg. src/utils/)
+/// @param type Type of the entry.
+/// @param data Data given to SHU_UtilListDirectory.
+typedef void (*SHUListFunction)(const char *path, SHUFileType type, void *data);
+
 #define SHUModuleType_GetString(module) (module == SHUModuleType_Executable       ? "Executable"      \
                                          : module == SHUModuleType_LibraryStatic  ? "Static Library"  \
                                          : module == SHUModuleType_LibraryDynamic ? "Dynamic Library" \
@@ -245,6 +251,29 @@ void SHU_UtilRenameFile(const char *file, const char *name);
 /// @param file File to get time of edit.
 /// @return Timestamp of the file if found.
 i64 SHU_GetFileEditTime(const char *file);
+
+/// @brief Calls a function for each entry of a directory, sorted by name. Entries whose names start with a dot are left out.
+/// @param directory Directory to list, relative to current executable. Leave it empty string to list the executable's directory. (eg. src/)
+/// @param recursive Lists the directories inside too, each right after its own entry.
+/// @param function Function to call for each entry.
+/// @param data Data to give to function. Can be NULL.
+void SHU_UtilListDirectory(const char *directory, bool recursive, SHUListFunction function, void *data);
+
+/// @brief Checks if a string matches a pattern, where '*' matches any characters and '?' matches one. (eg. "*.c" or "test_?.lua")
+/// @param string String to check, like a file name.
+/// @param pattern Pattern to match.
+/// @return Either the string matches the pattern or not.
+bool SHU_UtilMatch(const char *string, const char *pattern);
+
+/// @brief Reads a whole file.
+/// @param file File to read, relative to current executable.
+/// @return Slice of the file's contents, followed by a terminating zero that the size does not count. Free its data with free.
+SHUSlice SHU_UtilReadFile(const char *file);
+
+/// @brief Writes a file, replacing it if it exists.
+/// @param file File to write, relative to current executable.
+/// @param content Content to write.
+void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 
 #pragma endregion Utility
 
@@ -1064,7 +1093,8 @@ static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     char *depFBuffer = (char *)malloc((size_t)depFLength + 1);
     SHU_Assert(depFBuffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)depFLength + 1);
 
-    SHU_Assert(fread(depFBuffer, 1, (size_t)depFLength, depFHandle) == depFLength, "Buffer overflow for '%s'", dependencyFile->data);
+    usz depFRead = (usz)fread(depFBuffer, 1, (size_t)depFLength, depFHandle);
+    SHU_Assert(depFRead == depFLength, "Buffer overflow for '%s'", dependencyFile->data);
     depFBuffer[depFLength] = '\0';
     fclose(depFHandle);
 
@@ -1347,7 +1377,8 @@ static bool SHUI_CModuleStateDirty(const SHUI_String *moduleName)
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "r");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
-    SHU_Assert(fread(buffer, 1, sizeof(buffer), cacheFileHandle) < sizeof(buffer), "Buffer overflow for '%s'", moduleCacheFile.data);
+    usz bufferRead = (usz)fread(buffer, 1, sizeof(buffer), cacheFileHandle);
+    SHU_Assert(bufferRead < sizeof(buffer), "Buffer overflow for '%s'", moduleCacheFile.data);
     fclose(cacheFileHandle);
 
     SHUI_Hash savedConfig = strtoull(buffer, NULL, 10);
@@ -1967,6 +1998,204 @@ i64 SHU_GetFileEditTime(const char *file)
     SHUI_SAppendC(&fileStr, file);
 
     return SHUI_UGetFileEditTime(&fileStr) / 1000000000LL;
+}
+
+static int SHUI_SCompare(const void *a, const void *b)
+{
+    return strcmp(((const SHUI_String *)a)->data, ((const SHUI_String *)b)->data);
+}
+
+static void SHUI_UListDirectory(const SHUI_String *directory, bool recursive, SHUListFunction function, void *data)
+{
+    SHUI_String path = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&path, directory->data);
+
+    SHUI_StringList names = {0};
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    WIN32_FIND_DATAA ffd = {0};
+    char pattern[SHUC_MAX_STRING_SIZE] = {0};
+    snprintf(pattern, sizeof(pattern), "%s*", path.data);
+
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        SHU_LogError(SHUResult_ErrNotFound, "Directory '%s' to list does not exists.", path.data);
+    }
+
+    do
+    {
+        if (ffd.cFileName[0] != '.')
+        {
+            SHUI_String name = {0};
+            SHUI_SAppendC(&name, ffd.cFileName);
+            SHUI_SLAdd(&names, &name);
+        }
+    } while (FindNextFileA(hFind, &ffd));
+
+    FindClose(hFind);
+#else
+    DIR *dir = opendir(path.data);
+
+    if (!dir)
+    {
+        SHU_LogError(SHUResult_ErrNotFound, "Directory '%s' to list does not exists.", path.data);
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (entry->d_name[0] != '.')
+        {
+            SHUI_String name = {0};
+            SHUI_SAppendC(&name, entry->d_name);
+            SHUI_SLAdd(&names, &name);
+        }
+    }
+
+    closedir(dir);
+#endif
+
+    if (names.count > 1)
+    {
+        qsort(names.data, names.count, sizeof(SHUI_String), SHUI_SCompare);
+    }
+
+    for (usz i = 0; i < names.count; i++)
+    {
+        SHUI_String entryPath = *directory;
+        SHUI_SAppendC(&entryPath, names.data[i].data);
+
+        SHUI_String fullPath = path;
+        SHUI_SAppendC(&fullPath, names.data[i].data);
+
+        SHUFileType type = SHUI_UFileExists(&fullPath);
+
+        if (type == SHUFileType_Directory)
+        {
+            SHUI_SAppendC(&entryPath, SHUM_PATH_SEPARATOR_STR);
+        }
+
+        function(entryPath.data, type, data);
+
+        if (type == SHUFileType_Directory && recursive)
+        {
+            SHUI_UListDirectory(&entryPath, recursive, function, data);
+        }
+    }
+
+    SHUI_SLDestroy(&names);
+}
+
+void SHU_UtilListDirectory(const char *directory, bool recursive, SHUListFunction function, void *data)
+{
+    SHU_AssertNullPointer(directory);
+    SHU_AssertNullPointer(function);
+
+    SHUI_String directoryStr = {0};
+    SHUI_SAppendC(&directoryStr, directory);
+
+    if (directoryStr.length != 0 && directoryStr.data[directoryStr.length - 1] != '/' && directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
+    }
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    SHUI_SNormalizePath(&directoryStr);
+#endif
+
+    SHUI_UListDirectory(&directoryStr, recursive, function, data);
+}
+
+bool SHU_UtilMatch(const char *string, const char *pattern)
+{
+    SHU_AssertNullPointer(string);
+    SHU_AssertNullPointer(pattern);
+
+    // after a '*', a mismatch goes back to it and lets it match one more character
+    const char *starPattern = NULL;
+    const char *starString = NULL;
+
+    while (*string != '\0')
+    {
+        if (*pattern == '*')
+        {
+            starPattern = pattern++;
+            starString = string;
+        }
+        else if (*pattern == '?' || *pattern == *string)
+        {
+            pattern++;
+            string++;
+        }
+        else if (starPattern != NULL)
+        {
+            pattern = starPattern + 1;
+            string = ++starString;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    while (*pattern == '*')
+    {
+        pattern++;
+    }
+
+    return *pattern == '\0';
+}
+
+SHUSlice SHU_UtilReadFile(const char *file)
+{
+    SHU_AssertNullPointer(file);
+
+    SHUI_String fileStr = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&fileStr, file);
+
+    FILE *fileHandle = fopen(fileStr.data, "rb");
+
+    if (fileHandle == NULL)
+    {
+        SHU_LogError(SHUResult_ErrFile, "File '%s' to read cannot be opened.", fileStr.data);
+    }
+
+    fseek(fileHandle, 0, SEEK_END);
+    long fileLength = ftell(fileHandle);
+    fseek(fileHandle, 0, SEEK_SET);
+
+    SHU_Assert(fileLength >= 0, "File size getting failed for '%s'.", fileStr.data);
+
+    char *buffer = (char *)malloc((size_t)fileLength + 1);
+    SHU_Assert(buffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)fileLength + 1);
+
+    usz fileRead = (usz)fread(buffer, 1, (size_t)fileLength, fileHandle);
+    SHU_Assert(fileRead == (usz)fileLength, "File read failed for '%s'.", fileStr.data);
+    buffer[fileLength] = '\0';
+    fclose(fileHandle);
+
+    return cs(buffer, (usz)fileLength);
+}
+
+void SHU_UtilWriteFile(const char *file, SHUSliceView content)
+{
+    SHU_AssertNullPointer(file);
+    SHU_Assert(content.data != NULL || content.size == 0, "Content to write to '%s' is NULL.", file);
+
+    SHUI_String fileStr = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&fileStr, file);
+
+    FILE *fileHandle = fopen(fileStr.data, "wb");
+
+    if (fileHandle == NULL)
+    {
+        SHU_LogError(SHUResult_ErrFile, "File '%s' to write cannot be opened.", fileStr.data);
+    }
+
+    usz fileWritten = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, fileHandle);
+    SHU_Assert(fileWritten == content.size, "File write failed for '%s'.", fileStr.data);
+    fclose(fileHandle);
 }
 
 #pragma endregion Utility
