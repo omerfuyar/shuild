@@ -323,6 +323,7 @@ void SHU_ModuleAddIncludeDirectory(const char *directory);
 
 /// @brief Adds source files to the module. Single file or recursive directory.
 /// @param file Single file to add to the current module. Relative to root directory specified in ModuleBegin (eg. source.c)
+/// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
 void SHU_ModuleAddSourceFile(const char *file);
 
 /// @brief Internal generic module compile function for both libraries and executables.
@@ -676,7 +677,7 @@ static void SHUI_CQuoteArgument(SHUI_String *quoted, const SHUI_String *argument
 }
 #endif
 
-static i32 SHUI_CRun(const SHUI_StringList *command)
+static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
 {
     SHU_Assert(command->count > 0, "Internal: Empty command.");
 
@@ -757,9 +758,10 @@ static i32 SHUI_CRun(const SHUI_StringList *command)
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
+        (void)terminateOnError;
         SHU_LogError(0, "Command failed with exit code %d.", result);
 #else
-        SHU_LogError(result, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
+        SHU_LogError(terminateOnError ? result : 0, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
 #endif
     }
 
@@ -1028,8 +1030,9 @@ static void SHUI_URenameFile(const SHUI_String *file, const SHUI_String *name)
     }
 }
 
-static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
+static i64 SHUI_UGetFileEditTime(const SHUI_String *file)
 {
+    // in nanoseconds, so a file edited in the same second as its object was compiled is still seen as newer
     struct stat attr;
     i32 result = stat(file->data, &attr);
 
@@ -1038,12 +1041,18 @@ static time_t SHUI_UGetFileEditTime(const SHUI_String *file)
         SHU_LogError(SHUResult_ErrInternal, "Internal: File attribute getting failed for '%s'.", file->data);
     }
 
-    return attr.st_mtime;
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_LINUX)
+    return (i64)attr.st_mtim.tv_sec * 1000000000LL + (i64)attr.st_mtim.tv_nsec;
+#elif SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
+    return (i64)attr.st_mtimespec.tv_sec * 1000000000LL + (i64)attr.st_mtimespec.tv_nsec;
+#else
+    return (i64)attr.st_mtime * 1000000000LL;
+#endif
 }
 
 static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *targetFile)
 {
-    time_t objectTime = SHUI_UGetFileEditTime(targetFile);
+    i64 objectTime = SHUI_UGetFileEditTime(targetFile);
 
     FILE *depFHandle = fopen(dependencyFile->data, "rb");
     SHU_Assert(depFHandle != NULL, "File open failed for '%s'", dependencyFile->data);
@@ -1066,71 +1075,45 @@ static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_
     }
     depFOffset++;
 
-    usz fileStartIndex = 0;
+    // the compiler escapes a space in a file name with a backslash, and ends a line that goes on with one
+    SHUI_String dependentFile = {0};
+    bool dirty = false;
 
-    while (depFOffset < depFLength)
+    while (depFOffset <= depFLength && !dirty)
     {
-        char c = depFBuffer[depFOffset];
+        char c = depFOffset < depFLength ? depFBuffer[depFOffset] : '\0';
 
-        if (c == '\\' &&
-            depFOffset + 1 < depFLength &&
-            (depFBuffer[depFOffset + 1] == '\r' ||
-             depFBuffer[depFOffset + 1] == '\n'))
+        if (c == '\\' && depFOffset + 1 < depFLength && depFBuffer[depFOffset + 1] == ' ')
         {
-            depFOffset++;
-
-            while (depFOffset < depFLength &&
-                   (depFBuffer[depFOffset] == '\r' ||
-                    depFBuffer[depFOffset] == '\n'))
-            {
-                depFOffset++;
-            }
-
+            SHUI_SAppendChar(&dependentFile, ' ');
+            depFOffset += 2;
             continue;
         }
 
-        if (c == ' ' || c == '\n' || c == '\r' || c == '\t')
+        if (c == '\\' && depFOffset + 1 < depFLength && (depFBuffer[depFOffset + 1] == '\r' || depFBuffer[depFOffset + 1] == '\n'))
         {
-            if (fileStartIndex != 0)
+            depFOffset++;
+            continue;
+        }
+
+        if (c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\0')
+        {
+            if (dependentFile.length != 0)
             {
-                SHUI_String dependentFile = {0};
-                SHUI_SFormat(&dependentFile, "%.*s", (int)(depFOffset - fileStartIndex), depFBuffer + fileStartIndex);
-
-                time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
-
-                if (objectTime < dependentTime)
-                {
-                    free(depFBuffer);
-                    return true;
-                }
-
-                fileStartIndex = 0;
+                dirty = objectTime < SHUI_UGetFileEditTime(&dependentFile);
+                SHUI_SZero(dependentFile);
             }
         }
-        else if (fileStartIndex == 0)
+        else
         {
-            fileStartIndex = depFOffset;
+            SHUI_SAppendChar(&dependentFile, c);
         }
 
         depFOffset++;
     }
 
-    if (fileStartIndex != 0)
-    {
-        SHUI_String dependentFile = {0};
-        SHUI_SFormat(&dependentFile, "%.*s", (int)(depFOffset - fileStartIndex), depFBuffer + fileStartIndex);
-
-        time_t dependentTime = SHUI_UGetFileEditTime(&dependentFile);
-
-        if (objectTime < dependentTime)
-        {
-            free(depFBuffer);
-            return true;
-        }
-    }
-
     free(depFBuffer);
-    return false;
+    return dirty;
 }
 
 void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
@@ -1161,8 +1144,8 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_String sourcePath = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&sourcePath, sourceFileName);
 
-    time_t exeTime = SHUI_UGetFileEditTime(&executablePath);
-    time_t sourceTime = SHUI_UGetFileEditTime(&sourcePath);
+    i64 exeTime = SHUI_UGetFileEditTime(&executablePath);
+    i64 sourceTime = SHUI_UGetFileEditTime(&sourcePath);
 
     bool rebuild = (exeTime < sourceTime);
 
@@ -1178,15 +1161,17 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
         SHUI_CAddArgument(&command, sourcePath.data);
         SHUI_CAddArgument(&command, "-MF");
         SHUI_CAddArgument(&command, depFileMap.data);
-        SHUI_CRun(&command);
-        SHUI_SLDestroy(&command);
-
-        if (SHUI_CDependencyDirty(&depFileMap, &executablePath))
+        // when the dependencies cannot be listed, the rebuild shows why
+        if (SHUI_CRun(&command, false) != 0 || SHUI_CDependencyDirty(&depFileMap, &executablePath))
         {
             rebuild = true;
         }
+        SHUI_SLDestroy(&command);
 
-        SHUI_UDeleteSingleFile(&depFileMap);
+        if (SHUI_UFileExists(&depFileMap) == SHUFileType_Regular)
+        {
+            SHUI_UDeleteSingleFile(&depFileMap);
+        }
     }
 
     if (!rebuild)
@@ -1206,7 +1191,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_CAddArgument(&command, executablePath.data);
     SHUI_CAddArgument(&command, sourcePath.data);
     SHUI_CAddArguments(&command, SHUILD_BUILD);
-    i32 result = SHUI_CRun(&command);
+    i32 result = SHUI_CRun(&command, false);
     SHUI_SLDestroy(&command);
 
     if (result == 0)
@@ -1427,6 +1412,13 @@ static void SHUI_CCompileUnit(const SHUI_String *sourceFile, const SHUI_String *
         SHUI_CAddArgument(&command, extraFlag);
     }
 
+    // a single header library is compiled as C, with the definition that holds its implementation, instead of as a precompiled header
+    if (SHUI_SEndsWithC(sourceFile->data, ".h"))
+    {
+        SHUI_CAddArgument(&command, "-x");
+        SHUI_CAddArgument(&command, "c");
+    }
+
     SHUI_CAddArgument(&command, sourceFile->data);
     SHUI_CAddFlags(&command);
     SHUI_CAddIncludeDirectories(&command);
@@ -1438,7 +1430,7 @@ static void SHUI_CCompileUnit(const SHUI_String *sourceFile, const SHUI_String *
         SHUI_CAddArgument(&command, dependencyFile->data);
     }
 
-    SHUI_CRun(&command);
+    SHUI_CRun(&command, true);
     SHUI_SLDestroy(&command);
 }
 
@@ -1559,24 +1551,29 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
         goto out;
     }
 
-    time_t exeTime = SHUI_UGetFileEditTime(&outFile);
+    i64 exeTime = SHUI_UGetFileEditTime(&outFile);
 
     for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
     {
         for (usz j = 0; j < SHUILD.MODULE.EXECUTABLE.links.count; j++)
         {
-            SHUI_String libFile = {0};
-
-            SHUI_SFormat(&libFile, "%slib%s.%s",
-                         SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data,
-                         SHUILD.MODULE.EXECUTABLE.links.data[j].data,
-                         SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a");
-
-            if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
-                SHUI_UGetFileEditTime(&libFile) > exeTime)
+            // the names that SHUI_MCompileLibraryStatic and SHUI_MCompileLibraryDynamic give the library
+            for (u8 k = 0; k < 2; k++)
             {
-                skipExePacking = false;
-                goto out;
+                SHUI_String libFile = {0};
+
+                SHUI_SFormat(&libFile, "%s%s%s.%s",
+                             SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data,
+                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
+                             SHUILD.MODULE.EXECUTABLE.links.data[j].data,
+                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? (k == 0 ? "lib" : "dll") : (k == 0 ? "a" : "so"));
+
+                if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
+                    SHUI_UGetFileEditTime(&libFile) > exeTime)
+                {
+                    skipExePacking = false;
+                    goto out;
+                }
             }
         }
     }
@@ -1616,7 +1613,7 @@ out:
         }
 
         SHUI_CAddFlags(&command);
-        SHUI_CRun(&command);
+        SHUI_CRun(&command, true);
         SHUI_SLDestroy(&command);
     }
     else
@@ -1685,7 +1682,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
             SHUI_SLAdd(&command, &objFiles.data[i]);
         }
 
-        SHUI_CRun(&command);
+        SHUI_CRun(&command, true);
         SHUI_SLDestroy(&command);
     }
     else
@@ -1761,7 +1758,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
             SHUI_SLAdd(&command, &objFiles.data[i]);
         }
 
-        SHUI_CRun(&command);
+        SHUI_CRun(&command, true);
         SHUI_SLDestroy(&command);
     }
     else
@@ -1969,7 +1966,7 @@ i64 SHU_GetFileEditTime(const char *file)
 
     SHUI_SAppendC(&fileStr, file);
 
-    return SHUI_UGetFileEditTime(&fileStr);
+    return SHUI_UGetFileEditTime(&fileStr) / 1000000000LL;
 }
 
 #pragma endregion Utility
