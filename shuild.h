@@ -4,6 +4,7 @@
 // define SHUC_NO_MODULE_LOG to disable module logs.
 // define SHUC_NO_RUN_LOG to disable command run logs.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
+// define SHUC_MAX_JOB_COUNT 1 to compile one file at a time instead of as many as there are processors.
 // define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
@@ -113,6 +114,10 @@
 
 #ifndef SHUC_ARRAY_RESIZE_FACTOR
 #define SHUC_ARRAY_RESIZE_FACTOR 2.0f
+#endif
+
+#ifndef SHUC_MAX_JOB_COUNT
+#define SHUC_MAX_JOB_COUNT 64
 #endif
 
 #ifndef SHUC_MAX_HASH_BUFFER_SIZE
@@ -439,6 +444,14 @@ static struct
 
     struct
     {
+        i64 processes[SHUC_MAX_JOB_COUNT];
+        usz count;
+        usz limit;
+        i32 failure;
+    } JOBS;
+
+    struct
+    {
         SHUI_String name;
         SHUI_String root;
         SHUI_StringList includeDirectories;
@@ -706,7 +719,7 @@ static void SHUI_CQuoteArgument(SHUI_String *quoted, const SHUI_String *argument
 }
 #endif
 
-static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
+static i64 SHUI_CStart(const SHUI_StringList *command)
 {
     SHU_Assert(command->count > 0, "Internal: Empty command.");
 
@@ -749,10 +762,10 @@ static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
     }
     argv[arguments.count] = NULL;
 
-    i32 result = 0;
+    i64 process = -1;
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
-    result = (i32)_spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+    process = (i64)_spawnvp(_P_NOWAIT, argv[0], (const char *const *)argv);
 #else
     pid_t pid = fork();
 
@@ -762,20 +775,8 @@ static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
         SHU_LogError(0, "Starting " SHUM_COLOR_CYAN("'%s'") " failed : %s.", argv[0], strerror(errno));
         _exit(127);
     }
-    else if (pid > 0)
-    {
-        int status = 0;
 
-        while (waitpid(pid, &status, 0) == -1 && errno == EINTR)
-        {
-        }
-
-        result = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    }
-    else
-    {
-        result = -1;
-    }
+    process = pid > 0 ? (i64)pid : -1;
 #endif
 
     free(argv);
@@ -784,6 +785,36 @@ static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
     SHUI_SLDestroy(&arguments);
 #endif
 
+    return process;
+}
+
+static i32 SHUI_CWait(i64 process)
+{
+    if (process < 0)
+    {
+        return -1;
+    }
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    int status = 0;
+    return _cwait(&status, (intptr_t)process, _WAIT_CHILD) == -1 ? -1 : (i32)status;
+#else
+    int status = 0;
+
+    while (waitpid((pid_t)process, &status, 0) == -1)
+    {
+        if (errno != EINTR)
+        {
+            return -1;
+        }
+    }
+
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+#endif
+}
+
+static void SHUI_CReport(i32 result, bool terminateOnError)
+{
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
@@ -793,8 +824,128 @@ static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
         SHU_LogError(terminateOnError ? result : 0, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
 #endif
     }
+}
+
+static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
+{
+    i32 result = SHUI_CWait(SHUI_CStart(command));
+    SHUI_CReport(result, terminateOnError);
 
     return result;
+}
+
+static void SHUI_CWaitJob(void)
+{
+    // the first job that ends; on Windows, the oldest one
+    usz index = 0;
+    i32 result = -1;
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    result = SHUI_CWait(SHUILD.JOBS.processes[0]);
+#else
+    // a child that is not a job, like one the build script started itself, is passed over
+    int status = 0;
+    index = SHUILD.JOBS.count;
+
+    while (index == SHUILD.JOBS.count)
+    {
+        pid_t pid = waitpid(-1, &status, 0);
+
+        if (pid == -1 && errno == EINTR)
+        {
+            continue;
+        }
+
+        if (pid == -1)
+        {
+            // nothing can be waited for, so the first job counts as failed
+            index = 0;
+            status = -1;
+            break;
+        }
+
+        index = 0;
+        while (index < SHUILD.JOBS.count && SHUILD.JOBS.processes[index] != (i64)pid)
+        {
+            index++;
+        }
+    }
+
+    result = status != -1 && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+#endif
+
+    SHUILD.JOBS.processes[index] = SHUILD.JOBS.processes[--SHUILD.JOBS.count];
+
+    if (result != 0)
+    {
+        SHUI_CReport(result, false);
+
+        if (SHUILD.JOBS.failure == 0)
+        {
+            SHUILD.JOBS.failure = result;
+        }
+    }
+}
+
+static void SHUI_CStartJob(const SHUI_StringList *command)
+{
+    if (SHUILD.JOBS.limit == 0)
+    {
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+        SYSTEM_INFO systemInfo = {0};
+        GetSystemInfo(&systemInfo);
+        usz processors = (usz)systemInfo.dwNumberOfProcessors;
+#else
+        long processorCount = sysconf(_SC_NPROCESSORS_ONLN);
+        usz processors = processorCount > 0 ? (usz)processorCount : 1;
+#endif
+
+        SHUILD.JOBS.limit = SHUMax((usz)1, SHUMin(processors, (usz)SHUC_MAX_JOB_COUNT));
+    }
+
+#ifndef SHUC_NO_RUN_ERROR
+    // after a failure, the jobs that run are waited for, and no new ones start
+    if (SHUILD.JOBS.failure != 0)
+    {
+        return;
+    }
+#endif
+
+    if (SHUILD.JOBS.count >= SHUILD.JOBS.limit)
+    {
+        SHUI_CWaitJob();
+    }
+
+    i64 process = SHUI_CStart(command);
+
+    if (process < 0)
+    {
+        SHUI_CReport(-1, false);
+        SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? -1 : SHUILD.JOBS.failure;
+        return;
+    }
+
+    SHUILD.JOBS.processes[SHUILD.JOBS.count++] = process;
+}
+
+static void SHUI_CWaitJobs(void)
+{
+    while (SHUILD.JOBS.count > 0)
+    {
+        SHUI_CWaitJob();
+    }
+
+    i32 failure = SHUILD.JOBS.failure;
+    SHUILD.JOBS.failure = 0;
+
+#ifndef SHUC_NO_RUN_ERROR
+    if (failure != 0)
+    {
+        SHU_LogError(failure, "Compiling failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", failure);
+    }
+#else
+    (void)failure;
+#endif
 }
 
 static SHUFileType SHUI_UFileExists(const SHUI_String *path)
@@ -1461,7 +1612,7 @@ static void SHUI_CCompileUnit(const SHUI_String *sourceFile, const SHUI_String *
         SHUI_CAddArgument(&command, dependencyFile->data);
     }
 
-    SHUI_CRun(&command, true);
+    SHUI_CStartJob(&command);
     SHUI_SLDestroy(&command);
 }
 
@@ -1565,6 +1716,8 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
         SHUI_SLAdd(&inputFiles, sourceFile);
 #endif
     }
+
+    SHUI_CWaitJobs();
 
     SHUI_String outFile = {0};
 
@@ -1688,6 +1841,8 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
         SHUI_SLAdd(&objFiles, &objectFile);
     }
 
+    SHUI_CWaitJobs();
+
     SHUI_String libraryFile = {0};
     SHUI_SFormat(&libraryFile, "%s%s%s.%s",
                  directory->data,
@@ -1762,6 +1917,8 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
         SHUI_SLAdd(&objFiles, &objectFile);
     }
+
+    SHUI_CWaitJobs();
 
     SHUI_String libraryFile = {0};
     SHUI_SFormat(&libraryFile, "%s%s%s.%s",
