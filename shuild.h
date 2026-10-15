@@ -204,7 +204,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName);
 #define SHU_UtilAutomate(argc, argv) SHUI_UAutomate(argc, argv, __FILE__)
 
 /// @brief Internal command runner function.
-/// @param command Command to run with system. (eg. clang example.c -o example)
+/// @param command Command to run with the shell, through system. (eg. clang example.c -o example) Modules run the compiler without a shell.
 /// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
 i32 SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
@@ -279,7 +279,7 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 void SHU_CompilerTryConfigure(const char *compilerCommand);
 
 /// @brief Adds flags to the compiler configuration.
-/// @param flags Flags to add. Can include multiple flags separated by spaces as you want. (eg. -DFOO=31)
+/// @param flags Flags to add. Can include multiple flags separated by spaces as you want, quoted as in a shell. (eg. -DFOO=31)
 void SHU_CompilerAddFlags(const char *flags);
 // todo make it a macro
 
@@ -446,13 +446,33 @@ static void SHUI_SAppendC(SHUI_String *string, const char *stringToAppend)
     string->data[string->length] = '\0';
 }
 
+static void SHUI_SAppendChar(SHUI_String *string, char character)
+{
+    SHU_Assert(string->length + 1 < SHUC_MAX_STRING_SIZE, "Appending a character to '%zu' exceeds maximum path size '%d'.", string->length, SHUC_MAX_STRING_SIZE - 1);
+
+    string->data[string->length++] = character;
+    string->data[string->length] = '\0';
+}
+
+static bool SHUI_SEndsWithC(const char *string, const char *suffix)
+{
+    usz stringLength = (usz)strlen(string);
+    usz suffixLength = (usz)strlen(suffix);
+
+    return stringLength >= suffixLength && strcmp(string + stringLength - suffixLength, suffix) == 0;
+}
+
 static void SHUI_SFormat(SHUI_String *string, const char *format, ...) __attribute__((format(printf, 2, 3)));
 static void SHUI_SFormat(SHUI_String *string, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    string->length = (usz)vsnprintf(string->data, SHUC_MAX_STRING_SIZE, format, args);
+    i32 length = vsnprintf(string->data, SHUC_MAX_STRING_SIZE, format, args);
     va_end(args);
+
+    SHU_Assert(length >= 0 && length < SHUC_MAX_STRING_SIZE, "Formatted string length '%d' exceeds maximum path size '%d'.", length, SHUC_MAX_STRING_SIZE - 1);
+
+    string->length = (usz)length;
 }
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -515,10 +535,235 @@ static void SHUI_SLAdd(SHUI_StringList *list, const SHUI_String *string)
     }
     else if (list->count >= list->capacity)
     {
-        SHUI_SLResize(list, (usz)((float)list->capacity * SHUC_ARRAY_RESIZE_FACTOR));
+        SHUI_SLResize(list, list->capacity == 0 ? SHUC_ARRAY_INITIAL_COUNT : (usz)((float)list->capacity * SHUC_ARRAY_RESIZE_FACTOR));
     }
 
     list->data[list->count++] = *string;
+}
+
+static void SHUI_CAddArgument(SHUI_StringList *command, const char *argument)
+{
+    SHUI_String argumentStr = {0};
+    SHUI_SAppendC(&argumentStr, argument);
+    SHUI_SLAdd(command, &argumentStr);
+}
+
+static void SHUI_CAddArguments(SHUI_StringList *command, const char *arguments)
+{
+    // splits the arguments the way a POSIX shell does: spaces separate them, quotes group them and backslashes escape
+    SHUI_String argument = {0};
+    bool inArgument = false;
+    char quote = '\0';
+
+    for (const char *c = arguments; *c != '\0'; c++)
+    {
+        if (quote == '\'')
+        {
+            if (*c == '\'')
+            {
+                quote = '\0';
+            }
+            else
+            {
+                SHUI_SAppendChar(&argument, *c);
+            }
+        }
+        else if (quote == '"')
+        {
+            if (*c == '"')
+            {
+                quote = '\0';
+            }
+            else if (*c == '\\' && (c[1] == '"' || c[1] == '\\' || c[1] == '$' || c[1] == '`'))
+            {
+                SHUI_SAppendChar(&argument, *++c);
+            }
+            else
+            {
+                SHUI_SAppendChar(&argument, *c);
+            }
+        }
+        else if (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r')
+        {
+            if (inArgument)
+            {
+                SHUI_SLAdd(command, &argument);
+                SHUI_SZero(argument);
+                inArgument = false;
+            }
+        }
+        else if (*c == '\'' || *c == '"')
+        {
+            quote = *c;
+            inArgument = true;
+        }
+        else if (*c == '\\' && c[1] != '\0')
+        {
+            SHUI_SAppendChar(&argument, *++c);
+            inArgument = true;
+        }
+        else
+        {
+            SHUI_SAppendChar(&argument, *c);
+            inArgument = true;
+        }
+    }
+
+    SHU_Assert(quote == '\0', "Unclosed quote in arguments '%s'.", arguments);
+
+    if (inArgument)
+    {
+        SHUI_SLAdd(command, &argument);
+    }
+}
+
+static void SHUI_CAddFlags(SHUI_StringList *command)
+{
+    for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
+    {
+        SHUI_CAddArguments(command, SHUILD.COMPILER.flags.data[i].data);
+    }
+}
+
+static void SHUI_CAddIncludeDirectories(SHUI_StringList *command)
+{
+    for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
+    {
+        SHUI_String include = {0};
+        SHUI_SFormat(&include, "-I%s", SHUILD.MODULE.includeDirectories.data[i].data);
+        SHUI_SLAdd(command, &include);
+    }
+}
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+static void SHUI_CQuoteArgument(SHUI_String *quoted, const SHUI_String *argument)
+{
+    // _spawnvp joins the arguments with spaces, so they are quoted the way the C runtime splits them back
+    if (argument->length != 0 && strpbrk(argument->data, " \t\"") == NULL)
+    {
+        *quoted = *argument;
+        return;
+    }
+
+    SHUI_SZero(*quoted);
+    SHUI_SAppendChar(quoted, '"');
+
+    usz backslashes = 0;
+
+    for (usz i = 0; i < argument->length; i++)
+    {
+        if (argument->data[i] == '\\')
+        {
+            backslashes++;
+            continue;
+        }
+
+        for (usz j = 0; j < (argument->data[i] == '"' ? backslashes * 2 + 1 : backslashes); j++)
+        {
+            SHUI_SAppendChar(quoted, '\\');
+        }
+
+        SHUI_SAppendChar(quoted, argument->data[i]);
+        backslashes = 0;
+    }
+
+    for (usz j = 0; j < backslashes * 2; j++)
+    {
+        SHUI_SAppendChar(quoted, '\\');
+    }
+
+    SHUI_SAppendChar(quoted, '"');
+}
+#endif
+
+static i32 SHUI_CRun(const SHUI_StringList *command)
+{
+    SHU_Assert(command->count > 0, "Internal: Empty command.");
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    SHUI_StringList arguments = SHUI_SLCreate(command->count);
+
+    for (usz i = 0; i < command->count; i++)
+    {
+        SHUI_String quoted = {0};
+        SHUI_CQuoteArgument(&quoted, &command->data[i]);
+        SHUI_SLAdd(&arguments, &quoted);
+    }
+#else
+    const SHUI_StringList arguments = *command;
+#endif
+
+#ifndef SHUC_NO_RUN_LOG
+    char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
+    usz commandBufferIndex = 0;
+
+    for (usz i = 0; i < arguments.count && commandBufferIndex + 1 < sizeof(commandBuffer); i++)
+    {
+        i32 written = snprintf(commandBuffer + commandBufferIndex,
+                               sizeof(commandBuffer) - commandBufferIndex,
+                               i == 0 ? "%s" : " %s",
+                               arguments.data[i].data);
+
+        commandBufferIndex = written < 0 ? sizeof(commandBuffer) : commandBufferIndex + (usz)written;
+    }
+
+    SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), commandBuffer);
+#endif
+
+    char **argv = (char **)malloc(sizeof(char *) * (arguments.count + 1));
+    SHU_Assert(argv != NULL, "Internal: Memory allocation failed for size '%zu'.", sizeof(char *) * (arguments.count + 1));
+
+    for (usz i = 0; i < arguments.count; i++)
+    {
+        argv[i] = arguments.data[i].data;
+    }
+    argv[arguments.count] = NULL;
+
+    i32 result = 0;
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    result = (i32)_spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+#else
+    pid_t pid = fork();
+
+    if (pid == 0)
+    {
+        execvp(argv[0], argv);
+        SHU_LogError(0, "Starting " SHUM_COLOR_CYAN("'%s'") " failed : %s.", argv[0], strerror(errno));
+        _exit(127);
+    }
+    else if (pid > 0)
+    {
+        int status = 0;
+
+        while (waitpid(pid, &status, 0) == -1 && errno == EINTR)
+        {
+        }
+
+        result = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    }
+    else
+    {
+        result = -1;
+    }
+#endif
+
+    free(argv);
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    SHUI_SLDestroy(&arguments);
+#endif
+
+    if (result != 0)
+    {
+#ifdef SHUC_NO_RUN_ERROR
+        SHU_LogError(0, "Command failed with exit code %d.", result);
+#else
+        SHU_LogError(result, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
+#endif
+    }
+
+    return result;
 }
 
 static SHUFileType SHUI_UFileExists(const SHUI_String *path)
@@ -927,10 +1172,14 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
         SHUI_SAppendC(&depFileMap, executableFileName);
         SHUI_SAppendC(&depFileMap, "." SHUC_FILE_EXTENSION);
 
-        SHU_UtilRun("%s -MM %s -MF %s",
-                    SHUILD.COMPILER.command.data,
-                    sourcePath.data,
-                    depFileMap.data);
+        SHUI_StringList command = {0};
+        SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+        SHUI_CAddArgument(&command, "-MM");
+        SHUI_CAddArgument(&command, sourcePath.data);
+        SHUI_CAddArgument(&command, "-MF");
+        SHUI_CAddArgument(&command, depFileMap.data);
+        SHUI_CRun(&command);
+        SHUI_SLDestroy(&command);
 
         if (SHUI_CDependencyDirty(&depFileMap, &executablePath))
         {
@@ -951,10 +1200,14 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_SAppendC(&oldExePath, ".old");
     SHUI_URenameFile(&executablePath, &oldExePath);
 
-    i32 result = SHU_UtilRun("%s -o %s %s" SHUILD_BUILD,
-                             SHUILD.COMPILER.command.data,
-                             executablePath.data,
-                             sourcePath.data);
+    SHUI_StringList command = {0};
+    SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+    SHUI_CAddArgument(&command, "-o");
+    SHUI_CAddArgument(&command, executablePath.data);
+    SHUI_CAddArgument(&command, sourcePath.data);
+    SHUI_CAddArguments(&command, SHUILD_BUILD);
+    i32 result = SHUI_CRun(&command);
+    SHUI_SLDestroy(&command);
 
     if (result == 0)
     {
@@ -1084,7 +1337,7 @@ static void SHUI_CModuleStateUpdate(const SHUI_String *moduleName)
 
     FILE *cacheFileHandle = fopen(moduleCacheFile.data, "w+");
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile.data);
-    fprintf(cacheFileHandle, "%lu", currentConfig);
+    fprintf(cacheFileHandle, "%llu", (unsigned long long)currentConfig);
     fclose(cacheFileHandle);
 }
 
@@ -1115,25 +1368,6 @@ static bool SHUI_CModuleStateDirty(const SHUI_String *moduleName)
     SHUI_Hash savedConfig = strtoull(buffer, NULL, 10);
 
     return currentConfig != savedConfig;
-}
-
-static void SHUI_CDependencyUpdate(const SHUI_String *sourceFile, const SHUI_String *dependencyFile)
-{
-    char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz includeBufferIndex = 0;
-    for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
-    {
-        includeBufferIndex += (usz)snprintf(includeBuffer + includeBufferIndex,
-                                            sizeof(includeBuffer) - includeBufferIndex,
-                                            "-I%s ",
-                                            SHUILD.MODULE.includeDirectories.data[i].data);
-    }
-
-    SHU_UtilRun("%s -MM %s -MF %s %s",
-                SHUILD.COMPILER.command.data,
-                sourceFile->data,
-                dependencyFile->data,
-                includeBuffer);
 }
 
 static bool SHUI_CUnitRequiresCompilation(const SHUI_String *sourceFile, SHUI_String *retObjectFile, SHUI_String *retDependencyFile)
@@ -1179,6 +1413,35 @@ dirty:
 }
 #endif
 
+static void SHUI_CCompileUnit(const SHUI_String *sourceFile, const SHUI_String *objectFile, const SHUI_String *dependencyFile, const char *extraFlag)
+{
+    // the compiler writes the dependency file as it compiles, with the module's flags, so the headers that definitions include are in it too
+    SHUI_StringList command = {0};
+    SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+    SHUI_CAddArgument(&command, "-o");
+    SHUI_CAddArgument(&command, objectFile->data);
+    SHUI_CAddArgument(&command, "-c");
+
+    if (extraFlag != NULL)
+    {
+        SHUI_CAddArgument(&command, extraFlag);
+    }
+
+    SHUI_CAddArgument(&command, sourceFile->data);
+    SHUI_CAddFlags(&command);
+    SHUI_CAddIncludeDirectories(&command);
+
+    if (dependencyFile != NULL)
+    {
+        SHUI_CAddArgument(&command, "-MMD");
+        SHUI_CAddArgument(&command, "-MF");
+        SHUI_CAddArgument(&command, dependencyFile->data);
+    }
+
+    SHUI_CRun(&command);
+    SHUI_SLDestroy(&command);
+}
+
 static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
 {
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -1203,7 +1466,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
             SHUI_SFormat(&subDir, "%s%s\\", path->data, ffd.cFileName);
             SHUI_MAddSourceDirectoryRecursive(&subDir);
         }
-        else if (strncmp(ffd.cFileName + strlen(ffd.cFileName) - 2, ".c", 2) == 0)
+        else if (SHUI_SEndsWithC(ffd.cFileName, ".c"))
         {
             SHUI_String newFile = *path;
             SHUI_SAppendC(&newFile, ffd.cFileName);
@@ -1238,7 +1501,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
             SHUI_SFormat(&subDir, "%s%s/", path->data, entry->d_name);
             SHUI_MAddSourceDirectoryRecursive(&subDir);
         }
-        else if (strncmp(entry->d_name + strlen(entry->d_name) - 2, ".c", 2) == 0)
+        else if (SHUI_SEndsWithC(entry->d_name, ".c"))
         {
             SHUI_String newFile = *path;
             SHUI_SAppendC(&newFile, entry->d_name);
@@ -1254,52 +1517,9 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 {
     SHUI_SLAdd(&SHUILD.MODULE.EXECUTABLE.linkDirectories, &SHUILD.currentExecutableDirectory);
 
-    char includeBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz includeBufferIndex = 0;
-    for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
-    {
-        includeBufferIndex += (usz)snprintf(includeBuffer + includeBufferIndex,
-                                            sizeof(includeBuffer) - includeBufferIndex,
-                                            "-I%s ",
-                                            SHUILD.MODULE.includeDirectories.data[i].data);
-    }
-
-    char linkDirectoryBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz linkDirectoryBufferIndex = 0;
-    for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
-    {
-        linkDirectoryBufferIndex += (usz)snprintf(linkDirectoryBuffer + linkDirectoryBufferIndex,
-                                                  sizeof(linkDirectoryBuffer) - linkDirectoryBufferIndex,
-                                                  "-L%s -Wl%s,%s ",
-                                                  SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data,
-                                                  SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
-                                                  SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data);
-    }
-
-    char linkBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz linkBufferIndex = 0;
-    for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.links.count; i++)
-    {
-        linkBufferIndex += (usz)snprintf(linkBuffer + linkBufferIndex,
-                                         sizeof(linkBuffer) - linkBufferIndex,
-                                         "-l%s ",
-                                         SHUILD.MODULE.EXECUTABLE.links.data[i].data);
-    }
-
-    char flagBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz flagBufferIndex = 0;
-    for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
-    {
-        flagBufferIndex += (usz)snprintf(flagBuffer + flagBufferIndex,
-                                         sizeof(flagBuffer) - flagBufferIndex,
-                                         "%s ",
-                                         SHUILD.COMPILER.flags.data[i].data);
-    }
-
     bool skipExePacking = true;
 
-    char sourceBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz sourceBufferIndex = 0;
+    SHUI_StringList inputFiles = {0};
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
         const SHUI_String *sourceFile = &SHUILD.MODULE.sourceFiles.data[i];
@@ -1310,29 +1530,16 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o %s -c %s %s %s",
-                        SHUILD.COMPILER.command.data,
-                        objectFile.data,
-                        sourceFile->data,
-                        flagBuffer,
-                        includeBuffer);
-
-            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
+            SHUI_CCompileUnit(sourceFile, &objectFile, &dependencyFile, NULL);
 
             skipExePacking = false;
         }
 
-        sourceBufferIndex += (usz)snprintf(sourceBuffer + sourceBufferIndex,
-                                           sizeof(sourceBuffer) - sourceBufferIndex,
-                                           "%s ",
-                                           objectFile.data);
+        SHUI_SLAdd(&inputFiles, &objectFile);
 #else
         skipExePacking = false;
 
-        sourceBufferIndex += (usz)snprintf(sourceBuffer + sourceBufferIndex,
-                                           sizeof(sourceBuffer) - sourceBufferIndex,
-                                           "%s ",
-                                           sourceFile->data);
+        SHUI_SLAdd(&inputFiles, sourceFile);
 #endif
     }
 
@@ -1378,43 +1585,51 @@ out:
 
     if (!skipExePacking)
     {
-        SHU_UtilRun("%s -o %s %s %s %s %s %s",
-                    SHUILD.COMPILER.command.data,
-                    outFile.data,
-                    includeBuffer,
-                    sourceBuffer,
-                    linkDirectoryBuffer,
-                    linkBuffer,
-                    flagBuffer);
+        SHUI_StringList command = {0};
+        SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+        SHUI_CAddArgument(&command, "-o");
+        SHUI_CAddArgument(&command, outFile.data);
+        SHUI_CAddIncludeDirectories(&command);
+
+        for (usz i = 0; i < inputFiles.count; i++)
+        {
+            SHUI_SLAdd(&command, &inputFiles.data[i]);
+        }
+
+        for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
+        {
+            SHUI_String linkDirectory = {0};
+            SHUI_SFormat(&linkDirectory, "-L%s", SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data);
+            SHUI_SLAdd(&command, &linkDirectory);
+
+            SHUI_SFormat(&linkDirectory, "-Wl%s,%s",
+                         SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
+                         SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data);
+            SHUI_SLAdd(&command, &linkDirectory);
+        }
+
+        for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.links.count; i++)
+        {
+            SHUI_String link = {0};
+            SHUI_SFormat(&link, "-l%s", SHUILD.MODULE.EXECUTABLE.links.data[i].data);
+            SHUI_SLAdd(&command, &link);
+        }
+
+        SHUI_CAddFlags(&command);
+        SHUI_CRun(&command);
+        SHUI_SLDestroy(&command);
     }
     else
     {
         SHU_LogInfo("Nothing to compile, skipping...");
     }
+
+    SHUI_SLDestroy(&inputFiles);
 }
 
 static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 {
-    char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz commandBufferIndex = 0;
-
-    for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
-    {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "%s ",
-                                            SHUILD.COMPILER.flags.data[i].data);
-    }
-
-    for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
-    {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "-I%s ",
-                                            SHUILD.MODULE.includeDirectories.data[i].data);
-    }
-
-    SHUI_StringList objFiles = SHUI_SLCreate(SHUILD.MODULE.sourceFiles.count);
+    SHUI_StringList objFiles = {0};
 
     bool skipLibPacking = true;
 
@@ -1428,13 +1643,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o %s -c %s %s",
-                        SHUILD.COMPILER.command.data,
-                        objectFile.data,
-                        sourceFile->data,
-                        commandBuffer);
-
-            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
+            SHUI_CCompileUnit(sourceFile, &objectFile, &dependencyFile, NULL);
 
             skipLibPacking = false;
         }
@@ -1445,37 +1654,39 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
                      sourceFile->data,
                      SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
 
-        SHU_UtilRun("%s -o %s -c %s %s",
-                    SHUILD.COMPILER.command.data,
-                    objectFile.data,
-                    sourceFile->data,
-                    commandBuffer);
+        SHUI_CCompileUnit(sourceFile, &objectFile, NULL, NULL);
 #endif
 
         SHUI_SLAdd(&objFiles, &objectFile);
     }
 
-    // commands for objects
-    memset(commandBuffer, 0, sizeof(commandBuffer));
-    commandBufferIndex = 0;
+    SHUI_String libraryFile = {0};
+    SHUI_SFormat(&libraryFile, "%s%s%s.%s",
+                 directory->data,
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
+                 SHUILD.MODULE.name.data,
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a");
 
-    for (usz i = 0; i < objFiles.count; i++)
+    if (SHUI_UFileExists(&libraryFile) != SHUFileType_Regular)
     {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "%s ",
-                                            objFiles.data[i].data);
+        skipLibPacking = false;
     }
 
     if (!skipLibPacking)
     {
-        SHU_UtilRun("%s rcs %s%s%s.%s %s",
-                    SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar",
-                    directory->data,
-                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                    SHUILD.MODULE.name.data,
-                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a",
-                    commandBuffer);
+
+        SHUI_StringList command = {0};
+        SHUI_CAddArgument(&command, SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar");
+        SHUI_CAddArgument(&command, "rcs");
+        SHUI_SLAdd(&command, &libraryFile);
+
+        for (usz i = 0; i < objFiles.count; i++)
+        {
+            SHUI_SLAdd(&command, &objFiles.data[i]);
+        }
+
+        SHUI_CRun(&command);
+        SHUI_SLDestroy(&command);
     }
     else
     {
@@ -1494,27 +1705,7 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
 static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 {
-    // commands for flags
-    char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    usz commandBufferIndex = 0;
-
-    for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
-    {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "%s ",
-                                            SHUILD.COMPILER.flags.data[i].data);
-    }
-
-    for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
-    {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "-I%s ",
-                                            SHUILD.MODULE.includeDirectories.data[i].data);
-    }
-
-    SHUI_StringList objFiles = SHUI_SLCreate(SHUILD.MODULE.sourceFiles.count);
+    SHUI_StringList objFiles = {0};
 
     bool skipLibPacking = true;
 
@@ -1528,55 +1719,50 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHU_UtilRun("%s -o %s -c -fPIC %s %s",
-                        SHUILD.COMPILER.command.data,
-                        objectFile.data,
-                        sourceFile->data,
-                        commandBuffer);
-
-            SHUI_CDependencyUpdate(sourceFile, &dependencyFile);
+            SHUI_CCompileUnit(sourceFile, &objectFile, &dependencyFile, "-fPIC");
 
             skipLibPacking = false;
         }
-
-        SHUI_SLAdd(&objFiles, &objectFile);
 #else
         skipLibPacking = false;
 
         SHUI_SFormat(&objectFile, "%.*s%s", (int)(sourceFile->length - 1), sourceFile->data,
                      SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
 
-        SHU_UtilRun("%s -o %s -c -fPIC %s %s",
-                    SHUILD.COMPILER.command.data,
-                    objectFile.data,
-                    sourceFile->data,
-                    commandBuffer);
+        SHUI_CCompileUnit(sourceFile, &objectFile, NULL, "-fPIC");
+#endif
 
         SHUI_SLAdd(&objFiles, &objectFile);
-#endif
     }
 
-    // commands for objects
-    memset(commandBuffer, 0, sizeof(commandBuffer));
-    commandBufferIndex = 0;
+    SHUI_String libraryFile = {0};
+    SHUI_SFormat(&libraryFile, "%s%s%s.%s",
+                 directory->data,
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
+                 SHUILD.MODULE.name.data,
+                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so");
 
-    for (usz i = 0; i < objFiles.count; i++)
+    if (SHUI_UFileExists(&libraryFile) != SHUFileType_Regular)
     {
-        commandBufferIndex += (usz)snprintf(commandBuffer + commandBufferIndex,
-                                            sizeof(commandBuffer) - commandBufferIndex,
-                                            "%s ",
-                                            objFiles.data[i].data);
+        skipLibPacking = false;
     }
 
     if (!skipLibPacking)
     {
-        SHU_UtilRun("%s -shared -o %s%s%s.%s %s",
-                    SHUILD.COMPILER.command.data,
-                    directory->data,
-                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                    SHUILD.MODULE.name.data,
-                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so",
-                    commandBuffer);
+
+        SHUI_StringList command = {0};
+        SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+        SHUI_CAddArgument(&command, "-shared");
+        SHUI_CAddArgument(&command, "-o");
+        SHUI_SLAdd(&command, &libraryFile);
+
+        for (usz i = 0; i < objFiles.count; i++)
+        {
+            SHUI_SLAdd(&command, &objFiles.data[i]);
+        }
+
+        SHUI_CRun(&command);
+        SHUI_SLDestroy(&command);
     }
     else
     {
@@ -1614,6 +1800,11 @@ i32 SHU_UtilRun(const char *commandFormat, ...)
 
     i32 result = system(commandBuffer);
 
+#if !SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    // system returns the wait status, not the exit code
+    result = result == -1 ? -1 : WIFEXITED(result) ? WEXITSTATUS(result) : -1;
+#endif
+
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
@@ -1647,8 +1838,15 @@ i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
     else if (pid > 0)
     {
         int status;
-        waitpid(pid, &status, 0);
+        while (waitpid(pid, &status, 0) == -1 && errno == EINTR)
+        {
+        }
+
         result = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    }
+    else
+    {
+        result = -1;
     }
 #endif
 
@@ -1919,21 +2117,26 @@ usz SHU_CompilerGetFlags(SHUSlice buffer)
 {
     SHU_AssertNullPointer(buffer.data);
 
+    SHU_Assert(buffer.size > 0, "Buffer for compiler flags is empty.");
+
     char *chars = (char *)buffer.data;
     usz bufferIndex = 0;
 
     for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
     {
-        if (bufferIndex > buffer.size - 2)
+        i32 written = snprintf(chars + bufferIndex,
+                               buffer.size - bufferIndex,
+                               "%s ",
+                               SHUILD.COMPILER.flags.data[i].data);
+
+        if (written < 0 || (usz)written >= buffer.size - bufferIndex)
         {
             SHU_LogWarning("Buffer too small for compiler flags. Output truncated.");
+            bufferIndex = buffer.size - 1;
             break;
         }
 
-        bufferIndex += (usz)snprintf(chars + bufferIndex,
-                                     buffer.size - bufferIndex,
-                                     "%s ",
-                                     SHUILD.COMPILER.flags.data[i].data);
+        bufferIndex += (usz)written;
     }
 
     chars[bufferIndex] = '\0';
