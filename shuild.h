@@ -1857,6 +1857,11 @@ static void SHUI_MCompileLibraryStatic(const SHUI_String *directory)
 
     if (!skipLibPacking)
     {
+        // ar adds to an archive that exists, so the archive is made again, without the objects of sources that are gone
+        if (SHUI_UFileExists(&libraryFile) == SHUFileType_Regular)
+        {
+            SHUI_UDeleteSingleFile(&libraryFile);
+        }
 
         SHUI_StringList command = {0};
         SHUI_CAddArgument(&command, SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar");
