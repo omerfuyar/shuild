@@ -1579,8 +1579,9 @@ static bool SHUI_CDependencyDirty(const char *dependencyFile, const char *target
     const char *text = (const char *)dependencies.data;
     usz length = dependencies.size;
 
+    // the target ends at a colon followed by a space or the end of the line, so a Windows drive, as in D:\project\main.o, is part of its path
     usz offset = 0;
-    while (offset < length && text[offset] != ':')
+    while (offset < length && !(text[offset] == ':' && (offset + 1 == length || text[offset + 1] == ' ' || text[offset + 1] == '\t' || text[offset + 1] == '\r' || text[offset + 1] == '\n')))
     {
         offset++;
     }
