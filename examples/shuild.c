@@ -6,18 +6,14 @@
 void ShuildShuild(const char *name, const char *arg)
 {
     SHU_ModuleBegin("shuild", NULL);
-    char buffer[SHUC_MAX_STRING_SIZE] = {0};
-    snprintf(buffer, SHUC_MAX_STRING_SIZE, "%s/shuild.c", name);
-    SHU_ModuleAddSourceFile(buffer);
+    SHU_ModuleAddSourceFile(SHU_UtilFormat("%s/shuild.c", name));
     SHU_ModuleCompile(name, SHUModuleType_Executable);
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
-    snprintf(buffer, SHUC_MAX_STRING_SIZE, ".\\%s\\shuild.exe %s", name, arg == NULL ? "" : arg);
+    SHU_UtilRun(".\\%s\\shuild.exe %s", name, arg == NULL ? "" : arg);
 #else
-    snprintf(buffer, SHUC_MAX_STRING_SIZE, "./%s/shuild %s", name, arg == NULL ? "" : arg);
+    SHU_UtilRun("./%s/shuild %s", name, arg == NULL ? "" : arg);
 #endif
-
-    SHU_UtilRun("%s", buffer);
 }
 
 /// @brief The examples whose builds take arguments: each argument is given to a build of its own. The others build once, without one.
@@ -41,8 +37,7 @@ void BuildExample(const char *path, SHUFileType type, void *data)
     }
 
     // the directory's name, without the separator at its end
-    char name[SHUC_MAX_STRING_SIZE] = {0};
-    snprintf(name, sizeof(name), "%.*s", (int)strlen(path) - 1, path);
+    const char *name = SHU_UtilFormat("%.*s", (int)strlen(path) - 1, path);
 
     for (usz i = 0; i < sizeof(EXAMPLE_ARGUMENTS) / sizeof(*EXAMPLE_ARGUMENTS); i++)
     {

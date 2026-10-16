@@ -12,9 +12,7 @@ int main(int argc, char **argv)
     SHU_UtilAutomate(argc, argv);
 
     // The flags are the other script's include directories, where shu/ and shuild/ are; the arguments go to its main.
-    char flags[SHUC_MAX_STRING_SIZE] = {0};
-    snprintf(flags, sizeof(flags), "-I%s../../../", SHU_UtilGetExecutablePath());
-    SHU_UtilBuildScript("tool/shuild.c", "tool/shuild", flags, "release");
+    SHU_UtilBuildScript("tool/shuild.c", "tool/shuild", SHU_UtilFormat("-I%s../../../", SHU_UtilGetExecutablePath()), "release");
 
     return 0;
 }
