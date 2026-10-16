@@ -35,15 +35,11 @@ int main(int argc, char **argv)
     // Files can be read and written whole.
     SHUSlice greeting = SHU_UtilReadFile("greeting.txt");
 
-    char header[SHUC_MAX_MESSAGE_BUFFER_SIZE] = {0};
-    int headerLength = snprintf(header, sizeof(header),
-                                "#define SOURCE_COUNT %zu\n#define GREETING_SIZE %zu\n",
-                                sourceCount,
-                                greeting.size);
-    free(greeting.data);
+    // Strings are formatted into memory that stays valid; shuild frees nothing, as the system frees it when the build exits.
+    char *header = SHU_UtilFormat("#define SOURCE_COUNT %zu\n#define GREETING_SIZE %zu\n", sourceCount, greeting.size);
 
     SHU_UtilCreateDirectory("build/");
-    SHU_UtilWriteFile("build/generated.h", csv(cs(header, (usz)headerLength)));
+    SHU_UtilWriteFile("build/generated.h", csv(cs(header, strlen(header))));
 
     // A file is copied into a directory under its own name. A file that has the content already is left as is, by copying and by writing,
     // so its edit time stays and what includes it does not compile again.
