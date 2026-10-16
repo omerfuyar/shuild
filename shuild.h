@@ -291,6 +291,13 @@ SHUSlice SHU_UtilReadFile(const char *file);
 /// @param content Content to write.
 void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 
+/// @brief Gets the file name that shuild gives a library on the system the compiler compiles for. A module links it as -l<name> on every system.
+/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and name.dll with its import library libname.dll.a.
+/// @param name Name of the library's module. (eg. math)
+/// @param type SHUModuleType_LibraryStatic or SHUModuleType_LibraryDynamic.
+/// @return The file name, without a directory. (eg. libmath.so)
+char *SHU_UtilLibraryFile(const char *name, SHUModuleType type);
+
 #pragma endregion Utility
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -353,6 +360,11 @@ void SHUI_CompilerAddDefinition(const char *macros, ...);
 /// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
 u8 SHU_CompilerGetIdentifier(void);
 
+/// @brief Gets the system that the configured compiler compiles for, which the compiler tells: the host's, or another's for a cross compiler such as x86_64-w64-mingw32-gcc.
+/// The names of executables and libraries, and how they find their dynamic libraries, follow it. Build scripts are compiled for the host.
+/// @return Platform identifier. Use it with SHUM_PLATFORM_<...> macros.
+u8 SHU_CompilerGetTarget(void);
+
 #pragma endregion Compiler
 
 #pragma region Module
@@ -382,7 +394,8 @@ void SHU_ModuleAddSourceFile(const char *file);
 void SHU_ModuleCompile(const char *directory, SHUModuleType module);
 
 /// @brief Adds a directory to search for the libraries that the current module links. A static library keeps it for the modules that link it, as it keeps its libraries.
-/// A directory that holds a dynamic library the module links is embedded in it, to find the library at run time.
+/// On Linux and macOS, a directory that holds a dynamic library the module links is embedded in it, relative to the module's own directory ($ORIGIN or @loader_path),
+/// so the library is found at run time, also after both are moved together. On Windows, see SHU_ModuleCopyDynamicLinks.
 /// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
 void SHU_ModuleAddLibraryDirectory(const char *directory);
 
@@ -390,6 +403,11 @@ void SHU_ModuleAddLibraryDirectory(const char *directory);
 /// A static library cannot be linked, so it keeps the library: a module that links the static library later gets the library too, after it, with its directories.
 /// @param library Library to link with the module. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. myLibName)
 void SHU_ModuleLinkLibrary(const char *library);
+
+/// @brief Copies the dynamic libraries that the current module links into its output directory when it compiles, so they are found beside it.
+/// Windows needs this, as a program finds its DLLs beside itself or on PATH, not in the directories it was linked with. A copy that has the content already is left as is.
+/// Only the module's own links are copied, with those that its static libraries bring, not the ones that its dynamic libraries link.
+void SHU_ModuleCopyDynamicLinks(void);
 
 #pragma endregion Module
 
@@ -469,6 +487,7 @@ static struct
     struct
     {
         u8 identifier;
+        u8 target; // the platform it compiles for
         char *command;
         SHUI_StringList flags;
     } COMPILER;
@@ -491,6 +510,7 @@ static struct
         SHUI_StringList linkDirectories;
         SHUI_StringList publicIncludeDirectories; // given to the modules that link it
         SHUI_StringList linkedIncludeDirectories; // the public include directories of the libraries it links
+        bool copyDynamicLinks;
     } MODULE;
 
     // the libraries compiled so far, with what the modules that link them get
@@ -567,7 +587,6 @@ static void SHUI_BAppendChar(SHUI_Builder *builder, char character)
     builder->data[builder->length] = '\0';
 }
 
-#ifndef SHUC_NO_RUN_LOG
 static void SHUI_BAppend(SHUI_Builder *builder, const char *string)
 {
     for (const char *c = string; *c != '\0'; c++)
@@ -575,7 +594,6 @@ static void SHUI_BAppend(SHUI_Builder *builder, const char *string)
         SHUI_BAppendChar(builder, *c);
     }
 }
-#endif
 
 // the string is the caller's, and the builder starts a new one
 static char *SHUI_BTake(SHUI_Builder *builder)
@@ -641,6 +659,91 @@ static char *SHUI_SDirectory(const char *path)
     }
 
     return SHUI_Format("%.*s", (int)length, path);
+}
+
+static void SHUI_SLAdd(SHUI_StringList *list, char *string);
+
+/// @brief A path without . and .. segments, so two paths to a directory can be compared. (eg. /a/b/../c/ is /a/c/)
+static char *SHUI_SClean(const char *path)
+{
+    SHUI_StringList segments = {0};
+    const char *start = path;
+
+    for (const char *c = path;; c++)
+    {
+        if (*c != '\0' && !SHUI_SIsSeparator(*c))
+        {
+            continue;
+        }
+
+        char *segment = SHUI_Format("%.*s", (int)(c - start), start);
+
+        if (strcmp(segment, "..") == 0 && segments.count > 0 && strcmp(segments.data[segments.count - 1], "..") != 0)
+        {
+            segments.count--;
+        }
+        else if (segment[0] != '\0' && strcmp(segment, ".") != 0)
+        {
+            SHUI_SLAdd(&segments, segment);
+        }
+
+        if (*c == '\0')
+        {
+            break;
+        }
+
+        start = c + 1;
+    }
+
+    SHUI_Builder clean = {0};
+
+    if (SHUI_SIsSeparator(path[0]))
+    {
+        SHUI_BAppendChar(&clean, SHUM_PATH_SEPARATOR);
+    }
+
+    for (usz i = 0; i < segments.count; i++)
+    {
+        SHUI_BAppend(&clean, segments.data[i]);
+
+        if (i + 1 < segments.count || (path[0] != '\0' && SHUI_SIsSeparator(path[strlen(path) - 1])))
+        {
+            SHUI_BAppendChar(&clean, SHUM_PATH_SEPARATOR);
+        }
+    }
+
+    return SHUI_BTake(&clean);
+}
+
+/// @brief The path from one directory to another, both ending with a separator. (eg. from /a/bin/ to /a/lib/ is ../lib/)
+static char *SHUI_SRelative(const char *from, const char *to)
+{
+    from = SHUI_SClean(from);
+    to = SHUI_SClean(to);
+
+    usz common = 0;
+
+    for (usz i = 0; from[i] != '\0' && from[i] == to[i]; i++)
+    {
+        if (SHUI_SIsSeparator(from[i]))
+        {
+            common = i + 1;
+        }
+    }
+
+    SHUI_Builder relative = {0};
+
+    for (const char *c = from + common; *c != '\0'; c++)
+    {
+        if (SHUI_SIsSeparator(*c))
+        {
+            SHUI_BAppend(&relative, ".." SHUM_PATH_SEPARATOR_STR);
+        }
+    }
+
+    SHUI_BAppend(&relative, to + common);
+
+    return SHUI_BTake(&relative);
 }
 
 static void SHUI_SLAdd(SHUI_StringList *list, char *string)
@@ -762,6 +865,75 @@ static void SHUI_CAddIncludeDirectories(SHUI_StringList *command)
         SHUI_CAddArgument(command, "-isystem");
         SHUI_SLAdd(command, SHUILD.MODULE.linkedIncludeDirectories.data[i]);
     }
+}
+
+// build scripts run on the host, so a cross compiler leaves them to the host's own
+static const char *SHUI_CScriptCompiler(void)
+{
+    return SHUM_PLATFORM_IS_HOST(SHUILD.COMPILER.target) ? SHUILD.COMPILER.command : SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER);
+}
+
+// the archiver of the compiler's toolchain: llvm-ar for clang, which reads objects of any system,
+// and for gcc the gcc-ar of the same prefix and version, such as x86_64-w64-mingw32-gcc-ar or gcc-ar-14
+static const char *SHUI_CArchiver(void)
+{
+    if (SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG)
+    {
+        return "llvm-ar";
+    }
+
+    const char *gcc = NULL;
+
+    for (const char *found = strstr(SHUILD.COMPILER.command, "gcc"); found != NULL; found = strstr(found + 1, "gcc"))
+    {
+        gcc = found;
+    }
+
+    return gcc == NULL ? "ar" : SHUI_Format("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
+}
+
+// the compiler names the system it compiles for, such as x86_64-linux-gnu, x86_64-w64-mingw32 or arm64-apple-darwin23
+static u8 SHUI_CDetectTarget(const char *command)
+{
+    char machine[256] = {0};
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    FILE *pipe = _popen(SHUI_Format("%s -dumpmachine 2>NUL", command), "r");
+#else
+    FILE *pipe = popen(SHUI_Format("%s -dumpmachine 2>/dev/null", command), "r");
+#endif
+
+    if (pipe != NULL)
+    {
+        if (fgets(machine, sizeof(machine), pipe) == NULL)
+        {
+            machine[0] = '\0';
+        }
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+        _pclose(pipe);
+#else
+        pclose(pipe);
+#endif
+    }
+
+    if (strstr(machine, "mingw") != NULL || strstr(machine, "windows") != NULL)
+    {
+        return SHUM_PLATFORM_WINDOWS;
+    }
+
+    if (strstr(machine, "apple") != NULL || strstr(machine, "darwin") != NULL)
+    {
+        return SHUM_PLATFORM_MACOS;
+    }
+
+    if (strstr(machine, "linux") != NULL)
+    {
+        return SHUM_PLATFORM_LINUX;
+    }
+
+    // a compiler that does not tell compiles for the host
+    return SHUM_HOST_PLATFORM;
 }
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -1414,7 +1586,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
         char *depFileMap = SHUI_Format("%s." SHUC_FILE_EXTENSION, executablePath);
 
         SHUI_StringList command = {0};
-        SHUI_CAddArguments(&command, SHUILD.COMPILER.command);
+        SHUI_CAddArguments(&command, SHUI_CScriptCompiler());
         SHUI_CAddArgument(&command, "-MM");
         SHUI_CAddArgument(&command, sourcePath);
         SHUI_CAddArgument(&command, "-MF");
@@ -1442,7 +1614,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_URenameFile(executablePath, oldExePath);
 
     SHUI_StringList command = {0};
-    SHUI_CAddArguments(&command, SHUILD.COMPILER.command);
+    SHUI_CAddArguments(&command, SHUI_CScriptCompiler());
     SHUI_CAddArgument(&command, "-o");
     SHUI_CAddArgument(&command, executablePath);
     SHUI_CAddArgument(&command, sourcePath);
@@ -1566,7 +1738,7 @@ static bool SHUI_CUnitRequiresCompilation(const char *sourceFile, char **retObje
                                  SHUM_PATH_SEPARATOR,
                                  unitLength,
                                  sourceFile + fileStartIndex,
-                                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
+                                 "o");
 
     if (SHUI_UFileExists(*retObjectFile) == SHUFileType_Regular &&
         SHUI_UFileExists(*retDependencyFile) == SHUFileType_Regular &&
@@ -1786,6 +1958,12 @@ static void SHUI_MExpandLinks(void)
     }
 }
 
+// the dynamic library's file where the linker finds it: on Windows, its import library, which names the DLL
+static char *SHUI_MLinkedDynamicFile(const char *name)
+{
+    return SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? SHUI_Format("lib%s.dll.a", name) : SHU_UtilLibraryFile(name, SHUModuleType_LibraryDynamic);
+}
+
 #ifdef SHUC_ENABLE_INCREMENTAL
 // a module is linked again when a library it links is newer than its output
 static bool SHUI_MLinksNewer(const char *outFile)
@@ -1796,14 +1974,14 @@ static bool SHUI_MLinksNewer(const char *outFile)
     {
         for (usz j = 0; j < SHUILD.MODULE.links.count; j++)
         {
-            // the names that SHUI_MCompileLibraryStatic and SHUI_MCompileLibraryDynamic give the library
-            for (u8 k = 0; k < 2; k++)
+            const char *files[] = {
+                SHU_UtilLibraryFile(SHUILD.MODULE.links.data[j], SHUModuleType_LibraryStatic),
+                SHUI_MLinkedDynamicFile(SHUILD.MODULE.links.data[j]),
+            };
+
+            for (usz k = 0; k < sizeof(files) / sizeof(*files); k++)
             {
-                char *libFile = SHUI_Format("%s%s%s.%s",
-                                            SHUILD.MODULE.linkDirectories.data[i],
-                                            SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                                            SHUILD.MODULE.links.data[j],
-                                            SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? (k == 0 ? "lib" : "dll") : (k == 0 ? "a" : "so"));
+                char *libFile = SHUI_Format("%s%s", SHUILD.MODULE.linkDirectories.data[i], files[k]);
 
                 if (SHUI_UFileExists(libFile) == SHUFileType_Regular &&
                     SHUI_UGetFileEditTime(libFile) > outTime)
@@ -1823,13 +2001,7 @@ static bool SHUI_MHoldsDynamicLink(const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        char *libFile = SHUI_Format("%s%s%s.%s",
-                                    directory,
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                                    SHUILD.MODULE.links.data[i],
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so");
-
-        if (SHUI_UFileExists(libFile) == SHUFileType_Regular)
+        if (SHUI_UFileExists(SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
         {
             return true;
         }
@@ -1838,23 +2010,56 @@ static bool SHUI_MHoldsDynamicLink(const char *directory)
     return false;
 }
 
-static void SHUI_MAddLinks(SHUI_StringList *command)
+/// @param directory Output directory of the module, from which its run-time search paths start.
+static void SHUI_MAddLinks(SHUI_StringList *command, const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.linkDirectories.count; i++)
     {
-        SHUI_SLAdd(command, SHUI_Format("-L%s", SHUILD.MODULE.linkDirectories.data[i]));
+        const char *linkDirectory = SHUILD.MODULE.linkDirectories.data[i];
 
-        if (SHUI_MHoldsDynamicLink(SHUILD.MODULE.linkDirectories.data[i]))
+        SHUI_SLAdd(command, SHUI_Format("-L%s", linkDirectory));
+
+        // the path from the module's own directory, so the two can move together; Windows has none, see SHU_ModuleCopyDynamicLinks
+        if (SHUILD.COMPILER.target != SHUM_PLATFORM_WINDOWS && SHUI_MHoldsDynamicLink(linkDirectory))
         {
-            SHUI_SLAdd(command, SHUI_Format("-Wl%s,%s",
-                                            SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
-                                            SHUILD.MODULE.linkDirectories.data[i]));
+            char *relative = SHUI_SRelative(directory, linkDirectory);
+            usz length = (usz)strlen(relative);
+
+            SHUI_SLAdd(command, SHUI_Format("-Wl,-rpath,%s%s%.*s",
+                                            SHUILD.COMPILER.target == SHUM_PLATFORM_MACOS ? "@loader_path" : "$ORIGIN",
+                                            length == 0 ? "" : "/",
+                                            (int)(length == 0 ? 0 : length - 1),
+                                            relative));
         }
     }
 
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
         SHUI_SLAdd(command, SHUI_Format("-l%s", SHUILD.MODULE.links.data[i]));
+    }
+}
+
+// the dynamic libraries the module links go beside it, from the first directory that holds each
+static void SHUI_MCopyDynamicLinks(const char *directory)
+{
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    {
+        char *file = SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
+
+        for (usz j = 0; j < SHUILD.MODULE.linkDirectories.count; j++)
+        {
+            char *library = SHUI_Format("%s%s", SHUILD.MODULE.linkDirectories.data[j], file);
+
+            if (SHUI_UFileExists(library) == SHUFileType_Regular)
+            {
+                if (strcmp(SHUI_SClean(SHUILD.MODULE.linkDirectories.data[j]), SHUI_SClean(directory)) != 0)
+                {
+                    SHUI_UCopySingleFile(library, SHUI_Format("%s%s", directory, file));
+                }
+
+                break;
+            }
+        }
     }
 }
 
@@ -1893,7 +2098,7 @@ static void SHUI_MCompileExecutable(const char *directory)
     char *outFile = SHUI_Format("%s%s%s",
                                 directory,
                                 SHUILD.MODULE.name,
-                                SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? ".exe" : "");
+                                SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
 
     SHU_LogInfo("Compiling executable '%s'...", outFile);
 
@@ -1917,7 +2122,7 @@ static void SHUI_MCompileExecutable(const char *directory)
             SHUI_SLAdd(&command, inputFiles.data[i]);
         }
 
-        SHUI_MAddLinks(&command);
+        SHUI_MAddLinks(&command, directory);
 
         SHUI_CAddFlags(&command);
         SHUI_CRun(&command, true);
@@ -1951,9 +2156,7 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
 #else
         skipLibPacking = false;
 
-        objectFile = SHUI_Format("%.*s%s", (int)(strlen(sourceFile) - 1),
-                                 sourceFile,
-                                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
+        objectFile = SHUI_Format("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
 
         SHUI_CCompileUnit(sourceFile, objectFile, NULL, NULL);
 #endif
@@ -1963,11 +2166,7 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
 
     SHUI_CWaitJobs();
 
-    char *libraryFile = SHUI_Format("%s%s%s.%s",
-                                    directory,
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                                    SHUILD.MODULE.name,
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "lib" : "a");
+    char *libraryFile = SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryStatic));
 
     if (SHUI_UFileExists(libraryFile) != SHUFileType_Regular)
     {
@@ -1983,7 +2182,7 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
         }
 
         SHUI_StringList command = {0};
-        SHUI_CAddArgument(&command, SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG ? "llvm-ar" : "ar");
+        SHUI_CAddArgument(&command, SHUI_CArchiver());
         SHUI_CAddArgument(&command, "rcs");
         SHUI_SLAdd(&command, libraryFile);
 
@@ -2013,6 +2212,9 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
     bool skipLibPacking = true;
 
+    // code for a DLL needs no position-independent flag, and some compilers refuse it
+    const char *positionIndependent = SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? NULL : "-fPIC";
+
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
         char *objectFile = NULL;
@@ -2023,17 +2225,16 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
         if (SHUI_CUnitRequiresCompilation(sourceFile, &objectFile, &dependencyFile))
         {
-            SHUI_CCompileUnit(sourceFile, objectFile, dependencyFile, "-fPIC");
+            SHUI_CCompileUnit(sourceFile, objectFile, dependencyFile, positionIndependent);
 
             skipLibPacking = false;
         }
 #else
         skipLibPacking = false;
 
-        objectFile = SHUI_Format("%.*s%s", (int)(strlen(sourceFile) - 1), sourceFile,
-                                 SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "obj" : "o");
+        objectFile = SHUI_Format("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
 
-        SHUI_CCompileUnit(sourceFile, objectFile, NULL, "-fPIC");
+        SHUI_CCompileUnit(sourceFile, objectFile, NULL, positionIndependent);
 #endif
 
         SHUI_SLAdd(&objFiles, objectFile);
@@ -2041,11 +2242,7 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
     SHUI_CWaitJobs();
 
-    char *libraryFile = SHUI_Format("%s%s%s.%s",
-                                    directory,
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                                    SHUILD.MODULE.name,
-                                    SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so");
+    char *libraryFile = SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryDynamic));
 
     if (SHUI_UFileExists(libraryFile) != SHUFileType_Regular)
     {
@@ -2066,12 +2263,18 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
         SHUI_CAddArgument(&command, "-o");
         SHUI_SLAdd(&command, libraryFile);
 
+        // a DLL is linked through its import library, which -l finds as lib<name>.dll.a
+        if (SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS)
+        {
+            SHUI_SLAdd(&command, SHUI_Format("-Wl,--out-implib,%s%s", directory, SHUI_MLinkedDynamicFile(SHUILD.MODULE.name)));
+        }
+
         for (usz i = 0; i < objFiles.count; i++)
         {
             SHUI_SLAdd(&command, objFiles.data[i]);
         }
 
-        SHUI_MAddLinks(&command);
+        SHUI_MAddLinks(&command, directory);
         SHUI_CRun(&command, true);
     }
     else
@@ -2208,7 +2411,7 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
     char *programPath = SHUI_SPath(SHUILD.currentExecutableDirectory, SHUI_Format("%s%s", program, SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? ".exe" : ""), false);
 
     SHUI_StringList command = {0};
-    SHUI_CAddArguments(&command, SHUILD.COMPILER.command);
+    SHUI_CAddArguments(&command, SHUI_CScriptCompiler());
     SHUI_CAddArgument(&command, "-o");
     SHUI_SLAdd(&command, programPath);
     SHUI_SLAdd(&command, scriptPath);
@@ -2489,6 +2692,27 @@ void SHU_UtilWriteFile(const char *file, SHUSliceView content)
     SHUI_UWriteFile(SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, file), content);
 }
 
+char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
+{
+    SHU_AssertNullPointer(name);
+    SHU_Assert(type == SHUModuleType_LibraryStatic || type == SHUModuleType_LibraryDynamic, "Module type '%s' is not a library.", SHUModuleType_GetString(type));
+
+    if (type == SHUModuleType_LibraryStatic)
+    {
+        return SHUI_Format("lib%s.a", name);
+    }
+
+    switch (SHUILD.COMPILER.target)
+    {
+    case SHUM_PLATFORM_WINDOWS:
+        return SHUI_Format("%s.dll", name);
+    case SHUM_PLATFORM_MACOS:
+        return SHUI_Format("lib%s.dylib", name);
+    default:
+        return SHUI_Format("lib%s.so", name);
+    }
+}
+
 #pragma endregion Utility
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -2586,6 +2810,7 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
 
     SHUILD.COMPILER.identifier = compiler;
     SHUILD.COMPILER.command = SHUI_Format("%s", compilerCommand);
+    SHUILD.COMPILER.target = SHUI_CDetectTarget(compilerCommand);
 
     if (SHUILD.currentExecutableDirectory == NULL)
     {
@@ -2695,6 +2920,11 @@ u8 SHU_CompilerGetIdentifier(void)
     return SHUILD.COMPILER.identifier;
 }
 
+u8 SHU_CompilerGetTarget(void)
+{
+    return SHUILD.COMPILER.target;
+}
+
 #pragma endregion Compiler
 
 #pragma region Module
@@ -2791,6 +3021,11 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         break;
     }
 
+    if (SHUILD.MODULE.copyDynamicLinks && module != SHUModuleType_LibraryStatic)
+    {
+        SHUI_MCopyDynamicLinks(directoryPath);
+    }
+
     if (module != SHUModuleType_Executable)
     {
         SHUI_MRecordLibrary(module == SHUModuleType_LibraryStatic);
@@ -2823,6 +3058,11 @@ void SHU_ModuleLinkLibrary(const char *library)
     SHU_AssertNullPointer(library);
 
     SHUI_SLAdd(&SHUILD.MODULE.links, SHUI_Format("%s", library));
+}
+
+void SHU_ModuleCopyDynamicLinks(void)
+{
+    SHUILD.MODULE.copyDynamicLinks = true;
 }
 
 #pragma endregion Module

@@ -8,14 +8,19 @@
     A dynamic library is linked with its libraries.
     A library's public include directories go to the modules that link it themselves,
     but not to the ones that get it through another library.
+    Each library's file name follows the system the compiler compiles for, so a cross compiler, such as
+    x86_64-w64-mingw32-gcc given as the argument, makes Windows' files: libnumbers.a, report.dll and example.exe.
 */
 
-int main(void)
+int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerTryConfigure(argc > 1 ? argv[1] : "gcc");
 
-    // The static libraries are compiled into a dynamic library too, so their code must be position independent.
-    SHU_CompilerAddFlags("-fPIC");
+    // The static libraries are compiled into a dynamic library too, so their code must be position independent, except for Windows, where it always is.
+    if (SHU_CompilerGetTarget() != SHUM_PLATFORM_WINDOWS)
+    {
+        SHU_CompilerAddFlags("-fPIC");
+    }
 
     SHU_ModuleBegin("numbers", "dependencies/numbers/");
     SHU_ModuleAddPublicIncludeDirectory("include/");
@@ -39,12 +44,21 @@ int main(void)
     SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
 
     // The executable links shapes and report, and gets their headers. It gets numbers after shapes, so the linker finds what shapes needs.
+    // On Linux and macOS, it finds report in ../lib/, from its own directory. On Windows, a program finds its DLLs beside itself, so report is copied there.
     SHU_ModuleBegin("example", NULL);
     SHU_ModuleAddSourceFile("src/");
     SHU_ModuleAddLibraryDirectory("build/lib/");
     SHU_ModuleLinkLibrary("shapes");
     SHU_ModuleLinkLibrary("report");
+
+    if (SHU_CompilerGetTarget() == SHUM_PLATFORM_WINDOWS)
+    {
+        SHU_ModuleCopyDynamicLinks();
+    }
+
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
+
+    SHU_LogInfo("The library files are %s and %s.", SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic), SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic));
 
     return 0;
 }
