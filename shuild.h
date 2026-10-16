@@ -557,10 +557,7 @@ static SHUI_StringList SHUI_SLCreate(usz capacity)
     list.count = 0;
     list.capacity = capacity;
 
-    if (list.data == NULL)
-    { // todo make these errors assertions
-        SHU_LogError(SHUResult_ErrInternal, "Internal: Memory allocation failed for size '%zu'.", sizeof(SHUI_String) * capacity);
-    }
+    SHU_Assert(list.data != NULL, "Internal: Memory allocation failed for size '%zu'.", sizeof(SHUI_String) * capacity);
 
     return list;
 }
@@ -583,10 +580,7 @@ static void SHUI_SLResize(SHUI_StringList *list, usz newCapacity)
     list->data = (SHUI_String *)realloc(list->data, sizeof(SHUI_String) * newCapacity);
     list->capacity = newCapacity;
 
-    if (list->data == NULL)
-    {
-        SHU_LogError(SHUResult_ErrInternal, "Internal: Memory reallocation failed for size '%zu'.", sizeof(SHUI_String) * newCapacity);
-    }
+    SHU_Assert(list->data != NULL, "Internal: Memory reallocation failed for size '%zu'.", sizeof(SHUI_String) * newCapacity);
 }
 
 static void SHUI_SLAdd(SHUI_StringList *list, const SHUI_String *string)
@@ -2775,31 +2769,30 @@ void SHUI_CompilerAddDefinition(const char *macros, ...)
     va_list args;
     va_start(args, macros);
 
-    //! maybe redundant
-    const char *currentMacro = macros;
-    while (currentMacro != NULL)
+    // the arguments are names and values in pairs, until a NULL name
+    while (macros != NULL)
     {
         SHUI_String flag = {0};
 
         SHUI_SAppendC(&flag, "-D");
-        SHUI_SAppendC(&flag, currentMacro);
-        currentMacro = va_arg(args, const char *);
+        SHUI_SAppendC(&flag, macros);
+        const char *value = va_arg(args, const char *);
 
-        if (currentMacro != NULL)
+        if (value != NULL)
         {
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
             SHUI_SAppendC(&flag, "=\"\"");
-            SHUI_SAppendC(&flag, currentMacro);
+            SHUI_SAppendC(&flag, value);
             SHUI_SAppendC(&flag, "\"\"");
 #else
             SHUI_SAppendC(&flag, "='");
-            SHUI_SAppendC(&flag, currentMacro);
+            SHUI_SAppendC(&flag, value);
             SHUI_SAppendC(&flag, "'");
 #endif
         }
         SHUI_SLAdd(&SHUILD.COMPILER.flags, &flag);
 
-        currentMacro = va_arg(args, const char *);
+        macros = va_arg(args, const char *);
     }
 
     va_end(args);
