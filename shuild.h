@@ -330,7 +330,7 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 void SHU_CompilerTryConfigure(const char *compilerCommand);
 
 /// @brief Adds flags to the compiler configuration.
-/// @param flags Flags to add. Can include multiple flags separated by spaces as you want, quoted as in a shell. (eg. -DFOO=31)
+/// @param flags Flags to add. Can include multiple flags separated by spaces as you want, quoted as in a shell. On Windows, a backslash escapes only a quote, so paths keep theirs. (eg. -DFOO=31)
 void SHU_CompilerAddFlags(const char *flags);
 // todo make it a macro
 
@@ -825,6 +825,15 @@ static void SHUI_CAddArgument(SHUI_StringList *command, const char *argument)
     SHUI_SLAdd(command, SHUI_Format("%s", argument));
 }
 
+// a backslash escapes the next character, as in a POSIX shell; on Windows, where paths hold backslashes, it escapes only a quote, as the C runtime's own splitting does
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#define SHUI_C_ESCAPES(next) ((next) == '"' || (next) == '\'')
+#define SHUI_C_ESCAPES_QUOTED(next) ((next) == '"')
+#else
+#define SHUI_C_ESCAPES(next) ((next) != '\0')
+#define SHUI_C_ESCAPES_QUOTED(next) ((next) == '"' || (next) == '\\' || (next) == '$' || (next) == '`')
+#endif
+
 static void SHUI_CAddArguments(SHUI_StringList *command, const char *arguments)
 {
     // splits the arguments the way a POSIX shell does: spaces separate them, quotes group them and backslashes escape
@@ -851,7 +860,7 @@ static void SHUI_CAddArguments(SHUI_StringList *command, const char *arguments)
             {
                 quote = '\0';
             }
-            else if (*c == '\\' && (c[1] == '"' || c[1] == '\\' || c[1] == '$' || c[1] == '`'))
+            else if (*c == '\\' && SHUI_C_ESCAPES_QUOTED(c[1]))
             {
                 SHUI_BAppendChar(&argument, *++c);
             }
@@ -873,7 +882,7 @@ static void SHUI_CAddArguments(SHUI_StringList *command, const char *arguments)
             quote = *c;
             inArgument = true;
         }
-        else if (*c == '\\' && c[1] != '\0')
+        else if (*c == '\\' && SHUI_C_ESCAPES(c[1]))
         {
             SHUI_BAppendChar(&argument, *++c);
             inArgument = true;
