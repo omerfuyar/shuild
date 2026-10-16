@@ -371,6 +371,7 @@ void SHU_ModuleAddSourceFile(const char *file);
 void SHU_ModuleCompile(const char *directory, SHUModuleType module);
 
 /// @brief Adds a directory to search for the libraries that the current module links. A static library keeps it for the modules that link it, as it keeps its libraries.
+/// A directory that holds a dynamic library the module links is embedded in it, to find the library at run time.
 /// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
 void SHU_ModuleAddLibraryDirectory(const char *directory);
 
@@ -1908,6 +1909,28 @@ static bool SHUI_MLinksNewer(const SHUI_String *outFile)
 }
 #endif
 
+// a directory is searched at run time only if it holds a dynamic library that the module links
+static bool SHUI_MHoldsDynamicLink(const SHUI_String *directory)
+{
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    {
+        SHUI_String libFile = {0};
+
+        SHUI_SFormat(&libFile, "%s%s%s.%s",
+                     directory->data,
+                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
+                     SHUILD.MODULE.links.data[i].data,
+                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "dll" : "so");
+
+        if (SHUI_UFileExists(&libFile) == SHUFileType_Regular)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void SHUI_MAddLinks(SHUI_StringList *command)
 {
     for (usz i = 0; i < SHUILD.MODULE.linkDirectories.count; i++)
@@ -1916,10 +1939,13 @@ static void SHUI_MAddLinks(SHUI_StringList *command)
         SHUI_SFormat(&linkDirectory, "-L%s", SHUILD.MODULE.linkDirectories.data[i].data);
         SHUI_SLAdd(command, &linkDirectory);
 
-        SHUI_SFormat(&linkDirectory, "-Wl%s,%s",
-                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
-                     SHUILD.MODULE.linkDirectories.data[i].data);
-        SHUI_SLAdd(command, &linkDirectory);
+        if (SHUI_MHoldsDynamicLink(&SHUILD.MODULE.linkDirectories.data[i]))
+        {
+            SHUI_SFormat(&linkDirectory, "-Wl%s,%s",
+                         SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
+                         SHUILD.MODULE.linkDirectories.data[i].data);
+            SHUI_SLAdd(command, &linkDirectory);
+        }
     }
 
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
