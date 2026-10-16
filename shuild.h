@@ -224,6 +224,19 @@ i32 SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1,
 /// @return Exit code of the command.
 i32 SHU_UtilTryRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
+/// @brief Runs a command like SHU_UtilRun, with its output and errors written to a log file in place of the terminal. When the command fails, the end of the log is shown.
+/// @param log Log file to write, relative to current executable. Its directory is created if it doesn't exist. (eg. .shu/cmake.log)
+/// @param command Command to run with the shell, through system. (eg. cmake --build build/)
+/// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
+i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...) __attribute__((format(printf, 2, 3)));
+
+/// @brief Builds another build script and runs it in its own directory, as for a project inside this one. The script is compiled with the configured compiler and SHUILD_BUILD.
+/// @param script Build script to compile, relative to current executable. (eg. plugins/shuild.c)
+/// @param program Program to compile it into, relative to current executable, without .exe. (eg. plugins/shuild)
+/// @param flags More flags for the compiler, such as the script's include directories, or an empty string. (eg. -Idependencies)
+/// @param arguments Arguments for the program, or an empty string. (eg. -b release)
+void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments);
+
 /// @brief Spawns a new process synchronously.
 /// @param executable Path to executable.
 /// @param argv Arguments array (NULL terminated).
@@ -360,6 +373,11 @@ void SHU_ModuleBegin(const char *name, const char *root);
 /// @param directory Include directory to add to the current module. Relative to root directory specified in ModuleBegin (eg. include/)
 void SHU_ModuleAddIncludeDirectory(const char *directory);
 
+/// @brief Adds an include directory to the module, and gives it to the modules that link the module, as system headers, so their warnings stay out.
+/// Only the modules that link the library themselves get it, not the ones that get the library through another library.
+/// @param directory Include directory of the library's interface. Relative to root directory specified in ModuleBegin (eg. include/)
+void SHU_ModuleAddPublicIncludeDirectory(const char *directory);
+
 /// @brief Adds source files to the module. Single file or recursive directory.
 /// @param file Single file to add to the current module. Relative to root directory specified in ModuleBegin (eg. source.c)
 /// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
@@ -430,12 +448,13 @@ typedef struct SHUI_StringList
     SHUI_String *data;
 } SHUI_StringList;
 
-/// @brief A static library and the libraries it links, which a module that links it gets too.
+/// @brief A library and what a module that links it gets: its public include directories, and for a static library, the libraries it links.
 typedef struct SHUI_Library
 {
     SHUI_String name;
     SHUI_StringList links;
     SHUI_StringList linkDirectories;
+    SHUI_StringList includeDirectories;
 } SHUI_Library;
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -473,9 +492,11 @@ static struct
         SHUI_StringList sourceFiles;
         SHUI_StringList links;
         SHUI_StringList linkDirectories;
+        SHUI_StringList publicIncludeDirectories; // given to the modules that link it
+        SHUI_StringList linkedIncludeDirectories; // the public include directories of the libraries it links
     } MODULE;
 
-    // the static libraries compiled so far, with the libraries they link
+    // the libraries compiled so far, with what the modules that link them get
     struct
     {
         usz count;
@@ -701,6 +722,13 @@ static void SHUI_CAddIncludeDirectories(SHUI_StringList *command)
         SHUI_String include = {0};
         SHUI_SFormat(&include, "-I%s", SHUILD.MODULE.includeDirectories.data[i].data);
         SHUI_SLAdd(command, &include);
+    }
+
+    // the headers of linked libraries are another module's, so their warnings stay out
+    for (usz i = 0; i < SHUILD.MODULE.linkedIncludeDirectories.count; i++)
+    {
+        SHUI_CAddArgument(command, "-isystem");
+        SHUI_SLAdd(command, &SHUILD.MODULE.linkedIncludeDirectories.data[i]);
     }
 }
 
@@ -1779,8 +1807,9 @@ static SHUI_Library *SHUI_MFindLibrary(const SHUI_String *name)
     return NULL;
 }
 
-// a static library cannot be linked with other libraries, so it keeps the ones it links, and the module that links it gets them
-static void SHUI_MRecordLibrary(void)
+// a library keeps its public include directories for the modules that link it;
+// a static library cannot be linked with other libraries, so it keeps the ones it links too, and the module that links it gets them
+static void SHUI_MRecordLibrary(bool keepLinks)
 {
     SHUI_Library *library = SHUI_MFindLibrary(&SHUILD.MODULE.name);
 
@@ -1800,13 +1829,37 @@ static void SHUI_MRecordLibrary(void)
     {
         SHUI_SLDestroy(&library->links);
         SHUI_SLDestroy(&library->linkDirectories);
+        SHUI_SLDestroy(&library->includeDirectories);
     }
 
     // the module's lists move to the record
-    library->links = SHUILD.MODULE.links;
-    library->linkDirectories = SHUILD.MODULE.linkDirectories;
-    SHUILD.MODULE.links = (SHUI_StringList){0};
-    SHUILD.MODULE.linkDirectories = (SHUI_StringList){0};
+    library->includeDirectories = SHUILD.MODULE.publicIncludeDirectories;
+    SHUILD.MODULE.publicIncludeDirectories = (SHUI_StringList){0};
+
+    if (keepLinks)
+    {
+        library->links = SHUILD.MODULE.links;
+        library->linkDirectories = SHUILD.MODULE.linkDirectories;
+        SHUILD.MODULE.links = (SHUI_StringList){0};
+        SHUILD.MODULE.linkDirectories = (SHUI_StringList){0};
+    }
+}
+
+// the module gets the public include directories of the libraries it links itself, but not of the libraries those link
+static void SHUI_MAddLinkedIncludes(void)
+{
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    {
+        const SHUI_Library *library = SHUI_MFindLibrary(&SHUILD.MODULE.links.data[i]);
+
+        for (usz j = 0; library != NULL && j < library->includeDirectories.count; j++)
+        {
+            if (!SHUI_SLContains(&SHUILD.MODULE.linkedIncludeDirectories, &library->includeDirectories.data[j]))
+            {
+                SHUI_SLAdd(&SHUILD.MODULE.linkedIncludeDirectories, &library->includeDirectories.data[j]);
+            }
+        }
+    }
 }
 
 static void SHUI_MExpandLink(SHUI_StringList *links, const SHUI_String *link, usz depth)
@@ -2196,11 +2249,8 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
 #pragma region Utility
 
-static i32 SHUI_URun(bool stopOnFailure, const char *commandFormat, va_list args)
+static i32 SHUI_URunCommand(bool stopOnFailure, const char *commandBuffer)
 {
-    char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-    vsnprintf(commandBuffer, sizeof(commandBuffer), commandFormat, args);
-
 #ifndef SHUC_NO_RUN_LOG
     SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), commandBuffer);
 #endif
@@ -2228,6 +2278,14 @@ static i32 SHUI_URun(bool stopOnFailure, const char *commandFormat, va_list args
     return result;
 }
 
+static i32 SHUI_URun(bool stopOnFailure, const char *commandFormat, va_list args)
+{
+    char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
+    vsnprintf(commandBuffer, sizeof(commandBuffer), commandFormat, args);
+
+    return SHUI_URunCommand(stopOnFailure, commandBuffer);
+}
+
 i32 SHU_UtilRun(const char *commandFormat, ...)
 {
     SHU_AssertNullPointer(commandFormat);
@@ -2250,6 +2308,111 @@ i32 SHU_UtilTryRun(const char *commandFormat, ...)
     va_end(args);
 
     return result;
+}
+
+i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
+{
+    SHU_AssertNullPointer(log);
+    SHU_AssertNullPointer(commandFormat);
+
+    SHUI_String logStr = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&logStr, log);
+
+    // the log's directory is made first, as the shell does not make it
+    SHUI_String logDirectory = logStr;
+    while (logDirectory.length > 0 && logDirectory.data[logDirectory.length - 1] != '/' && logDirectory.data[logDirectory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        logDirectory.length--;
+    }
+    logDirectory.data[logDirectory.length] = '\0';
+    SHUI_UMakeDirectoryRecursive(&logDirectory);
+
+    char command[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
+    va_list args;
+    va_start(args, commandFormat);
+    i32 length = vsnprintf(command, sizeof(command), commandFormat, args);
+    va_end(args);
+
+    // both POSIX shells and cmd.exe send the output and the errors to the file this way
+    SHU_Assert(length >= 0 && (usz)length + logStr.length + 16 < sizeof(command), "Command to log to '%s' is too long.", logStr.data);
+    snprintf(command + length, sizeof(command) - (usz)length, " > \"%s\" 2>&1", logStr.data);
+
+    i32 result = SHUI_URunCommand(false, command);
+
+    if (result != 0)
+    {
+        // the end of the log tells why it failed
+        SHUSlice text = SHUI_UReadFile(&logStr);
+        const char *start = (const char *)text.data + text.size;
+
+        for (usz lines = 0; start > (const char *)text.data && lines <= 20; start--)
+        {
+            lines += start[-1] == '\n';
+        }
+
+        fprintf(SHU_LOG_STREAM, "%s\n", start);
+        free(text.data);
+
+#ifdef SHUC_NO_RUN_ERROR
+        SHU_LogError(0, "Command failed with exit code %d; '%s' has its output.", result, logStr.data);
+#else
+        SHU_LogError(result, "Command failed with exit code %d; '%s' has its output. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result, logStr.data);
+#endif
+    }
+
+    return result;
+}
+
+void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments)
+{
+    SHU_AssertNullPointer(script);
+    SHU_AssertNullPointer(program);
+    SHU_AssertNullPointer(flags);
+    SHU_AssertNullPointer(arguments);
+
+    SHUI_String scriptStr = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&scriptStr, script);
+
+    SHUI_String programStr = SHUILD.currentExecutableDirectory;
+    SHUI_SAppendC(&programStr, program);
+    SHUI_SAppendC(&programStr, SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? ".exe" : "");
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    SHUI_SNormalizePath(&scriptStr);
+    SHUI_SNormalizePath(&programStr);
+#endif
+
+    SHUI_StringList command = {0};
+    SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
+    SHUI_CAddArgument(&command, "-o");
+    SHUI_SLAdd(&command, &programStr);
+    SHUI_SLAdd(&command, &scriptStr);
+    SHUI_CAddArguments(&command, SHUILD_BUILD);
+    SHUI_CAddArguments(&command, flags);
+    SHUI_CRun(&command, true);
+    SHUI_SLDestroy(&command);
+
+    // it runs in its own directory, as it would if it were run there by hand, and the build goes on here after it
+    SHUI_String directory = programStr;
+    while (directory.length > 0 && directory.data[directory.length - 1] != '/' && directory.data[directory.length - 1] != SHUM_PATH_SEPARATOR)
+    {
+        directory.length--;
+    }
+    directory.data[directory.length] = '\0';
+
+    char previous[SHUC_MAX_STRING_SIZE] = {0};
+    char run[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
+    snprintf(run, sizeof(run), "\"%s\" %s", programStr.data, arguments);
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    SHU_Assert(_getcwd(previous, sizeof(previous)) != NULL && _chdir(directory.data) == 0, "Cannot run '%s' in its directory.", programStr.data);
+    SHUI_URunCommand(true, run);
+    SHU_Assert(_chdir(previous) == 0, "Cannot go back to '%s'.", previous);
+#else
+    SHU_Assert(getcwd(previous, sizeof(previous)) != NULL && chdir(directory.data) == 0, "Cannot run '%s' in its directory.", programStr.data);
+    SHUI_URunCommand(true, run);
+    SHU_Assert(chdir(previous) == 0, "Cannot go back to '%s'.", previous);
+#endif
 }
 
 i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
@@ -2856,6 +3019,12 @@ void SHU_ModuleAddIncludeDirectory(const char *directory)
     SHUI_SLAdd(&SHUILD.MODULE.includeDirectories, &correctedDirectory);
 }
 
+void SHU_ModuleAddPublicIncludeDirectory(const char *directory)
+{
+    SHU_ModuleAddIncludeDirectory(directory);
+    SHUI_SLAdd(&SHUILD.MODULE.publicIncludeDirectories, &SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]);
+}
+
 void SHU_ModuleAddSourceFile(const char *file)
 {
     SHU_AssertNullPointer(file);
@@ -2927,6 +3096,8 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
     }
 #endif
 
+    SHUI_MAddLinkedIncludes();
+
     if (module != SHUModuleType_LibraryStatic)
     {
         SHUI_MExpandLinks();
@@ -2948,13 +3119,15 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         break;
     }
 
-    if (module == SHUModuleType_LibraryStatic)
+    if (module != SHUModuleType_Executable)
     {
-        SHUI_MRecordLibrary();
+        SHUI_MRecordLibrary(module == SHUModuleType_LibraryStatic);
     }
 
     SHUI_SLDestroy(&SHUILD.MODULE.linkDirectories);
     SHUI_SLDestroy(&SHUILD.MODULE.links);
+    SHUI_SLDestroy(&SHUILD.MODULE.publicIncludeDirectories);
+    SHUI_SLDestroy(&SHUILD.MODULE.linkedIncludeDirectories);
 
     SHUI_SLDestroy(&SHUILD.MODULE.includeDirectories);
     SHUI_SLDestroy((SHUI_StringList *)&SHUILD.MODULE.sourceFiles);

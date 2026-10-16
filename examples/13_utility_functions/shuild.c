@@ -54,6 +54,10 @@ int main(int argc, char **argv)
     i32 exitCode = SHU_UtilTryRun("exit 3");
     SHU_LogInfo("The command that may fail gave %d.", exitCode);
 
+    // A command whose output is long, such as another build tool's, writes it to a log. When it fails, the end of the log is shown.
+    SHU_UtilRunLogged("build/logs/echo.log", "echo %s", "This goes to the log.");
+    SHU_Assert(SHU_UtilFileExists("build/logs/echo.log") == SHUFileType_Regular, "The log is not written.");
+
     SHU_ModuleAddIncludeDirectory("build/");
     SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
