@@ -20,14 +20,10 @@ int main(void)
     SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
     SHU_ModuleAddSourceFile("src/");
 
-    // Add a library search directory to current executable module.
+    // Add a library search directory to current module.
     SHU_ModuleAddLibraryDirectory("build/lib/");
-    // Link a library to current executable module.
+    // Link a library to current module. See example 14 for libraries that link other libraries.
     SHU_ModuleLinkLibrary("exampleLib");
-
-    // These two functions will only work if the module is an executable.
-    // todo this design is confusing, consider moving module
-    //! identification to ModuleBegin
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 

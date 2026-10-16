@@ -370,12 +370,13 @@ void SHU_ModuleAddSourceFile(const char *file);
 /// @param module Current module mode. Use with SHUM_MODULE_<...> macros. (eg. SHUModuleType_LibraryStatic)
 void SHU_ModuleCompile(const char *directory, SHUModuleType module);
 
-/// @brief Sets the library search directory for current executable. Practical only if the current module is an executable.
+/// @brief Adds a directory to search for the libraries that the current module links. A static library keeps it for the modules that link it, as it keeps its libraries.
 /// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
 void SHU_ModuleAddLibraryDirectory(const char *directory);
 
-/// @brief Links an executable to the current executable. Practical only if the current module is an executable.
-/// @param library Library to link with executable. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. myLibName)
+/// @brief Links a library to the current module. An executable or a dynamic library is linked with it.
+/// A static library cannot be linked, so it keeps the library: a module that links the static library later gets the library too, after it, with its directories.
+/// @param library Library to link with the module. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. myLibName)
 void SHU_ModuleLinkLibrary(const char *library);
 
 #pragma endregion Module
@@ -428,6 +429,14 @@ typedef struct SHUI_StringList
     SHUI_String *data;
 } SHUI_StringList;
 
+/// @brief A static library and the libraries it links, which a module that links it gets too.
+typedef struct SHUI_Library
+{
+    SHUI_String name;
+    SHUI_StringList links;
+    SHUI_StringList linkDirectories;
+} SHUI_Library;
+
 #ifdef SHUC_ENABLE_INCREMENTAL
 static bool SHUI_CDependencyDirty(const SHUI_String *dependencyFile, const SHUI_String *objectFile);
 #endif
@@ -461,13 +470,17 @@ static struct
         SHUI_String root;
         SHUI_StringList includeDirectories;
         SHUI_StringList sourceFiles;
-
-        struct
-        {
-            SHUI_StringList links;
-            SHUI_StringList linkDirectories;
-        } EXECUTABLE;
+        SHUI_StringList links;
+        SHUI_StringList linkDirectories;
     } MODULE;
+
+    // the static libraries compiled so far, with the libraries they link
+    struct
+    {
+        usz count;
+        usz capacity;
+        SHUI_Library *data;
+    } LIBRARIES;
 } SHUILD = {0};
 
 #define SHUI_SZero(string) memset(&string, 0, sizeof(SHUI_String));
@@ -587,6 +600,19 @@ static void SHUI_SLAdd(SHUI_StringList *list, const SHUI_String *string)
     }
 
     list->data[list->count++] = *string;
+}
+
+static bool SHUI_SLContains(const SHUI_StringList *list, const SHUI_String *string)
+{
+    for (usz i = 0; i < list->count; i++)
+    {
+        if (strcmp(list->data[i].data, string->data) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void SHUI_CAddArgument(SHUI_StringList *command, const char *argument)
@@ -1516,22 +1542,22 @@ static SHUI_Hash SHUI_CModuleStateHash(void)
         SHUI_HASH_MIX;
     }
 
-    SHUI_HASH_BYTE(SHUILD.MODULE.EXECUTABLE.linkDirectories.count);
-    for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
+    SHUI_HASH_BYTE(SHUILD.MODULE.linkDirectories.count);
+    for (usz i = 0; i < SHUILD.MODULE.linkDirectories.count; i++)
     {
-        for (usz j = 0; j < SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].length; j++)
+        for (usz j = 0; j < SHUILD.MODULE.linkDirectories.data[i].length; j++)
         {
-            SHUI_HASH_BYTE(SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data[j]);
+            SHUI_HASH_BYTE(SHUILD.MODULE.linkDirectories.data[i].data[j]);
         }
         SHUI_HASH_MIX;
     }
 
-    SHUI_HASH_BYTE(SHUILD.MODULE.EXECUTABLE.links.count);
-    for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.links.count; i++)
+    SHUI_HASH_BYTE(SHUILD.MODULE.links.count);
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        for (usz j = 0; j < SHUILD.MODULE.EXECUTABLE.links.data[i].length; j++)
+        for (usz j = 0; j < SHUILD.MODULE.links.data[i].length; j++)
         {
-            SHUI_HASH_BYTE(SHUILD.MODULE.EXECUTABLE.links.data[i].data[j]);
+            SHUI_HASH_BYTE(SHUILD.MODULE.links.data[i].data[j]);
         }
         SHUI_HASH_MIX;
     }
@@ -1745,9 +1771,168 @@ static void SHUI_MAddSourceDirectoryRecursive(const SHUI_String *path)
 #endif
 }
 
+static SHUI_Library *SHUI_MFindLibrary(const SHUI_String *name)
+{
+    for (usz i = 0; i < SHUILD.LIBRARIES.count; i++)
+    {
+        if (strcmp(SHUILD.LIBRARIES.data[i].name.data, name->data) == 0)
+        {
+            return &SHUILD.LIBRARIES.data[i];
+        }
+    }
+
+    return NULL;
+}
+
+// a static library cannot be linked with other libraries, so it keeps the ones it links, and the module that links it gets them
+static void SHUI_MRecordLibrary(void)
+{
+    SHUI_Library *library = SHUI_MFindLibrary(&SHUILD.MODULE.name);
+
+    if (library == NULL)
+    {
+        if (SHUILD.LIBRARIES.count >= SHUILD.LIBRARIES.capacity)
+        {
+            SHUILD.LIBRARIES.capacity = SHUILD.LIBRARIES.capacity == 0 ? SHUC_ARRAY_INITIAL_COUNT : (usz)((float)SHUILD.LIBRARIES.capacity * SHUC_ARRAY_RESIZE_FACTOR);
+            SHUILD.LIBRARIES.data = (SHUI_Library *)realloc(SHUILD.LIBRARIES.data, sizeof(SHUI_Library) * SHUILD.LIBRARIES.capacity);
+            SHU_Assert(SHUILD.LIBRARIES.data != NULL, "Internal: Memory reallocation failed for size '%zu'.", sizeof(SHUI_Library) * SHUILD.LIBRARIES.capacity);
+        }
+
+        library = &SHUILD.LIBRARIES.data[SHUILD.LIBRARIES.count++];
+        library->name = SHUILD.MODULE.name;
+    }
+    else
+    {
+        SHUI_SLDestroy(&library->links);
+        SHUI_SLDestroy(&library->linkDirectories);
+    }
+
+    // the module's lists move to the record
+    library->links = SHUILD.MODULE.links;
+    library->linkDirectories = SHUILD.MODULE.linkDirectories;
+    SHUILD.MODULE.links = (SHUI_StringList){0};
+    SHUILD.MODULE.linkDirectories = (SHUI_StringList){0};
+}
+
+static void SHUI_MExpandLink(SHUI_StringList *links, const SHUI_String *link, usz depth)
+{
+    // a library that links itself through others would expand forever
+    SHU_Assert(depth < 64, "Library '%s' links itself through other libraries.", link->data);
+
+    SHUI_SLAdd(links, link);
+
+    const SHUI_Library *library = SHUI_MFindLibrary(link);
+
+    if (library == NULL)
+    {
+        return;
+    }
+
+    for (usz i = 0; i < library->linkDirectories.count; i++)
+    {
+        if (!SHUI_SLContains(&SHUILD.MODULE.linkDirectories, &library->linkDirectories.data[i]))
+        {
+            SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, &library->linkDirectories.data[i]);
+        }
+    }
+
+    for (usz i = 0; i < library->links.count; i++)
+    {
+        SHUI_MExpandLink(links, &library->links.data[i], depth + 1);
+    }
+}
+
+// each static library the module links brings the libraries it keeps, after it, so the linker finds what it needs in order
+static void SHUI_MExpandLinks(void)
+{
+    SHUI_StringList links = {0};
+
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    {
+        SHUI_MExpandLink(&links, &SHUILD.MODULE.links.data[i], 0);
+    }
+
+    // a library that comes more than once stays in its last place, after every library that needs it
+    SHUI_StringList reversed = {0};
+
+    for (usz i = links.count; i > 0; i--)
+    {
+        if (!SHUI_SLContains(&reversed, &links.data[i - 1]))
+        {
+            SHUI_SLAdd(&reversed, &links.data[i - 1]);
+        }
+    }
+
+    SHUILD.MODULE.links.count = 0;
+
+    for (usz i = reversed.count; i > 0; i--)
+    {
+        SHUI_SLAdd(&SHUILD.MODULE.links, &reversed.data[i - 1]);
+    }
+
+    SHUI_SLDestroy(&links);
+    SHUI_SLDestroy(&reversed);
+}
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+// a module is linked again when a library it links is newer than its output
+static bool SHUI_MLinksNewer(const SHUI_String *outFile)
+{
+    i64 outTime = SHUI_UGetFileEditTime(outFile);
+
+    for (usz i = 0; i < SHUILD.MODULE.linkDirectories.count; i++)
+    {
+        for (usz j = 0; j < SHUILD.MODULE.links.count; j++)
+        {
+            // the names that SHUI_MCompileLibraryStatic and SHUI_MCompileLibraryDynamic give the library
+            for (u8 k = 0; k < 2; k++)
+            {
+                SHUI_String libFile = {0};
+
+                SHUI_SFormat(&libFile, "%s%s%s.%s",
+                             SHUILD.MODULE.linkDirectories.data[i].data,
+                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
+                             SHUILD.MODULE.links.data[j].data,
+                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? (k == 0 ? "lib" : "dll") : (k == 0 ? "a" : "so"));
+
+                if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
+                    SHUI_UGetFileEditTime(&libFile) > outTime)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+#endif
+
+static void SHUI_MAddLinks(SHUI_StringList *command)
+{
+    for (usz i = 0; i < SHUILD.MODULE.linkDirectories.count; i++)
+    {
+        SHUI_String linkDirectory = {0};
+        SHUI_SFormat(&linkDirectory, "-L%s", SHUILD.MODULE.linkDirectories.data[i].data);
+        SHUI_SLAdd(command, &linkDirectory);
+
+        SHUI_SFormat(&linkDirectory, "-Wl%s,%s",
+                     SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
+                     SHUILD.MODULE.linkDirectories.data[i].data);
+        SHUI_SLAdd(command, &linkDirectory);
+    }
+
+    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    {
+        SHUI_String link = {0};
+        SHUI_SFormat(&link, "-l%s", SHUILD.MODULE.links.data[i].data);
+        SHUI_SLAdd(command, &link);
+    }
+}
+
 static void SHUI_MCompileExecutable(const SHUI_String *directory)
 {
-    SHUI_SLAdd(&SHUILD.MODULE.EXECUTABLE.linkDirectories, &SHUILD.currentExecutableDirectory);
+    SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, &SHUILD.currentExecutableDirectory);
 
     bool skipExePacking = true;
 
@@ -1787,39 +1972,10 @@ static void SHUI_MCompileExecutable(const SHUI_String *directory)
     SHU_LogInfo("Compiling executable '%s'...", outFile.data);
 
 #ifdef SHUC_ENABLE_INCREMENTAL
-    if (SHUI_UFileExists(&outFile) != SHUFileType_Regular)
+    if (SHUI_UFileExists(&outFile) != SHUFileType_Regular || SHUI_MLinksNewer(&outFile))
     {
         skipExePacking = false;
-        goto out;
     }
-
-    i64 exeTime = SHUI_UGetFileEditTime(&outFile);
-
-    for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
-    {
-        for (usz j = 0; j < SHUILD.MODULE.EXECUTABLE.links.count; j++)
-        {
-            // the names that SHUI_MCompileLibraryStatic and SHUI_MCompileLibraryDynamic give the library
-            for (u8 k = 0; k < 2; k++)
-            {
-                SHUI_String libFile = {0};
-
-                SHUI_SFormat(&libFile, "%s%s%s.%s",
-                             SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data,
-                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : "lib",
-                             SHUILD.MODULE.EXECUTABLE.links.data[j].data,
-                             SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? (k == 0 ? "lib" : "dll") : (k == 0 ? "a" : "so"));
-
-                if (SHUI_UFileExists(&libFile) == SHUFileType_Regular &&
-                    SHUI_UGetFileEditTime(&libFile) > exeTime)
-                {
-                    skipExePacking = false;
-                    goto out;
-                }
-            }
-        }
-    }
-out:
 #endif
 
     if (!skipExePacking)
@@ -1835,24 +1991,7 @@ out:
             SHUI_SLAdd(&command, &inputFiles.data[i]);
         }
 
-        for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.linkDirectories.count; i++)
-        {
-            SHUI_String linkDirectory = {0};
-            SHUI_SFormat(&linkDirectory, "-L%s", SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data);
-            SHUI_SLAdd(&command, &linkDirectory);
-
-            SHUI_SFormat(&linkDirectory, "-Wl%s,%s",
-                         SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? "" : ",-rpath",
-                         SHUILD.MODULE.EXECUTABLE.linkDirectories.data[i].data);
-            SHUI_SLAdd(&command, &linkDirectory);
-        }
-
-        for (usz i = 0; i < SHUILD.MODULE.EXECUTABLE.links.count; i++)
-        {
-            SHUI_String link = {0};
-            SHUI_SFormat(&link, "-l%s", SHUILD.MODULE.EXECUTABLE.links.data[i].data);
-            SHUI_SLAdd(&command, &link);
-        }
+        SHUI_MAddLinks(&command);
 
         SHUI_CAddFlags(&command);
         SHUI_CRun(&command, true);
@@ -1994,10 +2133,15 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
     {
         skipLibPacking = false;
     }
+#ifdef SHUC_ENABLE_INCREMENTAL
+    else if (SHUI_MLinksNewer(&libraryFile))
+    {
+        skipLibPacking = false;
+    }
+#endif
 
     if (!skipLibPacking)
     {
-
         SHUI_StringList command = {0};
         SHUI_CAddArguments(&command, SHUILD.COMPILER.command.data);
         SHUI_CAddArgument(&command, "-shared");
@@ -2009,6 +2153,7 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
             SHUI_SLAdd(&command, &objFiles.data[i]);
         }
 
+        SHUI_MAddLinks(&command);
         SHUI_CRun(&command, true);
         SHUI_SLDestroy(&command);
     }
@@ -2763,6 +2908,11 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
     }
 #endif
 
+    if (module != SHUModuleType_LibraryStatic)
+    {
+        SHUI_MExpandLinks();
+    }
+
     switch (module)
     {
     case SHUModuleType_Executable:
@@ -2779,11 +2929,13 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         break;
     }
 
-    if (module == SHUModuleType_Executable)
+    if (module == SHUModuleType_LibraryStatic)
     {
-        SHUI_SLDestroy(&SHUILD.MODULE.EXECUTABLE.linkDirectories);
-        SHUI_SLDestroy(&SHUILD.MODULE.EXECUTABLE.links);
+        SHUI_MRecordLibrary();
     }
+
+    SHUI_SLDestroy(&SHUILD.MODULE.linkDirectories);
+    SHUI_SLDestroy(&SHUILD.MODULE.links);
 
     SHUI_SLDestroy(&SHUILD.MODULE.includeDirectories);
     SHUI_SLDestroy((SHUI_StringList *)&SHUILD.MODULE.sourceFiles);
@@ -2821,7 +2973,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
         SHU_LogError(SHUResult_ErrNotFound, "File '%s' to add library directory does not exists or not a directory.", correctedDirectory.data);
     }
 
-    SHUI_SLAdd(&SHUILD.MODULE.EXECUTABLE.linkDirectories, &correctedDirectory);
+    SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, &correctedDirectory);
 }
 
 void SHU_ModuleLinkLibrary(const char *library)
@@ -2831,7 +2983,7 @@ void SHU_ModuleLinkLibrary(const char *library)
     SHUI_String libraryStr = {0};
     SHUI_SAppendC(&libraryStr, library);
 
-    SHUI_SLAdd(&SHUILD.MODULE.EXECUTABLE.links, &libraryStr);
+    SHUI_SLAdd(&SHUILD.MODULE.links, &libraryStr);
 }
 
 #pragma endregion Module
