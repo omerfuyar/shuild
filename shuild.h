@@ -1,11 +1,10 @@
 // You can define various macros to configure Shuild before including this file.
 // define SHU_IMPLEMENTATION in one file to include the implementation.
 // define SHUC_ENABLE_INCREMENTAL to enable incremental builds.
-// define SHUC_NO_MODULE_LOG to disable module logs.
-// define SHUC_NO_RUN_LOG to disable command run logs.
+// define SHUC_NO_MODULE_LOG to leave out the line that each module logs when it compiles.
+// define SHUC_LOG_COMMANDS to log each command that runs. Otherwise a command is logged only when it fails.
 // define SHUC_NO_RUN_ERROR to disable termination on run error.
 // define SHUC_MAX_JOB_COUNT 1 to compile one file at a time instead of as many as there are processors.
-// define SHUC_LOG_FORMAT and SHUC_LOG_FORMAT_VALUES to change log formatting.
 // define SHUC_MAX_<...> <limit> to customize limits.
 
 // todo add macro helpers like module(...){...} for easy module begin and compile, like shujsn, shuarg or clay.
@@ -495,6 +494,7 @@ static struct
     struct
     {
         i64 processes[SHUC_MAX_JOB_COUNT];
+        char *commands[SHUC_MAX_JOB_COUNT]; // shown when the job fails
         usz count;
         usz limit;
         i32 failure;
@@ -511,6 +511,8 @@ static struct
         SHUI_StringList publicIncludeDirectories; // given to the modules that link it
         SHUI_StringList linkedIncludeDirectories; // the public include directories of the libraries it links
         bool copyDynamicLinks;
+        usz compiledCount; // for the module's line in the log
+        char *output;      // the file it linked or packed, or NULL when it was up to date
     } MODULE;
 
     // the libraries compiled so far, with what the modules that link them get
@@ -572,6 +574,53 @@ static char *SHUI_Format(const char *format, ...)
     va_end(args);
 
     return string;
+}
+
+// shuild's own messages are one short line each, with paths from the build script's directory
+static void SHUI_LogLine(const char *kind, const char *format, va_list args)
+{
+    fprintf(SHU_LOG_STREAM, SHUM_COLOR_BOLD("[shuild]") " %s%s\n", kind, SHUI_VFormat(format, args));
+}
+
+static void SHUI_Log(const char *format, ...) __attribute__((format(printf, 1, 2)));
+static void SHUI_Log(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    SHUI_LogLine("", format, args);
+    va_end(args);
+}
+
+static void SHUI_Warn(const char *format, ...) __attribute__((format(printf, 1, 2)));
+static void SHUI_Warn(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    SHUI_LogLine(SHUM_COLOR_YELLOW("warning: "), format, args);
+    va_end(args);
+}
+
+/// @brief Logs an error, and ends the build with the code unless it is 0.
+static void SHUI_Fail(i32 code, const char *format, ...) __attribute__((format(printf, 2, 3)));
+static void SHUI_Fail(i32 code, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
+    va_end(args);
+
+    if (code != 0)
+    {
+        exit(code);
+    }
+}
+
+/// @brief A path from the build script's directory, for logs.
+static const char *SHUI_SShort(const char *path)
+{
+    usz length = SHUILD.currentExecutableDirectory == NULL ? 0 : (usz)strlen(SHUILD.currentExecutableDirectory);
+
+    return length != 0 && strncmp(path, SHUILD.currentExecutableDirectory, length) == 0 ? path + length : path;
 }
 
 static void SHUI_BAppendChar(SHUI_Builder *builder, char character)
@@ -978,7 +1027,8 @@ static char *SHUI_CQuoteArgument(char *argument)
 }
 #endif
 
-static i64 SHUI_CStart(const SHUI_StringList *command)
+/// @param line Gets the command as one line, for a log, or NULL.
+static i64 SHUI_CStart(const SHUI_StringList *command, char **line)
 {
     SHU_Assert(command->count > 0, "Internal: Empty command.");
 
@@ -995,20 +1045,27 @@ static i64 SHUI_CStart(const SHUI_StringList *command)
     }
     argv[command->count] = NULL;
 
-#ifndef SHUC_NO_RUN_LOG
-    SHUI_Builder line = {0};
+    SHUI_Builder joined = {0};
 
     for (usz i = 0; i < command->count; i++)
     {
         if (i != 0)
         {
-            SHUI_BAppendChar(&line, ' ');
+            SHUI_BAppendChar(&joined, ' ');
         }
 
-        SHUI_BAppend(&line, argv[i]);
+        SHUI_BAppend(&joined, argv[i]);
     }
 
-    SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), SHUI_BTake(&line));
+    char *commandLine = SHUI_BTake(&joined);
+
+    if (line != NULL)
+    {
+        *line = commandLine;
+    }
+
+#ifdef SHUC_LOG_COMMANDS
+    SHUI_Log("$ %s", commandLine);
 #endif
 
     i64 process = -1;
@@ -1021,7 +1078,7 @@ static i64 SHUI_CStart(const SHUI_StringList *command)
     if (pid == 0)
     {
         execvp(argv[0], argv);
-        SHU_LogError(0, "Starting " SHUM_COLOR_CYAN("'%s'") " failed : %s.", argv[0], strerror(errno));
+        SHUI_Fail(0, "'%s' cannot start: %s", argv[0], strerror(errno));
         _exit(127);
     }
 
@@ -1056,23 +1113,25 @@ static i32 SHUI_CWait(i64 process)
 #endif
 }
 
-static void SHUI_CReport(i32 result, bool terminateOnError)
+// a failed command is shown whole, so it can be run again by hand
+static void SHUI_CReport(i32 result, bool terminateOnError, const char *line)
 {
     if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
         (void)terminateOnError;
-        SHU_LogError(0, "Command failed with exit code %d.", result);
+        SHUI_Fail(0, "command failed with exit code %d: %s", result, line);
 #else
-        SHU_LogError(terminateOnError ? result : 0, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
+        SHUI_Fail(terminateOnError ? result : 0, "command failed with exit code %d: %s", result, line);
 #endif
     }
 }
 
 static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
 {
-    i32 result = SHUI_CWait(SHUI_CStart(command));
-    SHUI_CReport(result, terminateOnError);
+    char *line = NULL;
+    i32 result = SHUI_CWait(SHUI_CStart(command, &line));
+    SHUI_CReport(result, terminateOnError, line);
 
     return result;
 }
@@ -1117,11 +1176,14 @@ static void SHUI_CWaitJob(void)
     result = status != -1 && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 
-    SHUILD.JOBS.processes[index] = SHUILD.JOBS.processes[--SHUILD.JOBS.count];
+    char *line = SHUILD.JOBS.commands[index];
+    SHUILD.JOBS.count--;
+    SHUILD.JOBS.processes[index] = SHUILD.JOBS.processes[SHUILD.JOBS.count];
+    SHUILD.JOBS.commands[index] = SHUILD.JOBS.commands[SHUILD.JOBS.count];
 
     if (result != 0)
     {
-        SHUI_CReport(result, false);
+        SHUI_CReport(result, false, line);
 
         if (SHUILD.JOBS.failure == 0)
         {
@@ -1159,16 +1221,18 @@ static void SHUI_CStartJob(const SHUI_StringList *command)
         SHUI_CWaitJob();
     }
 
-    i64 process = SHUI_CStart(command);
+    char *line = NULL;
+    i64 process = SHUI_CStart(command, &line);
 
     if (process < 0)
     {
-        SHUI_CReport(-1, false);
+        SHUI_CReport(-1, false, line);
         SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? -1 : SHUILD.JOBS.failure;
         return;
     }
 
-    SHUILD.JOBS.processes[SHUILD.JOBS.count++] = process;
+    SHUILD.JOBS.processes[SHUILD.JOBS.count] = process;
+    SHUILD.JOBS.commands[SHUILD.JOBS.count++] = line;
 }
 
 static void SHUI_CWaitJobs(void)
@@ -1184,7 +1248,7 @@ static void SHUI_CWaitJobs(void)
 #ifndef SHUC_NO_RUN_ERROR
     if (failure != 0)
     {
-        SHU_LogError(failure, "Compiling failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", failure);
+        SHUI_Fail(failure, "'%s' failed to compile.", SHUILD.MODULE.name);
     }
 #else
     (void)failure;
@@ -1233,7 +1297,7 @@ static void SHUI_UMakeDirectory(const char *path)
 
     if (result != 0 && errno != EEXIST)
     {
-        SHU_LogError(result, "Internal: Directory creation failed for '%s'", path);
+        SHUI_Fail(result, "directory '%s' cannot be made: %s", SHUI_SShort(path), strerror(errno));
     }
 }
 
@@ -1261,7 +1325,7 @@ static void SHUI_UDeleteSingleFile(const char *path)
 
     if (result != 0)
     {
-        SHU_LogError(result, "Internal: File deletion failed for '%s'", path);
+        SHUI_Fail(result, "file '%s' cannot be deleted: %s", SHUI_SShort(path), strerror(errno));
     }
 }
 
@@ -1272,7 +1336,7 @@ static void SHUI_UDeleteDirectory(const char *path)
 
     if (result != 0)
     {
-        SHU_LogError(result, "Internal: Directory deletion failed for '%s'.", path);
+        SHUI_Fail(result, "directory '%s' cannot be deleted: %s", SHUI_SShort(path), strerror(errno));
     }
 }
 #else
@@ -1340,7 +1404,7 @@ static SHUSlice SHUI_UReadFile(const char *path)
 
     if (fileHandle == NULL)
     {
-        SHU_LogError(SHUResult_ErrFile, "File '%s' to read cannot be opened.", path);
+        SHUI_Fail(SHUResult_ErrFile, "file '%s' cannot be read: %s", SHUI_SShort(path), strerror(errno));
     }
 
     fseek(fileHandle, 0, SEEK_END);
@@ -1378,7 +1442,7 @@ static void SHUI_UWriteFile(const char *path, SHUSliceView content)
 
     if (fileHandle == NULL)
     {
-        SHU_LogError(SHUResult_ErrFile, "File '%s' to write cannot be opened.", path);
+        SHUI_Fail(SHUResult_ErrFile, "file '%s' cannot be written: %s", SHUI_SShort(path), strerror(errno));
     }
 
     usz fileWritten = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, fileHandle);
@@ -1396,7 +1460,7 @@ static void SHUI_UCopySingleFile(const char *src, const char *dst)
 
     if (stat(src, &stats) == 0 && chmod(dst, stats.st_mode & 07777) != 0)
     {
-        SHU_LogError(SHUResult_ErrFile, "Internal: Permission setting failed for '%s'.", dst);
+        SHUI_Fail(SHUResult_ErrFile, "permissions of '%s' cannot be set: %s", SHUI_SShort(dst), strerror(errno));
     }
 #endif
 }
@@ -1427,7 +1491,7 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
     HANDLE hFind = FindFirstFileA(SHUI_Format("%s\\*", src), &ffd);
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", src);
+        SHUI_Fail(SHUResult_ErrInternal, "directory '%s' cannot be opened.", SHUI_SShort(src));
     }
 
     do
@@ -1445,7 +1509,7 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
     DIR *dir = opendir(src);
     if (!dir)
     {
-        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", src);
+        SHUI_Fail(SHUResult_ErrInternal, "directory '%s' cannot be opened.", SHUI_SShort(src));
     }
 
     struct dirent *entry;
@@ -1474,7 +1538,7 @@ static void SHUI_URenameFile(const char *file, const char *name)
 
     if (result != 0)
     {
-        SHU_LogError(result, "Internal: File rename failed from '%s' to '%s'.", file, name);
+        SHUI_Fail(result, "'%s' cannot be renamed to '%s': %s", SHUI_SShort(file), SHUI_SShort(name), strerror(errno));
     }
 }
 
@@ -1486,7 +1550,7 @@ static i64 SHUI_UGetFileEditTime(const char *file)
 
     if (result != 0)
     {
-        SHU_LogError(SHUResult_ErrInternal, "Internal: File attribute getting failed for '%s'.", file);
+        SHUI_Fail(SHUResult_ErrInternal, "file '%s' cannot be found: %s", SHUI_SShort(file), strerror(errno));
     }
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_LINUX)
@@ -1608,7 +1672,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
         return;
     }
 
-    SHU_LogInfo(SHUM_COLOR_MAGENTA("Build source or dependencies have changed, rebuilding..."));
+    SHUI_Log("the build script changed; rebuilding it");
 
     char *oldExePath = SHUI_Format("%s.old", executablePath);
     SHUI_URenameFile(executablePath, oldExePath);
@@ -1629,7 +1693,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     else
     {
         SHUI_URenameFile(oldExePath, executablePath);
-        SHU_LogError(result, "Failed to rebuild build script.");
+        SHUI_Fail(result, "the build script cannot be rebuilt.");
     }
 }
 
@@ -1643,7 +1707,7 @@ static SHUI_Hash SHUI_CModuleStateHash(void)
 #define SHUI_HASH_STRING(string)                    \
     for (const char *c = (string); *c != '\0'; c++) \
     {                                               \
-        SHUI_HASH_BYTE(*c);                         \
+        SHUI_HASH_BYTE((u8)*c);                     \
     }                                               \
     SHUI_HASH_MIX
     // the count tells an empty list from none
@@ -1785,6 +1849,7 @@ static void SHUI_CCompileUnit(const char *sourceFile, const char *objectFile, co
     }
 
     SHUI_CStartJob(&command);
+    SHUILD.MODULE.compiledCount++;
 }
 
 static void SHUI_MAddSourceDirectoryRecursive(const char *path)
@@ -1818,7 +1883,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const char *path)
 
     if (!dir)
     {
-        SHU_LogError(SHUResult_ErrInternal, "Internal: Directory open failed for '%s'.", path);
+        SHUI_Fail(SHUResult_ErrInternal, "directory '%s' cannot be opened.", SHUI_SShort(path));
     }
 
     struct dirent *entry;
@@ -2088,6 +2153,7 @@ static void SHUI_MCompileExecutable(const char *directory)
         SHUI_SLAdd(&inputFiles, objectFile);
 #else
         skipExePacking = false;
+        SHUILD.MODULE.compiledCount++;
 
         SHUI_SLAdd(&inputFiles, sourceFile);
 #endif
@@ -2099,8 +2165,6 @@ static void SHUI_MCompileExecutable(const char *directory)
                                 directory,
                                 SHUILD.MODULE.name,
                                 SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
-
-    SHU_LogInfo("Compiling executable '%s'...", outFile);
 
 #ifdef SHUC_ENABLE_INCREMENTAL
     if (SHUI_UFileExists(outFile) != SHUFileType_Regular || SHUI_MLinksNewer(outFile))
@@ -2126,10 +2190,7 @@ static void SHUI_MCompileExecutable(const char *directory)
 
         SHUI_CAddFlags(&command);
         SHUI_CRun(&command, true);
-    }
-    else
-    {
-        SHU_LogInfo("Nothing to compile, skipping...");
+        SHUILD.MODULE.output = outFile;
     }
 }
 
@@ -2192,10 +2253,7 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
         }
 
         SHUI_CRun(&command, true);
-    }
-    else
-    {
-        SHU_LogInfo("Nothing to compile, skipping...");
+        SHUILD.MODULE.output = libraryFile;
     }
 
 #ifndef SHUC_ENABLE_INCREMENTAL
@@ -2276,10 +2334,7 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
         SHUI_MAddLinks(&command, directory);
         SHUI_CRun(&command, true);
-    }
-    else
-    {
-        SHU_LogInfo("Nothing to compile, skipping...");
+        SHUILD.MODULE.output = libraryFile;
     }
 
 #ifndef SHUC_ENABLE_INCREMENTAL
@@ -2296,8 +2351,8 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
 static i32 SHUI_URunCommand(bool stopOnFailure, const char *command)
 {
-#ifndef SHUC_NO_RUN_LOG
-    SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), command);
+#ifdef SHUC_LOG_COMMANDS
+    SHUI_Log("$ %s", command);
 #endif
 
     i32 result = system(command);
@@ -2309,15 +2364,11 @@ static i32 SHUI_URunCommand(bool stopOnFailure, const char *command)
 
     if (result != 0 && !stopOnFailure)
     {
-        SHU_LogWarning("Command failed with exit code %d.", result);
+        SHUI_Warn("command failed with exit code %d: %s", result, command);
     }
-    else if (result != 0)
+    else
     {
-#ifdef SHUC_NO_RUN_ERROR
-        SHU_LogError(0, "Command failed with exit code %d.", result);
-#else
-        SHU_LogError(result, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
-#endif
+        SHUI_CReport(result, true, command);
     }
 
     return result;
@@ -2391,9 +2442,9 @@ i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
         fprintf(SHU_LOG_STREAM, "%s\n", start);
 
 #ifdef SHUC_NO_RUN_ERROR
-        SHU_LogError(0, "Command failed with exit code %d; '%s' has its output.", result, logPath);
+        SHUI_Fail(0, "command failed with exit code %d; '%s' has its output: %s", result, SHUI_SShort(logPath), command);
 #else
-        SHU_LogError(result, "Command failed with exit code %d; '%s' has its output. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result, logPath);
+        SHUI_Fail(result, "command failed with exit code %d; '%s' has its output: %s", result, SHUI_SShort(logPath), command);
 #endif
     }
 
@@ -2440,8 +2491,8 @@ i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
 {
     i32 result = 0;
 
-#ifndef SHUC_NO_RUN_LOG
-    SHU_LogInfo("Spawning process : " SHUM_COLOR_CYAN("'%s'"), executable);
+#ifdef SHUC_LOG_COMMANDS
+    SHUI_Log("$ %s", executable);
 #endif
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -2469,20 +2520,7 @@ i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
     }
 #endif
 
-    if (result != 0)
-    {
-#ifdef SHUC_NO_RUN_ERROR
-        SHU_LogError(0, "Process failed with exit code %d.", result);
-#else
-        SHU_LogError(result, "Process failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
-#endif
-    }
-    else
-    {
-#ifndef SHUC_NO_RUN_LOG
-        SHU_LogInfo("Process " SHUM_COLOR_CYAN("'%s'") " executed successfully.", executable);
-#endif
-    }
+    SHUI_CReport(result, true, executable);
 
     return result;
 }
@@ -2578,7 +2616,7 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
     HANDLE hFind = FindFirstFileA(SHUI_Format("%s*", path), &ffd);
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        SHU_LogError(SHUResult_ErrNotFound, "Directory '%s' to list does not exists.", path);
+        SHUI_Fail(SHUResult_ErrNotFound, "directory '%s' to list does not exist.", SHUI_SShort(path));
     }
 
     do
@@ -2595,7 +2633,7 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
 
     if (!dir)
     {
-        SHU_LogError(SHUResult_ErrNotFound, "Directory '%s' to list does not exists.", path);
+        SHUI_Fail(SHUResult_ErrNotFound, "directory '%s' to list does not exist.", SHUI_SShort(path));
     }
 
     struct dirent *entry;
@@ -2725,8 +2763,6 @@ void SHU_CacheConfigure(const char *cacheDirectory)
     SHUILD.cacheDirectory = SHUI_SPath(SHUILD.currentExecutableDirectory, cacheDirectory, true);
 
     SHUI_UMakeDirectoryRecursive(SHUILD.cacheDirectory);
-
-    SHU_LogInfo("Configured cache directory at " SHUM_COLOR_CYAN("'%s'"), SHUILD.cacheDirectory);
 }
 
 void SHU_CacheClearModule(const char *moduleName)
@@ -2838,7 +2874,7 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     }
     else
     {
-        SHU_LogError(SHUResult_Err, "Unknown compiler command '%s'. Use " SHUM_COLOR_BLUE("SHU_CompilerConfigure") " to configure it manually.", compilerCommand);
+        SHUI_Fail(SHUResult_Err, "compiler '%s' is not known; configure it with SHU_CompilerConfigure.", compilerCommand);
     }
 }
 
@@ -2880,7 +2916,7 @@ usz SHU_CompilerGetFlags(SHUSlice buffer)
 
         if (written < 0 || (usz)written >= buffer.size - bufferIndex)
         {
-            SHU_LogWarning("Buffer too small for compiler flags. Output truncated.");
+            SHUI_Warn("the buffer is too small for the compiler flags, so they are cut.");
             bufferIndex = buffer.size - 1;
             break;
         }
@@ -2967,16 +3003,12 @@ void SHU_ModuleAddSourceFile(const char *file)
     }
     else
     {
-        SHU_LogError(SHUResult_ErrNotFound, "File '%s' to add source does not exists.", path);
+        SHUI_Fail(SHUResult_ErrNotFound, "source '%s' does not exist.", SHUI_SShort(path));
     }
 }
 
 void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 {
-#ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("Starting to compile %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUILD.MODULE.name);
-#endif
-
     char *directoryPath = SHUILD.currentExecutableDirectory;
 
     if (directory != NULL && strlen(directory) != 0)
@@ -2989,12 +3021,18 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         }
     }
 
+    // its settings, such as its flags, are new or changed, so every file compiles again
+    bool settingsChanged = false;
+
 #ifdef SHUC_ENABLE_INCREMENTAL
+    // a module compiled for the first time has no settings to change
+    bool cached = SHUI_UFileExists(SHUI_CModuleStateFile(SHUILD.MODULE.name)) == SHUFileType_Regular;
+
     if (SHUI_CModuleStateDirty(SHUILD.MODULE.name))
     {
-        SHU_LogInfo("Build cache not initialized or changed, Cleaning up cache for %s " SHUM_COLOR_MAGENTA("'%s'") "...", SHUModuleType_GetString(module), SHUILD.MODULE.name);
         SHU_CacheClearModule(SHUILD.MODULE.name);
         SHUI_CModuleStateUpdate(SHUILD.MODULE.name);
+        settingsChanged = cached;
     }
 #endif
 
@@ -3017,7 +3055,7 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         SHUI_MCompileLibraryDynamic(directoryPath);
         break;
     default:
-        SHU_LogError(SHUResult_Err, "Invalid module type passed to SHU_ModuleCompile.");
+        SHUI_Fail(SHUResult_Err, "module type %d is not known.", (int)module);
         break;
     }
 
@@ -3032,7 +3070,24 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
     }
 
 #ifndef SHUC_NO_MODULE_LOG
-    SHU_LogInfo("%s " SHUM_COLOR_MAGENTA("'%s'") " successfully compiled.\n", SHUModuleType_GetString(module), SHUILD.MODULE.name);
+    // one line for the module: what it compiled and made, or that it was up to date
+    if (SHUILD.MODULE.output == NULL)
+    {
+        SHUI_Log("%s (%s): up to date", SHUILD.MODULE.name, SHUModuleType_GetString(module));
+    }
+    else
+    {
+        SHUI_Log("%s (%s): compiled %zu file%s, %s %s%s",
+                 SHUILD.MODULE.name,
+                 SHUModuleType_GetString(module),
+                 SHUILD.MODULE.compiledCount,
+                 SHUILD.MODULE.compiledCount == 1 ? "" : "s",
+                 module == SHUModuleType_LibraryStatic ? "packed" : "linked",
+                 SHUI_SShort(SHUILD.MODULE.output),
+                 settingsChanged ? " (settings changed)" : "");
+    }
+#else
+    (void)settingsChanged;
 #endif
 
     // the next module starts with new lists, as a library's record keeps these
@@ -3047,7 +3102,7 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
 
     if (SHUI_UFileExists(path) != SHUFileType_Directory)
     {
-        SHU_LogError(SHUResult_ErrNotFound, "File '%s' to add library directory does not exists or not a directory.", path);
+        SHUI_Fail(SHUResult_ErrNotFound, "library directory '%s' does not exist.", SHUI_SShort(path));
     }
 
     SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, path);

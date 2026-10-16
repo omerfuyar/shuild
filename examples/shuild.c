@@ -1,4 +1,3 @@
-#define SHUC_NO_RUN_LOG
 #define SHU_IMPLEMENTATION
 #include "../../shu/shu.h"
 #include "../shuild.h"
@@ -62,7 +61,7 @@ int main(int argc, char **argv)
 
     SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW);
     SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation" SHUM_FLAGS_DEBUG SHUM_FLAGS_STANDARD_C23);
-    SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", NULL, "SHUC_NO_RUN_LOG", NULL);
+    SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", NULL);
 
     // every numbered directory beside this file is an example, built in the order of their names
     SHU_UtilListDirectory("", false, BuildExample, NULL);
