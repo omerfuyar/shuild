@@ -23,3 +23,4 @@ examples/*/exampleDebug
 examples/*/exampleRelease
 examples/4_folder_structures/4_folder_structures
 examples/3_main_arguments/3_main_arguments
+examples/15_build_scripts/tool/shuild
