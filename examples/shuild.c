@@ -17,10 +17,48 @@ void ShuildShuild(const char *name, const char *arg)
     snprintf(buffer, SHUC_MAX_STRING_SIZE, "./%s/shuild %s", name, arg == NULL ? "" : arg);
 #endif
 
-    SHU_UtilRun(buffer);
+    SHU_UtilRun("%s", buffer);
 }
 
-// todo automatically search and build in directory examples.
+/// @brief The examples whose builds take arguments: each argument is given to a build of its own. The others build once, without one.
+static const struct
+{
+    const char *name;
+    const char *arguments[2];
+} EXAMPLE_ARGUMENTS[] = {
+    {"7_different_compilers", {"gcc", NULL}},
+    {"10_compiler_helpers", {"d", "r"}},
+};
+
+/// @brief Builds an example: a directory whose name starts with its number, such as 1_single_source/.
+void BuildExample(const char *path, SHUFileType type, void *data)
+{
+    (void)data;
+
+    if (type != SHUFileType_Directory || path[0] < '0' || path[0] > '9')
+    {
+        return;
+    }
+
+    // the directory's name, without the separator at its end
+    char name[SHUC_MAX_STRING_SIZE] = {0};
+    snprintf(name, sizeof(name), "%.*s", (int)strlen(path) - 1, path);
+
+    for (usz i = 0; i < sizeof(EXAMPLE_ARGUMENTS) / sizeof(*EXAMPLE_ARGUMENTS); i++)
+    {
+        if (strcmp(EXAMPLE_ARGUMENTS[i].name, name) == 0)
+        {
+            for (usz j = 0; j < 2 && EXAMPLE_ARGUMENTS[i].arguments[j] != NULL; j++)
+            {
+                ShuildShuild(name, EXAMPLE_ARGUMENTS[i].arguments[j]);
+            }
+
+            return;
+        }
+    }
+
+    ShuildShuild(name, NULL);
+}
 
 int main(int argc, char **argv)
 {
@@ -31,21 +69,8 @@ int main(int argc, char **argv)
     SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation" SHUM_FLAGS_DEBUG SHUM_FLAGS_STANDARD_C23);
     SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", NULL, "SHUC_NO_RUN_LOG", NULL);
 
-    ShuildShuild("1_single_source", NULL);
-    ShuildShuild("2_compiler_flags", NULL);
-    ShuildShuild("3_main_arguments", NULL);
-    ShuildShuild("4_folder_structures", NULL);
-    ShuildShuild("5_static_library", NULL);
-    ShuildShuild("6_dynamic_library", NULL);
-    ShuildShuild("7_different_compilers", "gcc");
-    ShuildShuild("8_header_configuration", NULL);
-    ShuildShuild("9_automate_builds", NULL);
-    ShuildShuild("10_compiler_helpers", "d");
-    ShuildShuild("10_compiler_helpers", "r");
-    ShuildShuild("11_incremental_builds", NULL);
-    ShuildShuild("12_different_incrementals", NULL);
-    ShuildShuild("13_utility_functions", NULL);
-    ShuildShuild("14_linked_libraries", NULL);
+    // every numbered directory beside this file is an example, built in the order of their names
+    SHU_UtilListDirectory("", false, BuildExample, NULL);
 
     if (argc > 1) // run all
     {
