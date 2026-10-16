@@ -219,6 +219,11 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName);
 /// @return Exit code of the command. SHUC_NO_RUN_ERROR should be defined to access this value.
 i32 SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
+/// @brief Runs a command like SHU_UtilRun, but its failure does not stop the build, even without SHUC_NO_RUN_ERROR. Use it for a command that may fail.
+/// @param command Command to run with the shell, through system. (eg. ./tests --quick)
+/// @return Exit code of the command.
+i32 SHU_UtilTryRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
+
 /// @brief Spawns a new process synchronously.
 /// @param executable Path to executable.
 /// @param argv Arguments array (NULL terminated).
@@ -242,9 +247,9 @@ void SHU_UtilCreateDirectory(const char *directory);
 /// @param file File to delete. Relative to current executable.
 void SHU_UtilDeleteFile(const char *file);
 
-/// @brief Copies a file or directory recursively.
-/// @param file File to copy, relative to current executable.
-/// @param directory Directory to copy file, relative to current executable.
+/// @brief Copies a file into a directory, or a directory's contents into a directory recursively. A file that has the same content already is left as is, so its edit time stays and what includes it does not compile again. Copies keep the file's permissions on Linux and macOS.
+/// @param file File or directory to copy, relative to current executable. (eg. include/foo.h or resources/)
+/// @param directory Directory to copy into, relative to current executable. It is created if it doesn't exist. (eg. build/include/)
 void SHU_UtilCopyFile(const char *file, const char *directory);
 
 /// @brief Renames a file.
@@ -275,7 +280,7 @@ bool SHU_UtilMatch(const char *string, const char *pattern);
 /// @return Slice of the file's contents, followed by a terminating zero that the size does not count. Free its data with free.
 SHUSlice SHU_UtilReadFile(const char *file);
 
-/// @brief Writes a file, replacing it if it exists.
+/// @brief Writes a file, replacing it if it exists. A file that has the content already is left as is, so its edit time stays and what includes it does not compile again.
 /// @param file File to write, relative to current executable.
 /// @param content Content to write.
 void SHU_UtilWriteFile(const char *file, SHUSliceView content);
@@ -1101,23 +1106,76 @@ static void SHUI_UDeleteRecursive(const SHUI_String *path)
 #endif
 }
 
-static void SHUI_UCopySingleFile(const SHUI_String *src, const SHUI_String *dst)
+static SHUSlice SHUI_UReadFile(const SHUI_String *path)
 {
-    FILE *srcFile = fopen(src->data, "rb");
-    SHU_Assert(srcFile != NULL, "File open failed for '%s'", src->data);
+    FILE *fileHandle = fopen(path->data, "rb");
 
-    FILE *dstFile = fopen(dst->data, "wb");
-    SHU_Assert(dstFile != NULL, "File open failed for '%s'", dst->data);
-
-    char buffer[4096] = {0};
-    usz bytesRead;
-    while ((bytesRead = (usz)fread(buffer, 1, sizeof(buffer), srcFile)) > 0)
+    if (fileHandle == NULL)
     {
-        fwrite(buffer, 1, bytesRead, dstFile);
+        SHU_LogError(SHUResult_ErrFile, "File '%s' to read cannot be opened.", path->data);
     }
 
-    fclose(srcFile);
-    fclose(dstFile);
+    fseek(fileHandle, 0, SEEK_END);
+    long fileLength = ftell(fileHandle);
+    fseek(fileHandle, 0, SEEK_SET);
+
+    SHU_Assert(fileLength >= 0, "File size getting failed for '%s'.", path->data);
+
+    char *buffer = (char *)malloc((size_t)fileLength + 1);
+    SHU_Assert(buffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)fileLength + 1);
+
+    usz fileRead = (usz)fread(buffer, 1, (size_t)fileLength, fileHandle);
+    SHU_Assert(fileRead == (usz)fileLength, "File read failed for '%s'.", path->data);
+    buffer[fileLength] = '\0';
+    fclose(fileHandle);
+
+    return cs(buffer, (usz)fileLength);
+}
+
+static void SHUI_UWriteFile(const SHUI_String *path, SHUSliceView content)
+{
+    SHU_Assert(content.data != NULL || content.size == 0, "Content to write to '%s' is NULL.", path->data);
+
+    // a file that has the content already is left as is, so its edit time stays and what includes it does not compile again
+    if (SHUI_UFileExists(path) == SHUFileType_Regular)
+    {
+        SHUSlice old = SHUI_UReadFile(path);
+        bool same = old.size == content.size && (content.size == 0 || memcmp(old.data, content.data, content.size) == 0);
+        free(old.data);
+
+        if (same)
+        {
+            return;
+        }
+    }
+
+    FILE *fileHandle = fopen(path->data, "wb");
+
+    if (fileHandle == NULL)
+    {
+        SHU_LogError(SHUResult_ErrFile, "File '%s' to write cannot be opened.", path->data);
+    }
+
+    usz fileWritten = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, fileHandle);
+    SHU_Assert(fileWritten == content.size, "File write failed for '%s'.", path->data);
+    fclose(fileHandle);
+}
+
+static void SHUI_UCopySingleFile(const SHUI_String *src, const SHUI_String *dst)
+{
+    SHUSlice content = SHUI_UReadFile(src);
+    SHUI_UWriteFile(dst, csv(content));
+    free(content.data);
+
+#if !SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    // the copy keeps the permissions, so a copied program or script still runs
+    struct stat stats;
+
+    if (stat(src->data, &stats) == 0 && chmod(dst->data, stats.st_mode & 07777) != 0)
+    {
+        SHU_LogError(SHUResult_ErrFile, "Internal: Permission setting failed for '%s'.", dst->data);
+    }
+#endif
 }
 
 static void SHUI_UCopyRecursive(const SHUI_String *src, const SHUI_String *dst)
@@ -1973,16 +2031,10 @@ static void SHUI_MCompileLibraryDynamic(const SHUI_String *directory)
 
 #pragma region Utility
 
-i32 SHU_UtilRun(const char *commandFormat, ...)
+static i32 SHUI_URun(bool stopOnFailure, const char *commandFormat, va_list args)
 {
-    SHU_AssertNullPointer(commandFormat);
-
     char commandBuffer[SHUC_MAX_COMMAND_BUFFER_SIZE] = {0};
-
-    va_list args;
-    va_start(args, commandFormat);
     vsnprintf(commandBuffer, sizeof(commandBuffer), commandFormat, args);
-    va_end(args);
 
 #ifndef SHUC_NO_RUN_LOG
     SHU_LogInfo("Executing command : " SHUM_COLOR_CYAN("'%s'"), commandBuffer);
@@ -1995,7 +2047,11 @@ i32 SHU_UtilRun(const char *commandFormat, ...)
     result = result == -1 ? -1 : WIFEXITED(result) ? WEXITSTATUS(result) : -1;
 #endif
 
-    if (result != 0)
+    if (result != 0 && !stopOnFailure)
+    {
+        SHU_LogWarning("Command failed with exit code %d.", result);
+    }
+    else if (result != 0)
     {
 #ifdef SHUC_NO_RUN_ERROR
         SHU_LogError(0, "Command failed with exit code %d.", result);
@@ -2003,6 +2059,30 @@ i32 SHU_UtilRun(const char *commandFormat, ...)
         SHU_LogError(result, "Command failed with exit code %d. Define SHUC_NO_RUN_ERROR to avoid fast failing.", result);
 #endif
     }
+
+    return result;
+}
+
+i32 SHU_UtilRun(const char *commandFormat, ...)
+{
+    SHU_AssertNullPointer(commandFormat);
+
+    va_list args;
+    va_start(args, commandFormat);
+    i32 result = SHUI_URun(true, commandFormat, args);
+    va_end(args);
+
+    return result;
+}
+
+i32 SHU_UtilTryRun(const char *commandFormat, ...)
+{
+    SHU_AssertNullPointer(commandFormat);
+
+    va_list args;
+    va_start(args, commandFormat);
+    i32 result = SHUI_URun(false, commandFormat, args);
+    va_end(args);
 
     return result;
 }
@@ -2132,6 +2212,24 @@ void SHU_UtilCopyFile(const char *file, const char *directory)
     if (SHUI_UFileExists(&directoryStr) == SHUFileType_Invalid)
     {
         SHUI_UMakeDirectoryRecursive(&directoryStr);
+    }
+
+    // a file goes into the directory under its own name, and a directory's contents go into it
+    if (SHUI_UFileExists(&fileStr) == SHUFileType_Regular)
+    {
+        const char *name = file + strlen(file);
+
+        while (name > file && name[-1] != '/' && name[-1] != SHUM_PATH_SEPARATOR)
+        {
+            name--;
+        }
+
+        if (directoryStr.data[directoryStr.length - 1] != '/' && directoryStr.data[directoryStr.length - 1] != SHUM_PATH_SEPARATOR)
+        {
+            SHUI_SAppendC(&directoryStr, SHUM_PATH_SEPARATOR_STR);
+        }
+
+        SHUI_SAppendC(&directoryStr, name);
     }
 
     SHUI_UCopyRecursive(&fileStr, &directoryStr);
@@ -2316,48 +2414,17 @@ SHUSlice SHU_UtilReadFile(const char *file)
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
 
-    FILE *fileHandle = fopen(fileStr.data, "rb");
-
-    if (fileHandle == NULL)
-    {
-        SHU_LogError(SHUResult_ErrFile, "File '%s' to read cannot be opened.", fileStr.data);
-    }
-
-    fseek(fileHandle, 0, SEEK_END);
-    long fileLength = ftell(fileHandle);
-    fseek(fileHandle, 0, SEEK_SET);
-
-    SHU_Assert(fileLength >= 0, "File size getting failed for '%s'.", fileStr.data);
-
-    char *buffer = (char *)malloc((size_t)fileLength + 1);
-    SHU_Assert(buffer != NULL, "Internal: Memory allocation failed for size '%zu'.", (size_t)fileLength + 1);
-
-    usz fileRead = (usz)fread(buffer, 1, (size_t)fileLength, fileHandle);
-    SHU_Assert(fileRead == (usz)fileLength, "File read failed for '%s'.", fileStr.data);
-    buffer[fileLength] = '\0';
-    fclose(fileHandle);
-
-    return cs(buffer, (usz)fileLength);
+    return SHUI_UReadFile(&fileStr);
 }
 
 void SHU_UtilWriteFile(const char *file, SHUSliceView content)
 {
     SHU_AssertNullPointer(file);
-    SHU_Assert(content.data != NULL || content.size == 0, "Content to write to '%s' is NULL.", file);
 
     SHUI_String fileStr = SHUILD.currentExecutableDirectory;
     SHUI_SAppendC(&fileStr, file);
 
-    FILE *fileHandle = fopen(fileStr.data, "wb");
-
-    if (fileHandle == NULL)
-    {
-        SHU_LogError(SHUResult_ErrFile, "File '%s' to write cannot be opened.", fileStr.data);
-    }
-
-    usz fileWritten = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, fileHandle);
-    SHU_Assert(fileWritten == content.size, "File write failed for '%s'.", fileStr.data);
-    fclose(fileHandle);
+    SHUI_UWriteFile(&fileStr, content);
 }
 
 #pragma endregion Utility

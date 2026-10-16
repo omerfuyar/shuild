@@ -45,6 +45,15 @@ int main(int argc, char **argv)
     SHU_UtilCreateDirectory("build/");
     SHU_UtilWriteFile("build/generated.h", csv(cs(header, (usz)headerLength)));
 
+    // A file is copied into a directory under its own name. A file that has the content already is left as is, by copying and by writing,
+    // so its edit time stays and what includes it does not compile again.
+    SHU_UtilCopyFile("greeting.txt", "build/");
+    SHU_Assert(SHU_UtilFileExists("build/greeting.txt") == SHUFileType_Regular, "The greeting is not copied.");
+
+    // A command that may fail runs with SHU_UtilTryRun, which gives its exit code instead of stopping the build.
+    i32 exitCode = SHU_UtilTryRun("exit 3");
+    SHU_LogInfo("The command that may fail gave %d.", exitCode);
+
     SHU_ModuleAddIncludeDirectory("build/");
     SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
