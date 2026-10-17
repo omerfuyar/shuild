@@ -180,6 +180,16 @@ typedef enum SHUModuleType
     SHUModuleType_LibraryDynamic,
 } SHUModuleType;
 
+/// @brief A compiler that SHU_CompilerDetect found.
+typedef struct SHUCompilerInfo
+{
+    const char *command; // the name it runs by, as found on PATH (eg. gcc-14, x86_64-w64-mingw32-clang)
+    u8 identifier;       // SHUM_COMPILER_<...>
+    u8 target;           // the system it compiles for, SHUM_PLATFORM_<...>
+    u32 version;         // major * 10000 + minor * 100 + patch, as SHUM_HOST_COMPILER_VERSION
+    bool sanitizers;     // it compiles and links a program with -fsanitize=address,undefined
+} SHUCompilerInfo;
+
 /// @brief Function that SHU_UtilListDirectory calls for each entry.
 /// @param path Path of the entry, relative to current executable. Directories end with a separator. (eg. src/utils/)
 /// @param type Type of the entry.
@@ -325,9 +335,17 @@ void SHU_CacheClearAll(void);
 /// @param compilerCommand Command to invoke the compiler. (eg. clang)
 void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 
-/// @brief Tries to configure the compiler by checking gcc or clang substring inside the string. Default is the host (compiler that shuild.c compiled) compiler.
-/// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc). If NULL, uses the host compiler command default.
+/// @brief Tries to configure the compiler by checking gcc or clang substring inside the string.
+/// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc).
+/// If NULL or empty, the newest compiler on PATH that compiles for the host is used, of the family that compiled shuild.c if there is one, as SHU_CompilerDetect finds it;
+/// without one, the host compiler's own command. (eg. gcc-14 when gcc is gcc 13)
 void SHU_CompilerTryConfigure(const char *compilerCommand);
+
+/// @brief Finds the gcc and clang compilers on PATH, cross compilers such as x86_64-w64-mingw32-gcc included, and asks each for its version and its target.
+/// Each that compiles for the host is also tried with the sanitizers, by compiling a small program. The first of each name on PATH is kept.
+/// @param retCount Number of compilers found. Must not be NULL.
+/// @return The compilers, sorted by name. Valid until the build exits.
+const SHUCompilerInfo *SHU_CompilerDetect(usz *retCount);
 
 ///!!! This function is not meant to be used directly. Use SHU_CompilerAddFlags macro instead. !!!
 void SHUI_CompilerAddFlags(const char *flags, ...);
@@ -997,22 +1015,22 @@ static const char *SHUI_CArchiver(void)
     return gcc == NULL ? "ar" : SHUI_Format("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
 }
 
-// the compiler names the system it compiles for, such as x86_64-linux-gnu, x86_64-w64-mingw32 or arm64-apple-darwin23
-static u8 SHUI_CDetectTarget(const char *command)
+// the first line that the compiler prints for an option, such as -dumpmachine, or an empty string
+static char *SHUI_CAsk(const char *command, const char *option)
 {
-    char machine[256] = {0};
+    char line[256] = {0};
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
-    FILE *pipe = _popen(SHUI_Format("%s -dumpmachine 2>NUL", command), "r");
+    FILE *pipe = _popen(SHUI_Format("%s %s 2>NUL", command, option), "r");
 #else
-    FILE *pipe = popen(SHUI_Format("%s -dumpmachine 2>/dev/null", command), "r");
+    FILE *pipe = popen(SHUI_Format("%s %s 2>/dev/null", command, option), "r");
 #endif
 
     if (pipe != NULL)
     {
-        if (fgets(machine, sizeof(machine), pipe) == NULL)
+        if (fgets(line, sizeof(line), pipe) == NULL)
         {
-            machine[0] = '\0';
+            line[0] = '\0';
         }
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -1021,6 +1039,15 @@ static u8 SHUI_CDetectTarget(const char *command)
         pclose(pipe);
 #endif
     }
+
+    line[strcspn(line, "\r\n")] = '\0';
+    return SHUI_Format("%s", line);
+}
+
+// the compiler names the system it compiles for, such as x86_64-linux-gnu, x86_64-w64-mingw32 or arm64-apple-darwin23
+static u8 SHUI_CDetectTarget(const char *command)
+{
+    char *machine = SHUI_CAsk(command, "-dumpmachine");
 
     if (strstr(machine, "mingw") != NULL || strstr(machine, "windows") != NULL)
     {
@@ -2900,6 +2927,197 @@ static char *SHUI_CExecutableDirectory(void)
     return path;
 }
 
+// a compiler's name on PATH is gcc or clang, maybe with a version (gcc-14) and the target's triple before it (x86_64-w64-mingw32-gcc), which has two dashes or more;
+// other tools, such as gcc-ar, clang-format or c99-gcc, are not compilers to pick
+static u8 SHUI_CNameCompiler(const char *name)
+{
+    const char *families[] = {"gcc", "clang"};
+    const u8 identifiers[] = {SHUM_COMPILER_GCC, SHUM_COMPILER_CLANG};
+
+    for (usz i = 0; i < sizeof(families) / sizeof(*families); i++)
+    {
+        for (const char *found = strstr(name, families[i]); found != NULL; found = strstr(found + 1, families[i]))
+        {
+            usz dashes = 0;
+
+            for (const char *c = name; c < found; c++)
+            {
+                dashes += *c == '-';
+            }
+
+            bool prefixed = found == name || (found[-1] == '-' && dashes >= 2);
+            const char *rest = found + strlen(families[i]);
+            bool versioned = rest[0] == '\0' || (rest[0] == '-' && rest[1] != '\0' && strspn(rest + 1, "0123456789.") == strlen(rest + 1));
+
+            if (prefixed && versioned)
+            {
+                return identifiers[i];
+            }
+        }
+    }
+
+    return SHUM_COMPILER_UNKNOWN;
+}
+
+// "14.2.0" is 140200, and "14" is 140000
+static u32 SHUI_CParseVersion(const char *text)
+{
+    u32 parts[3] = {0};
+    sscanf(text, "%u.%u.%u", &parts[0], &parts[1], &parts[2]);
+    return parts[0] * 10000 + parts[1] * 100 + parts[2];
+}
+
+// the sanitizers need their libraries, which a compiler may not have, so a small program is compiled and linked with them
+static bool SHUI_CHasSanitizers(const char *command)
+{
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    (void)command;
+    return false; // MinGW has no sanitizers
+#else
+    return system(SHUI_Format("printf 'int main(void){return 0;}' | %s -x c - -fsanitize=address,undefined -o /dev/null >/dev/null 2>&1", command)) == 0;
+#endif
+}
+
+// the gcc and clang compilers on PATH, the first of each name, sorted by name; with sanitizers, each that compiles for the host is tried with them
+static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
+{
+    SHUI_StringList names = {0};
+    const char *path = getenv("PATH");
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+    const char separator = ';';
+#else
+    const char separator = ':';
+#endif
+
+    while (path != NULL && *path != '\0')
+    {
+        const char *end = strchr(path, separator);
+        usz length = end == NULL ? strlen(path) : (usz)(end - path);
+        char *directory = SHUI_Format("%.*s", (int)length, path);
+        path = end == NULL ? NULL : end + 1;
+
+        if (length == 0)
+        {
+            continue;
+        }
+
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+        WIN32_FIND_DATAA ffd = {0};
+        HANDLE hFind = FindFirstFileA(SHUI_Format("%s\\*.exe", directory), &ffd);
+
+        if (hFind == INVALID_HANDLE_VALUE)
+        {
+            continue;
+        }
+
+        do
+        {
+            char *name = SHUI_Format("%.*s", (int)(strlen(ffd.cFileName) - 4), ffd.cFileName);
+#else
+        DIR *dir = opendir(directory);
+
+        if (dir == NULL)
+        {
+            continue;
+        }
+
+        for (struct dirent *entry = readdir(dir); entry != NULL; entry = readdir(dir))
+        {
+            char *name = SHUI_Format("%s", entry->d_name);
+
+            if (access(SHUI_Format("%s/%s", directory, name), X_OK) != 0)
+            {
+                continue;
+            }
+#endif
+            bool skip = SHUI_CNameCompiler(name) == SHUM_COMPILER_UNKNOWN;
+
+            for (usz i = 0; i < names.count && !skip; i++)
+            {
+                skip = strcmp(names.data[i], name) == 0;
+            }
+
+            if (!skip)
+            {
+                SHUI_SLAdd(&names, name);
+            }
+#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+        } while (FindNextFileA(hFind, &ffd));
+
+        FindClose(hFind);
+#else
+        }
+
+        closedir(dir);
+#endif
+    }
+
+    if (names.count > 1)
+    {
+        qsort(names.data, names.count, sizeof(char *), SHUI_SCompare);
+    }
+
+    SHUCompilerInfo *compilers = calloc(names.count + 1, sizeof(SHUCompilerInfo));
+    SHU_AssertNullPointer(compilers);
+
+    for (usz i = 0; i < names.count; i++)
+    {
+        compilers[i].command = names.data[i];
+        compilers[i].identifier = SHUI_CNameCompiler(names.data[i]);
+        compilers[i].target = SHUI_CDetectTarget(names.data[i]);
+        // gcc's -dumpversion may give only the major version, and clang knows no -dumpfullversion
+        char *version = SHUI_CAsk(names.data[i], "-dumpfullversion");
+        compilers[i].version = SHUI_CParseVersion(version[0] != '\0' ? version : SHUI_CAsk(names.data[i], "-dumpversion"));
+        compilers[i].sanitizers = sanitizers && compilers[i].target == SHUM_HOST_PLATFORM && SHUI_CHasSanitizers(names.data[i]);
+    }
+
+    *retCount = names.count;
+    return compilers;
+}
+
+// the newest compiler that compiles for the host, of the host compiler's family if one is found; a shorter name wins a tie, so gcc is kept over x86_64-linux-gnu-gcc
+static const SHUCompilerInfo *SHUI_CPick(void)
+{
+    usz count = 0;
+    const SHUCompilerInfo *compilers = SHUI_CFind(&count, false);
+    const SHUCompilerInfo *best = NULL;
+
+    for (usz i = 0; i < count; i++)
+    {
+        const SHUCompilerInfo *compiler = &compilers[i];
+
+        if (compiler->target != SHUM_HOST_PLATFORM || compiler->version == 0)
+        {
+            continue;
+        }
+
+        if (best == NULL)
+        {
+            best = compiler;
+            continue;
+        }
+
+        bool family = compiler->identifier == SHUM_HOST_COMPILER;
+        bool bestFamily = best->identifier == SHUM_HOST_COMPILER;
+
+        if (family != bestFamily)
+        {
+            best = family ? compiler : best;
+        }
+        else if (compiler->version != best->version)
+        {
+            best = compiler->version > best->version ? compiler : best;
+        }
+        else if (strlen(compiler->command) < strlen(best->command))
+        {
+            best = compiler;
+        }
+    }
+
+    return best;
+}
+
 void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
 {
     SHU_AssertNullPointer(compilerCommand);
@@ -2922,7 +3140,16 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
 {
     if (compilerCommand == NULL || strlen(compilerCommand) == 0)
     {
-        SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER));
+        const SHUCompilerInfo *picked = SHUI_CPick();
+
+        if (picked == NULL)
+        {
+            SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER));
+        }
+        else
+        {
+            SHU_CompilerConfigure(picked->identifier, picked->command);
+        }
     }
     else if (strstr(compilerCommand, "clang") != 0)
     {
@@ -2936,6 +3163,13 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     {
         SHUI_Fail(SHUResult_Err, "compiler '%s' is not known; configure it with SHU_CompilerConfigure.", compilerCommand);
     }
+}
+
+const SHUCompilerInfo *SHU_CompilerDetect(usz *retCount)
+{
+    SHU_AssertNullPointer(retCount);
+
+    return SHUI_CFind(retCount, true);
 }
 
 static void SHUI_CAddFlag(const char *flags)

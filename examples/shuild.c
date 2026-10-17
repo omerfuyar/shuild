@@ -89,6 +89,7 @@ int main(int argc, char **argv)
         SHU_UtilRun("13_utility_functions\\build\\example.exe");
         SHU_UtilRun("set PATH=14_linked_libraries\\build\\lib;%%PATH%% && 14_linked_libraries\\build\\bin\\example.exe");
         SHU_UtilRun("15_build_scripts\\tool\\build\\tool.exe");
+        SHU_UtilRun("16_compiler_detection\\example.exe");
 #else
         SHU_UtilRun("./1_single_source/build/example");
         SHU_UtilRun("./2_compiler_flags/exampleDebug");
@@ -108,6 +109,7 @@ int main(int argc, char **argv)
         SHU_UtilRun("./13_utility_functions/build/example");
         SHU_UtilRun("./14_linked_libraries/build/bin/example");
         SHU_UtilRun("./15_build_scripts/tool/build/tool");
+        SHU_UtilRun("./16_compiler_detection/example");
 #endif
     }
 
