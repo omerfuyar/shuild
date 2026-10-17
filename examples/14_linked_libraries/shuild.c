@@ -50,13 +50,12 @@ int main(int argc, char **argv)
     SHU_ModuleLinkLibrary("shapes");
     SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
 
-    // The executable links shapes and report, and gets their headers. It gets numbers after shapes, so the linker finds what shapes needs.
+    // The executable links shapes and report, and gets their headers. Functions that add to a module take one value or more. It gets numbers after shapes, so the linker finds what shapes needs.
     // On Linux and macOS, it finds report in ../lib/, from its own directory. On Windows, a program finds its DLLs beside itself, so report is copied there.
     SHU_ModuleBegin("example", NULL);
     SHU_ModuleAddSourceFile("src/");
     SHU_ModuleAddLibraryDirectory("build/lib/");
-    SHU_ModuleLinkLibrary("shapes");
-    SHU_ModuleLinkLibrary("report");
+    SHU_ModuleLinkLibrary("shapes", "report");
 
     if (SHU_CompilerGetTarget() == SHUM_PLATFORM_WINDOWS)
     {
