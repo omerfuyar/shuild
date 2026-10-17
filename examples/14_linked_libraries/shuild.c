@@ -35,6 +35,13 @@ int main(int argc, char **argv)
     SHU_ModuleLinkLibrary("numbers");
     SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
 
+    // Linker flags go to linking alone, so the compiler does not warn that they are unused. With this one, a dynamic library that uses a function no library it links has fails to link,
+    // instead of when it is loaded. macOS's linker refuses such libraries already.
+    if (SHU_CompilerGetTarget() != SHUM_PLATFORM_MACOS)
+    {
+        SHU_CompilerAddLinkerFlags("-Wl,--no-undefined");
+    }
+
     // report links only shapes, and is linked with numbers too. It gets shapes' headers, but not numbers', which it does not use.
     SHU_ModuleBegin("report", "dependencies/report/");
     SHU_ModuleAddPublicIncludeDirectory("include/");

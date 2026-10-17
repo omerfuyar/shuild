@@ -334,12 +334,17 @@ void SHU_CompilerTryConfigure(const char *compilerCommand);
 void SHU_CompilerAddFlags(const char *flags);
 // todo make it a macro
 
-/// @brief Clears and sets the compiler flags, replacing all existing ones.
+/// @brief Clears the compiler and linker flags, and sets the compiler flags.
 /// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
 void SHU_CompilerSetFlags(const char *flags);
 
-/// @brief Clears the current compiler flags.
+/// @brief Clears the current compiler flags, and the linker flags.
 void SHU_CompilerClearFlags(void);
+
+/// @brief Adds flags that only linking gets, not compiling, so the compiler does not warn that they are unused.
+/// @param flags Flags to add, written as SHU_CompilerAddFlags takes them. (eg. -Wl,--as-needed)
+/// @note Executables and dynamic libraries are linked with them; SHU_CompilerClearFlags clears them.
+void SHU_CompilerAddLinkerFlags(const char *flags);
 
 /// @brief Gets the current configured compiler flags.
 /// @param buffer Slice to write the flags string into. buffer.data must not be NULL.
@@ -489,6 +494,7 @@ static struct
         u8 target; // the platform it compiles for
         char *command;
         SHUI_StringList flags;
+        SHUI_StringList linkerFlags;
     } COMPILER;
 
     struct
@@ -907,6 +913,14 @@ static void SHUI_CAddFlags(SHUI_StringList *command)
     for (usz i = 0; i < SHUILD.COMPILER.flags.count; i++)
     {
         SHUI_CAddArguments(command, SHUILD.COMPILER.flags.data[i]);
+    }
+}
+
+static void SHUI_CAddLinkerFlags(SHUI_StringList *command)
+{
+    for (usz i = 0; i < SHUILD.COMPILER.linkerFlags.count; i++)
+    {
+        SHUI_CAddArguments(command, SHUILD.COMPILER.linkerFlags.data[i]);
     }
 }
 
@@ -1735,6 +1749,7 @@ static SHUI_Hash SHUI_CModuleStateHash(void)
 
     SHUI_HASH_STRING(SHUILD.COMPILER.command);
     SHUI_HASH_LIST(SHUILD.COMPILER.flags);
+    SHUI_HASH_LIST(SHUILD.COMPILER.linkerFlags);
     SHUI_HASH_STRING(SHUILD.currentExecutableDirectory);
     SHUI_HASH_STRING(SHUILD.MODULE.name);
     SHUI_HASH_STRING(SHUILD.MODULE.root);
@@ -2199,6 +2214,7 @@ static void SHUI_MCompileExecutable(const char *directory)
         SHUI_MAddLinks(&command, directory);
 
         SHUI_CAddFlags(&command);
+        SHUI_CAddLinkerFlags(&command);
         SHUI_CRun(&command, true);
         SHUILD.MODULE.output = outFile;
     }
@@ -2343,6 +2359,7 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
         }
 
         SHUI_MAddLinks(&command, directory);
+        SHUI_CAddLinkerFlags(&command);
         SHUI_CRun(&command, true);
         SHUILD.MODULE.output = libraryFile;
     }
@@ -2906,6 +2923,14 @@ void SHU_CompilerSetFlags(const char *flags)
 void SHU_CompilerClearFlags(void)
 {
     SHUILD.COMPILER.flags.count = 0;
+    SHUILD.COMPILER.linkerFlags.count = 0;
+}
+
+void SHU_CompilerAddLinkerFlags(const char *flags)
+{
+    SHU_AssertNullPointer(flags);
+
+    SHUI_SLAdd(&SHUILD.COMPILER.linkerFlags, SHUI_Format("%s", flags));
 }
 
 usz SHU_CompilerGetFlags(SHUSlice buffer)
