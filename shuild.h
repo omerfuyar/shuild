@@ -329,10 +329,12 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 /// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc). If NULL, uses the host compiler command default.
 void SHU_CompilerTryConfigure(const char *compilerCommand);
 
+///!!! This function is not meant to be used directly. Use SHU_CompilerAddFlags macro instead. !!!
+void SHUI_CompilerAddFlags(const char *flags, ...);
+
 /// @brief Adds flags to the compiler configuration.
-/// @param flags Flags to add. Can include multiple flags separated by spaces as you want, quoted as in a shell. On Windows, a backslash escapes only a quote, so paths keep theirs. (eg. -DFOO=31)
-void SHU_CompilerAddFlags(const char *flags);
-// todo make it a macro
+/// @param flags Flags to add, one string or more. Each can include multiple flags separated by spaces as you want, quoted as in a shell. On Windows, a backslash escapes only a quote, so paths keep theirs. (eg. "-DFOO=31", "-Wall")
+#define SHU_CompilerAddFlags(flags, ...) SHUI_CompilerAddFlags(flags, ##__VA_ARGS__, NULL)
 
 /// @brief Clears the compiler and linker flags, and sets the compiler flags.
 /// @param flags Flags to set. Can include multiple flags separated by spaces as you want.
@@ -341,10 +343,13 @@ void SHU_CompilerSetFlags(const char *flags);
 /// @brief Clears the current compiler flags, and the linker flags.
 void SHU_CompilerClearFlags(void);
 
+///!!! This function is not meant to be used directly. Use SHU_CompilerAddLinkerFlags macro instead. !!!
+void SHUI_CompilerAddLinkerFlags(const char *flags, ...);
+
 /// @brief Adds flags that only linking gets, not compiling, so the compiler does not warn that they are unused.
-/// @param flags Flags to add, written as SHU_CompilerAddFlags takes them. (eg. -Wl,--as-needed)
+/// @param flags Flags to add, one string or more, written as SHU_CompilerAddFlags takes them. (eg. "-Wl,--as-needed")
 /// @note Executables and dynamic libraries are linked with them; SHU_CompilerClearFlags clears them.
-void SHU_CompilerAddLinkerFlags(const char *flags);
+#define SHU_CompilerAddLinkerFlags(flags, ...) SHUI_CompilerAddLinkerFlags(flags, ##__VA_ARGS__, NULL)
 
 /// @brief Gets the current configured compiler flags.
 /// @param buffer Slice to write the flags string into. buffer.data must not be NULL.
@@ -378,19 +383,28 @@ u8 SHU_CompilerGetTarget(void);
 /// @param root Root directory of the module. Will be used to relatively point other files and directories for module. Relative to current executable. Leave it empty string or NULL to ignore. (eg. dependencies/library/)
 void SHU_ModuleBegin(const char *name, const char *root);
 
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectory macro instead. !!!
+void SHUI_ModuleAddIncludeDirectory(const char *directory, ...);
+
 /// @brief Adds include directories to the module.
-/// @param directory Include directory to add to the current module. Relative to root directory specified in ModuleBegin (eg. include/)
-void SHU_ModuleAddIncludeDirectory(const char *directory);
+/// @param directory Include directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "include/", "src/")
+#define SHU_ModuleAddIncludeDirectory(directory, ...) SHUI_ModuleAddIncludeDirectory(directory, ##__VA_ARGS__, NULL)
 
-/// @brief Adds an include directory to the module, and gives it to the modules that link the module, as system headers, so their warnings stay out.
-/// Only the modules that link the library themselves get it, not the ones that get the library through another library.
-/// @param directory Include directory of the library's interface. Relative to root directory specified in ModuleBegin (eg. include/)
-void SHU_ModuleAddPublicIncludeDirectory(const char *directory);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectory macro instead. !!!
+void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...);
 
-/// @brief Adds source files to the module. Single file or recursive directory.
-/// @param file Single file to add to the current module. Relative to root directory specified in ModuleBegin (eg. source.c)
+/// @brief Adds include directories to the module, and gives them to the modules that link the module, as system headers, so their warnings stay out.
+/// Only the modules that link the library themselves get them, not the ones that get the library through another library.
+/// @param directory Include directories of the library's interface, one or more. Relative to root directory specified in ModuleBegin (eg. "include/")
+#define SHU_ModuleAddPublicIncludeDirectory(directory, ...) SHUI_ModuleAddPublicIncludeDirectory(directory, ##__VA_ARGS__, NULL)
+
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFile macro instead. !!!
+void SHUI_ModuleAddSourceFile(const char *file, ...);
+
+/// @brief Adds source files to the module. Each is a single file or a directory, added with its subdirectories.
+/// @param file Files or directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "main.c", "src/")
 /// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
-void SHU_ModuleAddSourceFile(const char *file);
+#define SHU_ModuleAddSourceFile(file, ...) SHUI_ModuleAddSourceFile(file, ##__VA_ARGS__, NULL)
 
 /// @brief Internal generic module compile function for both libraries and executables.
 /// @param directory Output directory of the library file without the name. Relative to current executable directory. (eg. build/)
@@ -400,13 +414,19 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module);
 /// @brief Adds a directory to search for the libraries that the current module links. A static library keeps it for the modules that link it, as it keeps its libraries.
 /// On Linux and macOS, a directory that holds a dynamic library the module links is embedded in it, relative to the module's own directory ($ORIGIN or @loader_path),
 /// so the library is found at run time, also after both are moved together. On Windows, see SHU_ModuleCopyDynamicLinks.
-/// @param directory Directory to search for libraries. Relative to current executable directory.  (eg. build/arc/)
-void SHU_ModuleAddLibraryDirectory(const char *directory);
+/// @param directory Directories to search for libraries, one or more. Relative to current executable directory. (eg. "build/arc/")
+#define SHU_ModuleAddLibraryDirectory(directory, ...) SHUI_ModuleAddLibraryDirectory(directory, ##__VA_ARGS__, NULL)
+
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectory macro instead. !!!
+void SHUI_ModuleAddLibraryDirectory(const char *directory, ...);
 
 /// @brief Links a library to the current module. An executable or a dynamic library is linked with it.
 /// A static library cannot be linked, so it keeps the library: a module that links the static library later gets the library too, after it, with its directories.
-/// @param library Library to link with the module. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. myLibName)
-void SHU_ModuleLinkLibrary(const char *library);
+/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. "shapes", "numbers")
+#define SHU_ModuleLinkLibrary(library, ...) SHUI_ModuleLinkLibrary(library, ##__VA_ARGS__, NULL)
+
+///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibrary macro instead. !!!
+void SHUI_ModuleLinkLibrary(const char *library, ...);
 
 /// @brief Copies the dynamic libraries that the current module links into its output directory when it compiles, so they are found beside it.
 /// Windows needs this, as a program finds its DLLs beside itself or on PATH, not in the directories it was linked with. A copy that has the content already is left as is.
@@ -445,6 +465,19 @@ void SHU_ModuleCopyDynamicLinks(void);
 #endif
 
 #pragma region Internals
+
+// calls function with each string argument of a variadic function, from first until the NULL that its macro adds
+#define SHUI_EACH_ARGUMENT(first, function)                                                           \
+    do                                                                                                \
+    {                                                                                                 \
+        va_list args;                                                                                 \
+        va_start(args, first);                                                                        \
+        for (const char *argument = (first); argument != NULL; argument = va_arg(args, const char *)) \
+        {                                                                                             \
+            function(argument);                                                                       \
+        }                                                                                             \
+        va_end(args);                                                                                 \
+    } while (0)
 
 #ifdef SHUC_ENABLE_INCREMENTAL
 typedef u64 SHUI_Hash;
@@ -2905,11 +2938,17 @@ void SHU_CompilerTryConfigure(const char *compilerCommand)
     }
 }
 
-void SHU_CompilerAddFlags(const char *flags)
+static void SHUI_CAddFlag(const char *flags)
 {
     SHU_AssertNullPointer(flags);
 
     SHUI_SLAdd(&SHUILD.COMPILER.flags, SHUI_Format("%s", flags));
+}
+
+void SHUI_CompilerAddFlags(const char *flags, ...)
+{
+    SHU_AssertNullPointer(flags);
+    SHUI_EACH_ARGUMENT(flags, SHUI_CAddFlag);
 }
 
 void SHU_CompilerSetFlags(const char *flags)
@@ -2917,7 +2956,7 @@ void SHU_CompilerSetFlags(const char *flags)
     SHU_AssertNullPointer(flags);
 
     SHU_CompilerClearFlags();
-    SHU_CompilerAddFlags(flags);
+    SHUI_CAddFlag(flags);
 }
 
 void SHU_CompilerClearFlags(void)
@@ -2926,11 +2965,17 @@ void SHU_CompilerClearFlags(void)
     SHUILD.COMPILER.linkerFlags.count = 0;
 }
 
-void SHU_CompilerAddLinkerFlags(const char *flags)
+static void SHUI_CAddLinkerFlag(const char *flags)
 {
     SHU_AssertNullPointer(flags);
 
     SHUI_SLAdd(&SHUILD.COMPILER.linkerFlags, SHUI_Format("%s", flags));
+}
+
+void SHUI_CompilerAddLinkerFlags(const char *flags, ...)
+{
+    SHU_AssertNullPointer(flags);
+    SHUI_EACH_ARGUMENT(flags, SHUI_CAddLinkerFlag);
 }
 
 usz SHU_CompilerGetFlags(SHUSlice buffer)
@@ -3008,20 +3053,32 @@ void SHU_ModuleBegin(const char *name, const char *root)
     SHUILD.MODULE.root = root != NULL && strlen(root) != 0 ? SHUI_SPath(SHUILD.currentExecutableDirectory, root, true) : SHUILD.currentExecutableDirectory;
 }
 
-void SHU_ModuleAddIncludeDirectory(const char *directory)
+static void SHUI_MAddIncludeDirectory(const char *directory)
 {
     SHU_AssertNullPointer(directory);
 
     SHUI_SLAdd(&SHUILD.MODULE.includeDirectories, SHUI_SPath(SHUILD.MODULE.root, directory, true));
 }
 
-void SHU_ModuleAddPublicIncludeDirectory(const char *directory)
+void SHUI_ModuleAddIncludeDirectory(const char *directory, ...)
 {
-    SHU_ModuleAddIncludeDirectory(directory);
+    SHU_AssertNullPointer(directory);
+    SHUI_EACH_ARGUMENT(directory, SHUI_MAddIncludeDirectory);
+}
+
+static void SHUI_MAddPublicIncludeDirectory(const char *directory)
+{
+    SHUI_MAddIncludeDirectory(directory);
     SHUI_SLAdd(&SHUILD.MODULE.publicIncludeDirectories, SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]);
 }
 
-void SHU_ModuleAddSourceFile(const char *file)
+void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...)
+{
+    SHU_AssertNullPointer(directory);
+    SHUI_EACH_ARGUMENT(directory, SHUI_MAddPublicIncludeDirectory);
+}
+
+static void SHUI_MAddSourceFile(const char *file)
 {
     SHU_AssertNullPointer(file);
 
@@ -3040,6 +3097,12 @@ void SHU_ModuleAddSourceFile(const char *file)
     {
         SHUI_Fail(SHUResult_ErrNotFound, "source '%s' does not exist.", SHUI_SShort(path));
     }
+}
+
+void SHUI_ModuleAddSourceFile(const char *file, ...)
+{
+    SHU_AssertNullPointer(file);
+    SHUI_EACH_ARGUMENT(file, SHUI_MAddSourceFile);
 }
 
 void SHU_ModuleCompile(const char *directory, SHUModuleType module)
@@ -3129,7 +3192,7 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
     SHUILD.MODULE = (__typeof__(SHUILD.MODULE)){0};
 }
 
-void SHU_ModuleAddLibraryDirectory(const char *directory)
+static void SHUI_MAddLibraryDirectory(const char *directory)
 {
     SHU_AssertNullPointer(directory);
 
@@ -3143,11 +3206,23 @@ void SHU_ModuleAddLibraryDirectory(const char *directory)
     SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, path);
 }
 
-void SHU_ModuleLinkLibrary(const char *library)
+void SHUI_ModuleAddLibraryDirectory(const char *directory, ...)
+{
+    SHU_AssertNullPointer(directory);
+    SHUI_EACH_ARGUMENT(directory, SHUI_MAddLibraryDirectory);
+}
+
+static void SHUI_MLinkLibrary(const char *library)
 {
     SHU_AssertNullPointer(library);
 
     SHUI_SLAdd(&SHUILD.MODULE.links, SHUI_Format("%s", library));
+}
+
+void SHUI_ModuleLinkLibrary(const char *library, ...)
+{
+    SHU_AssertNullPointer(library);
+    SHUI_EACH_ARGUMENT(library, SHUI_MLinkLibrary);
 }
 
 void SHU_ModuleCopyDynamicLinks(void)
