@@ -17,6 +17,7 @@ examplegcc
 examplemsvc
 buildAll
 
+examples/shuild
 examples/*/shuild
 examples/*/example
 examples/*/exampleDebug
