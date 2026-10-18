@@ -14,7 +14,7 @@ int main(void)
 
     for (usz i = 0; i < count; i++)
     {
-        SHU_LogInfo("%s: %s %u.%u.%u for %s, %s sanitizers",
+        SHU_UtilLog(SHUM_LOG_NAME("%s") ": " SHUM_LOG_VALUE("%s %u.%u.%u") " for %s, %s sanitizers",
                     compilers[i].command,
                     SHUM_COMPILER_GET_STRING(compilers[i].identifier),
                     compilers[i].version / 10000,

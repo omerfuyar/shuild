@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 
     if (argc > 1) // run all
     {
-        SHU_LogInfo("\n\n\nAll examples have been completed. Running all examples...\n\n");
+        SHU_UtilLog("all examples are built; running them");
 
 #if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
         SHU_UtilRun("1_single_source\\build\\example.exe");

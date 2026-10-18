@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     // Compile this program without the code below,
     // activate this line and save, then you can directly run it.
     // It will automatically rebuild itself and show the message.
-    // SHU_LogInfo(SHUM_COLOR_GREEN("This message is showed after auto build!"));
+    // SHU_UtilLog(SHUM_COLOR_GREEN("This message is showed after auto build!"));
 
     return 0;
 }
