@@ -13,8 +13,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    SHU_LogInfo("Compiler info which used to build the shuild source : %s : %d", SHUM_COMPILER_GET_STRING(SHUM_HOST_COMPILER), SHUM_HOST_COMPILER_VERSION);
-    SHU_LogInfo("Compiler command which will be used to build the project : %s", argv[1]);
+    SHU_UtilLog("the build script was compiled by " SHUM_LOG_VALUE("%s %d"), SHUM_COMPILER_GET_STRING(SHUM_HOST_COMPILER), SHUM_HOST_COMPILER_VERSION);
+    SHU_UtilLog("the project is compiled by " SHUM_LOG_VALUE("%s"), argv[1]);
 
     SHU_CompilerTryConfigure(argv[1]);
 

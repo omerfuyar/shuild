@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
-    SHU_LogInfo("The library files are %s and %s.", SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic), SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic));
+    SHU_UtilLog("the library files are " SHUM_LOG_PATH("%s") " and " SHUM_LOG_PATH("%s"), SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic), SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic));
 
     return 0;
 }

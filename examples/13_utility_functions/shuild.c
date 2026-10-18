@@ -12,7 +12,7 @@ static void AddSource(const char *path, SHUFileType type, void *data)
     usz *sourceCount = (usz *)data;
 
     // Paths are relative to current executable, like the ones other functions take.
-    SHU_LogInfo("Found %s '%s'", type == SHUFileType_Directory ? "directory" : "file", path);
+    SHU_UtilLog("found %s " SHUM_LOG_PATH("%s"), type == SHUFileType_Directory ? "directory" : "file", path);
 
     if (type == SHUFileType_Regular && SHU_UtilMatch(path, "*.c"))
     {
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 
     // A command that may fail runs with SHU_UtilTryRun, which gives its exit code instead of stopping the build.
     i32 exitCode = SHU_UtilTryRun("exit 3");
-    SHU_LogInfo("The command that may fail gave %d.", exitCode);
+    SHU_UtilLog("the command that may fail gave %d", exitCode);
 
     // A command whose output is long, such as another build tool's, writes it to a log. When it fails, the end of the log is shown.
     SHU_UtilRunLogged("build/logs/echo.log", "echo %s", "This goes to the log.");
