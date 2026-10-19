@@ -8,7 +8,6 @@
 // define SHUC_MAX_<...> <limit> to customize limits.
 
 // todo add macro helpers like module(...){...} for easy module begin and compile, like shujsn, shuarg or clay.
-// todo rename macros to SHUILD_<...>
 
 #pragma once
 
