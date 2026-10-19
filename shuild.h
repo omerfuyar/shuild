@@ -192,6 +192,7 @@ typedef struct SHUCompilerInfo
     const char *command; // the name it runs by, as found on PATH (eg. gcc-14, x86_64-w64-mingw32-clang)
     u8 identifier;       // SHUM_COMPILER_<...>
     u8 target;           // the system it compiles for, SHUM_PLATFORM_<...>
+    const char *machine; // the system it compiles for, as it names it (eg. x86_64-linux-gnu, aarch64-w64-mingw32), or "" if it does not tell
     u32 version;         // major * 10000 + minor * 100 + patch, as SHUM_HOST_COMPILER_VERSION
     bool sanitizers;     // it compiles and links a program with -fsanitize=address,undefined
 } SHUCompilerInfo;
@@ -362,12 +363,13 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
 
 /// @brief Tries to configure the compiler by checking gcc or clang substring inside the string.
 /// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc).
-/// If NULL or empty, the newest compiler on PATH that compiles for the host is used, of the family that compiled shuild.c if there is one, as SHU_CompilerDetect finds it;
+/// If NULL or empty, the newest compiler on PATH that compiles for the host's system and processor is used, of the family that compiled shuild.c if there is one, as SHU_CompilerDetect finds it;
 /// without one, the host compiler's own command. (eg. gcc-14 when gcc is gcc 13)
 void SHU_CompilerTryConfigure(const char *compilerCommand);
 
 /// @brief Finds the gcc and clang compilers on PATH, cross compilers such as x86_64-w64-mingw32-gcc included, and asks each for its version and its target.
-/// Each that compiles for the host is also tried with the sanitizers, by compiling a small program. The first of each name on PATH is kept.
+/// A clang that goes by gcc's name, such as LLVM-MinGW's x86_64-w64-mingw32-gcc, counts as clang.
+/// Each that compiles for the host's system and processor is also tried with the sanitizers, by compiling a small program. The first of each name on PATH is kept.
 /// @param retCount Number of compilers found. Must not be NULL.
 /// @return The compilers, sorted by name. Valid until the build exits.
 const SHUCompilerInfo *SHU_CompilerDetect(usz *retCount);
@@ -1099,10 +1101,8 @@ static char *SHUI_CAsk(const char *command, const char *option)
 }
 
 // the compiler names the system it compiles for, such as x86_64-linux-gnu, x86_64-w64-mingw32 or arm64-apple-darwin23
-static u8 SHUI_CDetectTarget(const char *command)
+static u8 SHUI_CTargetOf(const char *machine)
 {
-    char *machine = SHUI_CAsk(command, "-dumpmachine");
-
     if (strstr(machine, "mingw") != NULL || strstr(machine, "windows") != NULL)
     {
         return SHUM_PLATFORM_WINDOWS;
@@ -1120,6 +1120,43 @@ static u8 SHUI_CDetectTarget(const char *command)
 
     // a compiler that does not tell compiles for the host
     return SHUM_HOST_PLATFORM;
+}
+
+static u8 SHUI_CDetectTarget(const char *command)
+{
+    return SHUI_CTargetOf(SHUI_CAsk(command, "-dumpmachine"));
+}
+
+// whether a compiler's machine names the processor that shuild runs on, so the programs it compiles run here;
+// a compiler that does not tell, and a processor that is not listed, count as the host's
+static bool SHUI_CRunsOnHost(const char *machine)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    const char *processors[] = {"x86_64-", "amd64-"};
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    const char *processors[] = {"aarch64-", "arm64-"};
+#elif defined(__i386__) || defined(_M_IX86)
+    const char *processors[] = {"i386-", "i486-", "i586-", "i686-"};
+#elif defined(__arm__) || defined(_M_ARM)
+    const char *processors[] = {"arm-", "armv"};
+#else
+    const char *processors[] = {""};
+#endif
+
+    if (machine[0] == '\0')
+    {
+        return true;
+    }
+
+    for (usz i = 0; i < sizeof(processors) / sizeof(*processors); i++)
+    {
+        if (strncmp(machine, processors[i], strlen(processors[i])) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 #if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
@@ -3032,7 +3069,7 @@ static bool SHUI_CHasSanitizers(const char *command)
 #endif
 }
 
-// the gcc and clang compilers on PATH, the first of each name, sorted by name; with sanitizers, each that compiles for the host is tried with them
+// the gcc and clang compilers on PATH, the first of each name, sorted by name; with sanitizers, each that compiles for the host's system and processor is tried with them
 static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
 {
     SHUI_StringList names = {0};
@@ -3119,18 +3156,26 @@ static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
     {
         compilers[i].command = names.data[i];
         compilers[i].identifier = SHUI_CNameCompiler(names.data[i]);
-        compilers[i].target = SHUI_CDetectTarget(names.data[i]);
+        compilers[i].machine = SHUI_CAsk(names.data[i], "-dumpmachine");
+        compilers[i].target = SHUI_CTargetOf(compilers[i].machine);
+
+        // some clang compilers go by gcc's name too, such as LLVM-MinGW's x86_64-w64-mingw32-gcc and macOS's gcc
+        if (compilers[i].identifier == SHUM_COMPILER_GCC && strstr(SHUI_CAsk(names.data[i], "--version"), "clang") != NULL)
+        {
+            compilers[i].identifier = SHUM_COMPILER_CLANG;
+        }
+
         // gcc's -dumpversion may give only the major version, and clang knows no -dumpfullversion
         char *version = SHUI_CAsk(names.data[i], "-dumpfullversion");
         compilers[i].version = SHUI_CParseVersion(version[0] != '\0' ? version : SHUI_CAsk(names.data[i], "-dumpversion"));
-        compilers[i].sanitizers = sanitizers && compilers[i].target == SHUM_HOST_PLATFORM && SHUI_CHasSanitizers(names.data[i]);
+        compilers[i].sanitizers = sanitizers && compilers[i].target == SHUM_HOST_PLATFORM && SHUI_CRunsOnHost(compilers[i].machine) && SHUI_CHasSanitizers(names.data[i]);
     }
 
     *retCount = names.count;
     return compilers;
 }
 
-// the newest compiler that compiles for the host, of the host compiler's family if one is found; a shorter name wins a tie, so gcc is kept over x86_64-linux-gnu-gcc
+// the newest compiler that compiles for the host's system and processor, of the host compiler's family if one is found; a shorter name wins a tie, so gcc is kept over x86_64-linux-gnu-gcc
 static const SHUCompilerInfo *SHUI_CPick(void)
 {
     usz count = 0;
@@ -3141,7 +3186,7 @@ static const SHUCompilerInfo *SHUI_CPick(void)
     {
         const SHUCompilerInfo *compiler = &compilers[i];
 
-        if (compiler->target != SHUM_HOST_PLATFORM || compiler->version == 0)
+        if (compiler->target != SHUM_HOST_PLATFORM || !SHUI_CRunsOnHost(compiler->machine) || compiler->version == 0)
         {
             continue;
         }
