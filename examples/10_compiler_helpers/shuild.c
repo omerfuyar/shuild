@@ -8,7 +8,7 @@
 int main(int argc, char **argv)
 {
 
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
 
     if (argc < 2)
     {

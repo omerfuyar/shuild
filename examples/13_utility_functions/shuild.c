@@ -23,7 +23,7 @@ static void AddSource(const char *path, SHUFileType type, void *data)
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("example", NULL);
@@ -35,19 +35,21 @@ int main(int argc, char **argv)
     // Files can be read and written whole.
     SHUSlice greeting = SHU_UtilReadFile("greeting.txt");
 
-    // Strings are formatted into memory that stays valid; shuild frees nothing, as the system frees it when the build exits.
+    // Strings are formatted into new memory, which the script frees when it is done with it, as it frees what it reads.
     char *header = SHU_UtilFormat("#define SOURCE_COUNT %zu\n#define GREETING_SIZE %zu\n", sourceCount, greeting.size);
 
     SHU_UtilCreateDirectory("build/");
     SHU_UtilWriteFile("build/generated.h", csv(cs(header, strlen(header))));
+    free(header);
+    free(greeting.data);
 
     // A file is copied into a directory under its own name. A file that has the content already is left as is, by copying and by writing,
     // so its edit time stays and what includes it does not compile again.
     SHU_UtilCopyFile("greeting.txt", "build/");
     SHU_Assert(SHU_UtilFileExists("build/greeting.txt") == SHUFileType_Regular, "The greeting is not copied.");
 
-    // A command that may fail runs with SHU_UtilTryRun, which gives its exit code instead of stopping the build.
-    i32 exitCode = SHU_UtilTryRun("exit 3");
+    // A command that may fail runs with SHU_UtilRunTry, which gives its exit code instead of stopping the build.
+    i32 exitCode = SHU_UtilRunTry("exit 3");
     SHU_UtilLog("the command that may fail gave %d", exitCode);
 
     // A command whose output is long, such as another build tool's, writes it to a log. When it fails, the end of the log is shown.

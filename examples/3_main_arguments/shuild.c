@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     // 'Try' configure will guess the compiler in your system
     // (like 'cc', 'gcc' or 'clang') and configure it for you.
     // Leave it empty to use the host compiler that compiled this script.
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
 
     // Add flags from command line.
     for (int i = 1; i < argc; i++)

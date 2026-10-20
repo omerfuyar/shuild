@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
 
     // the build that runs it says which kind of build to make
     bool release = argc > 1 && strcmp(argv[1], "release") == 0;

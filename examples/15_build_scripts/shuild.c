@@ -8,11 +8,13 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
     // The flags are the other script's include directories, where shu/ and shuild/ are; the arguments go to its main.
-    SHU_UtilBuildScript("tool/shuild.c", "tool/shuild", SHU_UtilFormat("-I%s../../../", SHU_UtilGetExecutablePath()), "release");
+    char *flags = SHU_UtilFormat("-I%s../../../", SHU_UtilGetExecutablePath());
+    SHU_UtilBuildScript("tool/shuild.c", "tool/shuild", flags, "release");
+    free(flags);
 
     return 0;
 }
