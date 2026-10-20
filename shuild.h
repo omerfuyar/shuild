@@ -111,18 +111,6 @@ typedef enum SHUCompiler
 /// @brief Either the given compiler is the host compiler or not.
 #define SHUM_COMPILER_IS_HOST(compiler) (SHUM_HOST_COMPILER == (compiler))
 
-// the old names, for build scripts that still use them; they are numbers, so #if reads them as before. They go in the next version
-#define SHUM_PLATFORM_UNKNOWN 0
-#define SHUM_PLATFORM_WINDOWS 1
-#define SHUM_PLATFORM_LINUX 2
-#define SHUM_PLATFORM_MACOS 3
-#define SHUM_PLATFORM_GET_STRING(platform) SHUPlatform_GetString(platform)
-#define SHUM_COMPILER_UNKNOWN 0
-#define SHUM_COMPILER_CLANG 1
-#define SHUM_COMPILER_GCC 2
-#define SHUM_COMPILER_GET_STRING(compiler) SHUCompiler_GetString(compiler)
-#define SHUM_COMPILER_GET_COMMAND(compiler) SHUCompiler_GetCommand(compiler)
-
 #pragma endregion Compiler Detection
 
 #pragma region Configurations and Constants
@@ -517,10 +505,6 @@ void SHUI_ModuleLinkLibrary(const char *library, ...);
 void SHU_ModuleCopyDynamicLinks(void);
 
 #pragma endregion Module
-
-// the old names, for build scripts that still use them; they go in the next version
-#define SHU_UtilTryRun SHU_UtilRunTry
-#define SHU_CompilerTryConfigure SHU_CompilerConfigureTry
 
 #pragma endregion Declarations
 
