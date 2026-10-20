@@ -7,7 +7,7 @@
 
 int main(void)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
 
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
     SHU_ModuleAddIncludeDirectory("include/");

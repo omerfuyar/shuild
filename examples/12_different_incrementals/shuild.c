@@ -9,7 +9,7 @@
 
 int main(void)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     // SHU_UtilAutomate(argc, argv);
 
     // Configure the cache directory of the current project.

@@ -8,7 +8,7 @@
 int main(int argc, char **argv)
 {
 
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     // Even automate function must be called after compiler configuration.
     SHU_UtilAutomate(argc, argv);
 

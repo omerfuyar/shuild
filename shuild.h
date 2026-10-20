@@ -24,71 +24,104 @@
 
 #pragma region Platform Detection
 
-#define SHUM_PLATFORM_UNKNOWN 0
-#define SHUM_PLATFORM_WINDOWS 1
-#define SHUM_PLATFORM_LINUX 2
-#define SHUM_PLATFORM_MACOS 3
+/// @brief A system that a compiler compiles for, or that shuild runs on.
+typedef enum SHUPlatform
+{
+    SHUPlatform_Unknown = 0,
+    SHUPlatform_Windows = 1,
+    SHUPlatform_Linux = 2,
+    SHUPlatform_MacOS = 3,
+} SHUPlatform;
 
+// the preprocessor cannot read enums, so SHUM_HOST_PLATFORM is the enum's number, and #if checks the host with SHUM_HOST_WINDOWS, SHUM_HOST_LINUX and SHUM_HOST_MACOS, each 1 or 0
 #if defined(_WIN32)
-/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
-#define SHUM_HOST_PLATFORM SHUM_PLATFORM_WINDOWS
+#define SHUM_HOST_WINDOWS 1
+#define SHUM_HOST_LINUX 0
+#define SHUM_HOST_MACOS 0
+/// @brief The system shuild runs on, a SHUPlatform. (eg. if (SHUM_HOST_PLATFORM == SHUPlatform_Windows))
+#define SHUM_HOST_PLATFORM 1
 #elif defined(__linux__)
-/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
-#define SHUM_HOST_PLATFORM SHUM_PLATFORM_LINUX
+#define SHUM_HOST_WINDOWS 0
+#define SHUM_HOST_LINUX 1
+#define SHUM_HOST_MACOS 0
+/// @brief The system shuild runs on, a SHUPlatform. (eg. if (SHUM_HOST_PLATFORM == SHUPlatform_Windows))
+#define SHUM_HOST_PLATFORM 2
 #elif defined(__APPLE__) && defined(__MACH__)
-/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
-#define SHUM_HOST_PLATFORM SHUM_PLATFORM_MACOS
+#define SHUM_HOST_WINDOWS 0
+#define SHUM_HOST_LINUX 0
+#define SHUM_HOST_MACOS 1
+/// @brief The system shuild runs on, a SHUPlatform. (eg. if (SHUM_HOST_PLATFORM == SHUPlatform_Windows))
+#define SHUM_HOST_PLATFORM 3
 #else
-/// @brief Current host platform specifier. Use it with SHUM_HOST_PLATFORM_<...> macros.
-#define SHUM_HOST_PLATFORM SHUM_PLATFORM_UNKNOWN
+#define SHUM_HOST_WINDOWS 0
+#define SHUM_HOST_LINUX 0
+#define SHUM_HOST_MACOS 0
+/// @brief The system shuild runs on, a SHUPlatform. (eg. if (SHUM_HOST_PLATFORM == SHUPlatform_Windows))
+#define SHUM_HOST_PLATFORM 0
 #endif
 
 /// @brief Get the name of the given platform.
-#define SHUM_PLATFORM_GET_STRING(platform) (platform == SHUM_PLATFORM_LINUX     ? "Linux"   \
-                                            : platform == SHUM_PLATFORM_WINDOWS ? "Windows" \
-                                            : platform == SHUM_PLATFORM_MACOS   ? "MacOS"   \
-                                                                                : "Unknown")
+#define SHUPlatform_GetString(platform) (platform == SHUPlatform_Linux     ? "Linux"   \
+                                         : platform == SHUPlatform_Windows ? "Windows" \
+                                         : platform == SHUPlatform_MacOS   ? "MacOS"   \
+                                                                           : "Unknown")
 
-/// @brief Either the given platform is the host compiler or not.
-#define SHUM_PLATFORM_IS_HOST(platform) (SHUM_HOST_PLATFORM == platform)
+/// @brief Either the given platform is the host's or not. It reads an enum, so it does not work in #if; use SHUM_HOST_<...> there.
+#define SHUM_PLATFORM_IS_HOST(platform) (SHUM_HOST_PLATFORM == (platform))
 
 #pragma endregion Platform Detection
 
 #pragma region Compiler Detection
 
-#define SHUM_COMPILER_UNKNOWN 0
-#define SHUM_COMPILER_CLANG 1
-#define SHUM_COMPILER_GCC 2
+/// @brief A family of compilers.
+typedef enum SHUCompiler
+{
+    SHUCompiler_Unknown = 0,
+    SHUCompiler_Clang = 1,
+    SHUCompiler_GCC = 2,
+} SHUCompiler;
 
 #if defined(__clang__)
-/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_HOST_COMPILER SHUM_COMPILER_CLANG
+/// @brief The family of the compiler that compiles this file, a SHUCompiler.
+#define SHUM_HOST_COMPILER 1
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #elif defined(__GNUC__)
-/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_HOST_COMPILER SHUM_COMPILER_GCC
+/// @brief The family of the compiler that compiles this file, a SHUCompiler.
+#define SHUM_HOST_COMPILER 2
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #else
-/// @brief Current host compiler specifier. Use it with SHUM_COMPILER_<...> macros.
-#define SHUM_HOST_COMPILER SHUM_COMPILER_UNKNOWN
+/// @brief The family of the compiler that compiles this file, a SHUCompiler.
+#define SHUM_HOST_COMPILER 0
 /// @brief Version of the host compiler.
 #define SHUM_HOST_COMPILER_VERSION 0
 #endif
 
 /// @brief Get the name of the given compiler.
-#define SHUM_COMPILER_GET_STRING(compiler) (compiler == SHUM_COMPILER_CLANG ? "Clang" \
-                                            : compiler == SHUM_COMPILER_GCC ? "GCC"   \
-                                                                            : "Unknown")
+#define SHUCompiler_GetString(compiler) (compiler == SHUCompiler_Clang ? "Clang" \
+                                         : compiler == SHUCompiler_GCC ? "GCC"   \
+                                                                       : "Unknown")
 
 /// @brief Get the command of the given compiler.
-#define SHUM_COMPILER_GET_COMMAND(compiler) (compiler == SHUM_COMPILER_CLANG ? "clang" \
-                                             : compiler == SHUM_COMPILER_GCC ? "gcc"   \
-                                                                             : "Unknown")
+#define SHUCompiler_GetCommand(compiler) (compiler == SHUCompiler_Clang ? "clang" \
+                                          : compiler == SHUCompiler_GCC ? "gcc"   \
+                                                                        : "Unknown")
 
 /// @brief Either the given compiler is the host compiler or not.
-#define SHUM_COMPILER_IS_HOST(compiler) (SHUM_HOST_COMPILER == compiler)
+#define SHUM_COMPILER_IS_HOST(compiler) (SHUM_HOST_COMPILER == (compiler))
+
+// the old names, for build scripts that still use them; they are numbers, so #if reads them as before. They go in the next version
+#define SHUM_PLATFORM_UNKNOWN 0
+#define SHUM_PLATFORM_WINDOWS 1
+#define SHUM_PLATFORM_LINUX 2
+#define SHUM_PLATFORM_MACOS 3
+#define SHUM_PLATFORM_GET_STRING(platform) SHUPlatform_GetString(platform)
+#define SHUM_COMPILER_UNKNOWN 0
+#define SHUM_COMPILER_CLANG 1
+#define SHUM_COMPILER_GCC 2
+#define SHUM_COMPILER_GET_STRING(compiler) SHUCompiler_GetString(compiler)
+#define SHUM_COMPILER_GET_COMMAND(compiler) SHUCompiler_GetCommand(compiler)
 
 #pragma endregion Compiler Detection
 
@@ -160,7 +193,7 @@
 #define SHUM_LOG_COMMAND(string) SHUM_COLOR_DIM(string)   // a command line
 #define SHUM_LOG_VALUE(string) SHUM_COLOR_BOLD(string)    // a setting's value, such as a build type or a compiler
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
 #define SHUM_PATH_SEPARATOR '\\'
 #define SHUM_PATH_SEPARATOR_STR "\\"
 #else
@@ -190,8 +223,8 @@ typedef enum SHUModuleType
 typedef struct SHUCompilerInfo
 {
     const char *command; // the name it runs by, as found on PATH (eg. gcc-14, x86_64-w64-mingw32-clang)
-    u8 identifier;       // SHUM_COMPILER_<...>
-    u8 target;           // the system it compiles for, SHUM_PLATFORM_<...>
+    SHUCompiler identifier; // its family
+    SHUPlatform target;     // the system it compiles for
     const char *machine; // the system it compiles for, as it names it (eg. x86_64-linux-gnu, aarch64-w64-mingw32), or "" if it does not tell
     u32 version;         // major * 10000 + minor * 100 + patch, as SHUM_HOST_COMPILER_VERSION
     bool sanitizers;     // it compiles and links a program with -fsanitize=address,undefined
@@ -237,9 +270,9 @@ void SHU_UtilWarn(const char *format, ...) __attribute__((format(printf, 1, 2)))
 /// @param format Format of the error, as printf takes it.
 void SHU_UtilFail(i32 code, const char *format, ...) __attribute__((format(printf, 2, 3)));
 
-/// @brief Formats a string, as printf does, into new memory. Shuild never frees its memory, as the system frees it when the build exits, so the string stays valid.
+/// @brief Formats a string, as printf does, into new memory.
 /// @param format Format of the string. (eg. "%sbin/", directory)
-/// @return The new string.
+/// @return The new string. Free it with free.
 char *SHU_UtilFormat(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
 /// @brief Internal command runner function.
@@ -250,7 +283,7 @@ i32 SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1,
 /// @brief Runs a command like SHU_UtilRun, but its failure does not stop the build, even without SHUC_NO_RUN_ERROR. Use it for a command that may fail.
 /// @param command Command to run with the shell, through system. (eg. ./tests --quick)
 /// @return Exit code of the command.
-i32 SHU_UtilTryRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
+i32 SHU_UtilRunTry(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
 /// @brief Runs a command like SHU_UtilRun, with its output and errors written to a log file in place of the terminal. When the command fails, the end of the log is shown.
 /// @param log Log file to write, relative to current executable. Its directory is created if it doesn't exist. (eg. .shu/cmake.log)
@@ -277,7 +310,7 @@ const char *SHU_UtilGetExecutablePath(void);
 
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check.
-/// @return SHUM_FILE_<...> macro accordingly.
+/// @return The type of the file, or SHUFileType_Invalid if it does not exist.
 SHUFileType SHU_UtilFileExists(const char *file);
 
 /// @brief Creates a directory relative to current executable if the directory doesn't exists.
@@ -318,7 +351,7 @@ bool SHU_UtilMatch(const char *string, const char *pattern);
 
 /// @brief Reads a whole file.
 /// @param file File to read, relative to current executable.
-/// @return Slice of the file's contents, followed by a terminating zero that the size does not count. It stays valid until the build exits.
+/// @return Slice of the file's contents, followed by a terminating zero that the size does not count. Free its data with free.
 SHUSlice SHU_UtilReadFile(const char *file);
 
 /// @brief Writes a file, replacing it if it exists. A file that has the content already is left as is, so its edit time stays and what includes it does not compile again.
@@ -330,7 +363,7 @@ void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 /// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and name.dll with its import library libname.dll.a.
 /// @param name Name of the library's module. (eg. math)
 /// @param type SHUModuleType_LibraryStatic or SHUModuleType_LibraryDynamic.
-/// @return The file name, without a directory. (eg. libmath.so)
+/// @return The file name, without a directory. (eg. libmath.so) Free it with free.
 char *SHU_UtilLibraryFile(const char *name, SHUModuleType type);
 
 #pragma endregion Utility
@@ -356,23 +389,28 @@ void SHU_CacheClearAll(void);
 
 #pragma region Compiler
 
-/// @brief Configures the compiler to be used for compiling modules. Must be called before any other function. See SHU_CompilerTryConfigure for easier configuration.
-/// @param compiler Compiler specifier. Use with SHUM_COMPILER_<...> macros.
+/// @brief Configures the compiler to be used for compiling modules. Must be called before any other function. See SHU_CompilerConfigureTry for easier configuration.
+/// @param compiler Family of the compiler.
 /// @param compilerCommand Command to invoke the compiler. (eg. clang)
-void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand);
+void SHU_CompilerConfigure(SHUCompiler compiler, const char *compilerCommand);
 
 /// @brief Tries to configure the compiler by checking gcc or clang substring inside the string.
 /// @param compilerCommand Command to check and use to invoke the compiler. (eg. gcc).
 /// If NULL or empty, the newest compiler on PATH that compiles for the host's system and processor is used, of the family that compiled shuild.c if there is one, as SHU_CompilerDetect finds it;
 /// without one, the host compiler's own command. (eg. gcc-14 when gcc is gcc 13)
-void SHU_CompilerTryConfigure(const char *compilerCommand);
+void SHU_CompilerConfigureTry(const char *compilerCommand);
 
 /// @brief Finds the gcc and clang compilers on PATH, cross compilers such as x86_64-w64-mingw32-gcc included, and asks each for its version and its target.
 /// A clang that goes by gcc's name, such as LLVM-MinGW's x86_64-w64-mingw32-gcc, counts as clang.
 /// Each that compiles for the host's system and processor is also tried with the sanitizers, by compiling a small program. The first of each name on PATH is kept.
 /// @param retCount Number of compilers found. Must not be NULL.
-/// @return The compilers, sorted by name. Valid until the build exits.
-const SHUCompilerInfo *SHU_CompilerDetect(usz *retCount);
+/// @return The compilers, sorted by name. Free them with SHU_CompilerDetectFree.
+SHUCompilerInfo *SHU_CompilerDetect(usz *retCount);
+
+/// @brief Frees the compilers that SHU_CompilerDetect found.
+/// @param compilers The compilers, as SHU_CompilerDetect gave them.
+/// @param count Number of compilers, as SHU_CompilerDetect gave it.
+void SHU_CompilerDetectFree(SHUCompilerInfo *compilers, usz count);
 
 ///!!! This function is not meant to be used directly. Use SHU_CompilerAddFlags macro instead. !!!
 void SHUI_CompilerAddFlags(const char *flags, ...);
@@ -410,14 +448,14 @@ void SHUI_CompilerAddDefinition(const char *macros, ...);
 /// @note Parameters must be complete name,value pairs. (eg. ("DEBUG", NULL, "BUFFER_SIZE", "31", "MY_STR", "\"this is my string\""))
 #define SHU_CompilerAddDefinitions(macros, ...) SHUI_CompilerAddDefinition(macros, ##__VA_ARGS__, NULL)
 
-/// @brief Gets the identifier of the configured compiler.
-/// @return Compiler identifier. Use it with SHUM_COMPILER_<...> macros.
-u8 SHU_CompilerGetIdentifier(void);
+/// @brief Gets the family of the configured compiler.
+/// @return Family of the compiler.
+SHUCompiler SHU_CompilerGetIdentifier(void);
 
 /// @brief Gets the system that the configured compiler compiles for, which the compiler tells: the host's, or another's for a cross compiler such as x86_64-w64-mingw32-gcc.
 /// The names of executables and libraries, and how they find their dynamic libraries, follow it. Build scripts are compiled for the host.
-/// @return Platform identifier. Use it with SHUM_PLATFORM_<...> macros.
-u8 SHU_CompilerGetTarget(void);
+/// @return The system it compiles for.
+SHUPlatform SHU_CompilerGetTarget(void);
 
 #pragma endregion Compiler
 
@@ -480,6 +518,10 @@ void SHU_ModuleCopyDynamicLinks(void);
 
 #pragma endregion Module
 
+// the old names, for build scripts that still use them; they go in the next version
+#define SHU_UtilTryRun SHU_UtilRunTry
+#define SHU_CompilerTryConfigure SHU_CompilerConfigureTry
+
 #pragma endregion Declarations
 
 #pragma region Definitions
@@ -493,7 +535,7 @@ void SHU_ModuleCopyDynamicLinks(void);
 #include <sys/stat.h>
 #include <errno.h>
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
 #include <windows.h>
 #include <process.h>
 #include <direct.h>
@@ -505,7 +547,7 @@ void SHU_ModuleCopyDynamicLinks(void);
 #include <ftw.h>
 #endif
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
+#if SHUM_HOST_MACOS
 #include <mach-o/dyld.h>
 #endif
 
@@ -528,7 +570,7 @@ void SHU_ModuleCopyDynamicLinks(void);
 typedef u64 SHUI_Hash;
 #endif
 
-// strings and lists are allocated and never freed: a build runs for a short time, and the system frees its memory when it exits
+// a string list owns its strings, and frees them with itself
 
 typedef struct SHUI_StringList
 {
@@ -568,8 +610,8 @@ static struct
 
     struct
     {
-        u8 identifier;
-        u8 target; // the platform it compiles for
+        SHUCompiler identifier;
+        SHUPlatform target; // the platform it compiles for
         char *command;
         SHUI_StringList flags;
         SHUI_StringList linkerFlags;
@@ -616,15 +658,10 @@ static void *SHUI_Allocate(usz size)
     return memory;
 }
 
-// the old memory is left, as nothing is freed
-static void *SHUI_Grow(void *memory, usz oldSize, usz newSize)
+static void *SHUI_Reallocate(void *memory, usz size)
 {
-    void *grown = SHUI_Allocate(newSize);
-
-    if (oldSize != 0)
-    {
-        memcpy(grown, memory, oldSize);
-    }
+    void *grown = realloc(memory, size);
+    SHU_Assert(grown != NULL, "Internal: Memory allocation failed for size '%zu'.", size);
 
     return grown;
 }
@@ -649,54 +686,33 @@ static char *SHUI_VFormat(const char *format, va_list args)
     return string;
 }
 
-static char *SHUI_Format(const char *format, ...) __attribute__((format(printf, 1, 2)));
-static char *SHUI_Format(const char *format, ...)
+static char *SHUI_Copy(const char *string)
 {
+    usz length = (usz)strlen(string);
+    char *copy = (char *)SHUI_Allocate(length + 1);
+    memcpy(copy, string, length + 1);
+
+    return copy;
+}
+
+// shuild's own messages are one short line each, with paths from the build script's directory
+static void SHUI_LogLine(const char *kind, const char *format, va_list args)
+{
+    fprintf(SHU_LOG_STREAM, SHUM_COLOR_BOLD("[shuild]") " %s", kind);
+    vfprintf(SHU_LOG_STREAM, format, args);
+    fputc('\n', SHU_LOG_STREAM);
+}
+
+char *SHU_UtilFormat(const char *format, ...)
+{
+    SHU_AssertNullPointer(format);
+
     va_list args;
     va_start(args, format);
     char *string = SHUI_VFormat(format, args);
     va_end(args);
 
     return string;
-}
-
-// shuild's own messages are one short line each, with paths from the build script's directory
-static void SHUI_LogLine(const char *kind, const char *format, va_list args)
-{
-    fprintf(SHU_LOG_STREAM, SHUM_COLOR_BOLD("[shuild]") " %s%s\n", kind, SHUI_VFormat(format, args));
-}
-
-static void SHUI_Log(const char *format, ...) __attribute__((format(printf, 1, 2)));
-static void SHUI_Log(const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    SHUI_LogLine("", format, args);
-    va_end(args);
-}
-
-static void SHUI_Warn(const char *format, ...) __attribute__((format(printf, 1, 2)));
-static void SHUI_Warn(const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    SHUI_LogLine(SHUM_COLOR_YELLOW("warning: "), format, args);
-    va_end(args);
-}
-
-/// @brief Logs an error, and ends the build with the code unless it is 0.
-static void SHUI_Fail(i32 code, const char *format, ...) __attribute__((format(printf, 2, 3)));
-static void SHUI_Fail(i32 code, const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
-    va_end(args);
-
-    if (code != 0)
-    {
-        exit(code);
-    }
 }
 
 void SHU_UtilLog(const char *format, ...)
@@ -729,7 +745,7 @@ void SHU_UtilFail(i32 code, const char *format, ...)
 }
 
 /// @brief A path from the build script's directory, for logs.
-static const char *SHUI_SShort(const char *path)
+static const char *SHUI_PShort(const char *path)
 {
     usz length = SHUILD.currentExecutableDirectory == NULL ? 0 : (usz)strlen(SHUILD.currentExecutableDirectory);
 
@@ -741,7 +757,7 @@ static void SHUI_BAppendChar(SHUI_Builder *builder, char character)
     if (builder->length + 1 >= builder->capacity)
     {
         usz capacity = SHUI_GrowCapacity(builder->capacity);
-        builder->data = (char *)SHUI_Grow(builder->data, builder->length, capacity);
+        builder->data = (char *)SHUI_Reallocate(builder->data, capacity);
         builder->capacity = capacity;
     }
 
@@ -760,7 +776,7 @@ static void SHUI_BAppend(SHUI_Builder *builder, const char *string)
 // the string is the caller's, and the builder starts a new one
 static char *SHUI_BTake(SHUI_Builder *builder)
 {
-    char *string = builder->data == NULL ? SHUI_Format("%s", "") : builder->data;
+    char *string = builder->data == NULL ? SHUI_Copy("") : builder->data;
     *builder = (SHUI_Builder){0};
 
     return string;
@@ -774,14 +790,14 @@ static bool SHUI_SEndsWithC(const char *string, const char *suffix)
     return stringLength >= suffixLength && strcmp(string + stringLength - suffixLength, suffix) == 0;
 }
 
-static bool SHUI_SIsSeparator(char character)
+static bool SHUI_PIsSeparator(char character)
 {
     return character == '/' || character == SHUM_PATH_SEPARATOR;
 }
 
-static void SHUI_SNormalizePath(char *string)
+static void SHUI_PNormalizePath(char *string)
 {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     for (char *c = string; *c != '\0'; c++)
     {
         if (*c == '/')
@@ -795,58 +811,62 @@ static void SHUI_SNormalizePath(char *string)
 }
 
 /// @brief Joins a base path and a path. A directory ends with a separator. On Windows, the separators are backslashes.
-static char *SHUI_SPath(const char *base, const char *path, bool directory)
+static char *SHUI_PPath(const char *base, const char *path, bool directory)
 {
-    char *joined = SHUI_Format("%s%s", base, path);
-    usz length = (usz)strlen(joined);
+    usz baseLength = (usz)strlen(base);
+    usz pathLength = (usz)strlen(path);
+    const char *last = pathLength != 0 ? path + pathLength - 1 : baseLength != 0 ? base + baseLength - 1 : NULL;
+    bool separator = directory && (last == NULL || !SHUI_PIsSeparator(*last));
 
-    if (directory && (length == 0 || !SHUI_SIsSeparator(joined[length - 1])))
-    {
-        joined = SHUI_Format("%s" SHUM_PATH_SEPARATOR_STR, joined);
-    }
-
-    SHUI_SNormalizePath(joined);
+    char *joined = SHU_UtilFormat("%s%s%s", base, path, separator ? SHUM_PATH_SEPARATOR_STR : "");
+    SHUI_PNormalizePath(joined);
 
     return joined;
 }
 
 /// @brief The directory of a path, with its separator at the end, or an empty string.
-static char *SHUI_SDirectory(const char *path)
+static char *SHUI_PDirectory(const char *path)
 {
     usz length = (usz)strlen(path);
 
-    while (length > 0 && !SHUI_SIsSeparator(path[length - 1]))
+    while (length > 0 && !SHUI_PIsSeparator(path[length - 1]))
     {
         length--;
     }
 
-    return SHUI_Format("%.*s", (int)length, path);
+    return SHU_UtilFormat("%.*s", (int)length, path);
 }
 
 static void SHUI_SLAdd(SHUI_StringList *list, char *string);
+static void SHUI_SLFree(SHUI_StringList *list);
 
 /// @brief A path without . and .. segments, so two paths to a directory can be compared. (eg. /a/b/../c/ is /a/c/)
-static char *SHUI_SClean(const char *path)
+static char *SHUI_PClean(const char *path)
 {
     SHUI_StringList segments = {0};
     const char *start = path;
 
     for (const char *c = path;; c++)
     {
-        if (*c != '\0' && !SHUI_SIsSeparator(*c))
+        if (*c != '\0' && !SHUI_PIsSeparator(*c))
         {
             continue;
         }
 
-        char *segment = SHUI_Format("%.*s", (int)(c - start), start);
+        char *segment = SHU_UtilFormat("%.*s", (int)(c - start), start);
 
         if (strcmp(segment, "..") == 0 && segments.count > 0 && strcmp(segments.data[segments.count - 1], "..") != 0)
         {
-            segments.count--;
+            free(segments.data[--segments.count]);
+            free(segment);
         }
         else if (segment[0] != '\0' && strcmp(segment, ".") != 0)
         {
             SHUI_SLAdd(&segments, segment);
+        }
+        else
+        {
+            free(segment);
         }
 
         if (*c == '\0')
@@ -859,7 +879,7 @@ static char *SHUI_SClean(const char *path)
 
     SHUI_Builder clean = {0};
 
-    if (SHUI_SIsSeparator(path[0]))
+    if (SHUI_PIsSeparator(path[0]))
     {
         SHUI_BAppendChar(&clean, SHUM_PATH_SEPARATOR);
     }
@@ -868,26 +888,28 @@ static char *SHUI_SClean(const char *path)
     {
         SHUI_BAppend(&clean, segments.data[i]);
 
-        if (i + 1 < segments.count || (path[0] != '\0' && SHUI_SIsSeparator(path[strlen(path) - 1])))
+        if (i + 1 < segments.count || (path[0] != '\0' && SHUI_PIsSeparator(path[strlen(path) - 1])))
         {
             SHUI_BAppendChar(&clean, SHUM_PATH_SEPARATOR);
         }
     }
 
+    SHUI_SLFree(&segments);
+
     return SHUI_BTake(&clean);
 }
 
 /// @brief The path from one directory to another, both ending with a separator. (eg. from /a/bin/ to /a/lib/ is ../lib/)
-static char *SHUI_SRelative(const char *from, const char *to)
+static char *SHUI_PRelative(const char *fromPath, const char *toPath)
 {
-    from = SHUI_SClean(from);
-    to = SHUI_SClean(to);
+    char *from = SHUI_PClean(fromPath);
+    char *to = SHUI_PClean(toPath);
 
     usz common = 0;
 
     for (usz i = 0; from[i] != '\0' && from[i] == to[i]; i++)
     {
-        if (SHUI_SIsSeparator(from[i]))
+        if (SHUI_PIsSeparator(from[i]))
         {
             common = i + 1;
         }
@@ -897,13 +919,16 @@ static char *SHUI_SRelative(const char *from, const char *to)
 
     for (const char *c = from + common; *c != '\0'; c++)
     {
-        if (SHUI_SIsSeparator(*c))
+        if (SHUI_PIsSeparator(*c))
         {
             SHUI_BAppend(&relative, ".." SHUM_PATH_SEPARATOR_STR);
         }
     }
 
     SHUI_BAppend(&relative, to + common);
+
+    free(from);
+    free(to);
 
     return SHUI_BTake(&relative);
 }
@@ -913,11 +938,31 @@ static void SHUI_SLAdd(SHUI_StringList *list, char *string)
     if (list->count >= list->capacity)
     {
         usz capacity = SHUI_GrowCapacity(list->capacity);
-        list->data = (char **)SHUI_Grow(list->data, sizeof(char *) * list->count, sizeof(char *) * capacity);
+        list->data = (char **)SHUI_Reallocate(list->data, sizeof(char *) * capacity);
         list->capacity = capacity;
     }
 
     list->data[list->count++] = string;
+}
+
+// a list given to another owner is emptied, so it is not freed twice
+static SHUI_StringList SHUI_SLTake(SHUI_StringList *list)
+{
+    SHUI_StringList taken = *list;
+    *list = (SHUI_StringList){0};
+
+    return taken;
+}
+
+static void SHUI_SLFree(SHUI_StringList *list)
+{
+    for (usz i = 0; i < list->count; i++)
+    {
+        free(list->data[i]);
+    }
+
+    free(list->data);
+    *list = (SHUI_StringList){0};
 }
 
 static bool SHUI_SLContains(const SHUI_StringList *list, const char *string)
@@ -935,11 +980,11 @@ static bool SHUI_SLContains(const SHUI_StringList *list, const char *string)
 
 static void SHUI_CAddArgument(SHUI_StringList *command, const char *argument)
 {
-    SHUI_SLAdd(command, SHUI_Format("%s", argument));
+    SHUI_SLAdd(command, SHUI_Copy(argument));
 }
 
 // a backslash escapes the next character, as in a POSIX shell; on Windows, where paths hold backslashes, it escapes only a quote, as the C runtime's own splitting does
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
 #define SHUI_C_ESCAPES(next) ((next) == '"' || (next) == '\'')
 #define SHUI_C_ESCAPES_QUOTED(next) ((next) == '"')
 #else
@@ -1013,6 +1058,8 @@ static void SHUI_CAddArguments(SHUI_StringList *command, const char *arguments)
     {
         SHUI_SLAdd(command, SHUI_BTake(&argument));
     }
+
+    free(argument.data);
 }
 
 static void SHUI_CAddFlags(SHUI_StringList *command)
@@ -1035,30 +1082,30 @@ static void SHUI_CAddIncludeDirectories(SHUI_StringList *command)
 {
     for (usz i = 0; i < SHUILD.MODULE.includeDirectories.count; i++)
     {
-        SHUI_SLAdd(command, SHUI_Format("-I%s", SHUILD.MODULE.includeDirectories.data[i]));
+        SHUI_SLAdd(command, SHU_UtilFormat("-I%s", SHUILD.MODULE.includeDirectories.data[i]));
     }
 
     // the headers of linked libraries are another module's, so their warnings stay out
     for (usz i = 0; i < SHUILD.MODULE.linkedIncludeDirectories.count; i++)
     {
         SHUI_CAddArgument(command, "-isystem");
-        SHUI_SLAdd(command, SHUILD.MODULE.linkedIncludeDirectories.data[i]);
+        SHUI_CAddArgument(command, SHUILD.MODULE.linkedIncludeDirectories.data[i]);
     }
 }
 
 // build scripts run on the host, so a cross compiler leaves them to the host's own
 static const char *SHUI_CScriptCompiler(void)
 {
-    return SHUM_PLATFORM_IS_HOST(SHUILD.COMPILER.target) ? SHUILD.COMPILER.command : SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER);
+    return SHUM_PLATFORM_IS_HOST(SHUILD.COMPILER.target) ? SHUILD.COMPILER.command : SHUCompiler_GetCommand(SHUM_HOST_COMPILER);
 }
 
 // the archiver of the compiler's toolchain: llvm-ar for clang, which reads objects of any system,
 // and for gcc the gcc-ar of the same prefix and version, such as x86_64-w64-mingw32-gcc-ar or gcc-ar-14
-static const char *SHUI_CArchiver(void)
+static char *SHUI_CArchiver(void)
 {
-    if (SHUILD.COMPILER.identifier == SHUM_COMPILER_CLANG)
+    if (SHUILD.COMPILER.identifier == SHUCompiler_Clang)
     {
-        return "llvm-ar";
+        return SHUI_Copy("llvm-ar");
     }
 
     const char *gcc = NULL;
@@ -1068,7 +1115,7 @@ static const char *SHUI_CArchiver(void)
         gcc = found;
     }
 
-    return gcc == NULL ? "ar" : SHUI_Format("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
+    return gcc == NULL ? SHUI_Copy("ar") : SHU_UtilFormat("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
 }
 
 // the first line that the compiler prints for an option, such as -dumpmachine, or an empty string
@@ -1076,11 +1123,14 @@ static char *SHUI_CAsk(const char *command, const char *option)
 {
     char line[256] = {0};
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
-    FILE *pipe = _popen(SHUI_Format("%s %s 2>NUL", command, option), "r");
+#if SHUM_HOST_WINDOWS
+    char *asked = SHU_UtilFormat("%s %s 2>NUL", command, option);
+    FILE *pipe = _popen(asked, "r");
 #else
-    FILE *pipe = popen(SHUI_Format("%s %s 2>/dev/null", command, option), "r");
+    char *asked = SHU_UtilFormat("%s %s 2>/dev/null", command, option);
+    FILE *pipe = popen(asked, "r");
 #endif
+    free(asked);
 
     if (pipe != NULL)
     {
@@ -1089,7 +1139,7 @@ static char *SHUI_CAsk(const char *command, const char *option)
             line[0] = '\0';
         }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
         _pclose(pipe);
 #else
         pclose(pipe);
@@ -1097,34 +1147,38 @@ static char *SHUI_CAsk(const char *command, const char *option)
     }
 
     line[strcspn(line, "\r\n")] = '\0';
-    return SHUI_Format("%s", line);
+    return SHUI_Copy(line);
 }
 
 // the compiler names the system it compiles for, such as x86_64-linux-gnu, x86_64-w64-mingw32 or arm64-apple-darwin23
-static u8 SHUI_CTargetOf(const char *machine)
+static SHUPlatform SHUI_CTargetOf(const char *machine)
 {
     if (strstr(machine, "mingw") != NULL || strstr(machine, "windows") != NULL)
     {
-        return SHUM_PLATFORM_WINDOWS;
+        return SHUPlatform_Windows;
     }
 
     if (strstr(machine, "apple") != NULL || strstr(machine, "darwin") != NULL)
     {
-        return SHUM_PLATFORM_MACOS;
+        return SHUPlatform_MacOS;
     }
 
     if (strstr(machine, "linux") != NULL)
     {
-        return SHUM_PLATFORM_LINUX;
+        return SHUPlatform_Linux;
     }
 
     // a compiler that does not tell compiles for the host
-    return SHUM_HOST_PLATFORM;
+    return (SHUPlatform)SHUM_HOST_PLATFORM;
 }
 
-static u8 SHUI_CDetectTarget(const char *command)
+static SHUPlatform SHUI_CDetectTarget(const char *command)
 {
-    return SHUI_CTargetOf(SHUI_CAsk(command, "-dumpmachine"));
+    char *machine = SHUI_CAsk(command, "-dumpmachine");
+    SHUPlatform target = SHUI_CTargetOf(machine);
+    free(machine);
+
+    return target;
 }
 
 // whether a compiler's machine names the processor that shuild runs on, so the programs it compiles run here;
@@ -1159,13 +1213,13 @@ static bool SHUI_CRunsOnHost(const char *machine)
     return false;
 }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
-static char *SHUI_CQuoteArgument(char *argument)
+#if SHUM_HOST_WINDOWS
+static char *SHUI_CQuoteArgument(const char *argument)
 {
     // _spawnvp joins the arguments with spaces, so they are quoted the way the C runtime splits them back
     if (argument[0] != '\0' && strpbrk(argument, " \t\"") == NULL)
     {
-        return argument;
+        return SHUI_Copy(argument);
     }
 
     SHUI_Builder quoted = {0};
@@ -1201,7 +1255,7 @@ static char *SHUI_CQuoteArgument(char *argument)
 }
 #endif
 
-/// @param line Gets the command as one line, for a log, or NULL.
+/// @param line Gets the command as one line, for a log, to free with free, or NULL.
 static i64 SHUI_CStart(const SHUI_StringList *command, char **line)
 {
     SHU_Assert(command->count > 0, "Internal: Empty command.");
@@ -1211,7 +1265,7 @@ static i64 SHUI_CStart(const SHUI_StringList *command, char **line)
 
     for (usz i = 0; i < command->count; i++)
     {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
         argv[i] = SHUI_CQuoteArgument(command->data[i]);
 #else
         argv[i] = command->data[i];
@@ -1233,18 +1287,13 @@ static i64 SHUI_CStart(const SHUI_StringList *command, char **line)
 
     char *commandLine = SHUI_BTake(&joined);
 
-    if (line != NULL)
-    {
-        *line = commandLine;
-    }
-
 #ifdef SHUC_LOG_COMMANDS
-    SHUI_Log("$ " SHUM_LOG_COMMAND("%s"), commandLine);
+    SHU_UtilLog("$ " SHUM_LOG_COMMAND("%s"), commandLine);
 #endif
 
     i64 process = -1;
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     process = (i64)_spawnvp(_P_NOWAIT, argv[0], (const char *const *)argv);
 #else
     pid_t pid = fork();
@@ -1252,12 +1301,29 @@ static i64 SHUI_CStart(const SHUI_StringList *command, char **line)
     if (pid == 0)
     {
         execvp(argv[0], argv);
-        SHUI_Fail(0, SHUM_LOG_COMMAND("%s") " cannot start: %s", argv[0], strerror(errno));
+        SHU_UtilFail(0, SHUM_LOG_COMMAND("%s") " cannot start: %s", argv[0], strerror(errno));
         _exit(127);
     }
 
     process = pid > 0 ? (i64)pid : -1;
 #endif
+
+#if SHUM_HOST_WINDOWS
+    for (usz i = 0; i < command->count; i++)
+    {
+        free(argv[i]);
+    }
+#endif
+    free(argv);
+
+    if (line != NULL)
+    {
+        *line = commandLine;
+    }
+    else
+    {
+        free(commandLine);
+    }
 
     return process;
 }
@@ -1269,7 +1335,7 @@ static i32 SHUI_CWait(i64 process)
         return -1;
     }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     int status = 0;
     return _cwait(&status, (intptr_t)process, _WAIT_CHILD) == -1 ? -1 : (i32)status;
 #else
@@ -1294,9 +1360,9 @@ static void SHUI_CReport(i32 result, bool terminateOnError, const char *line)
     {
 #ifdef SHUC_NO_RUN_ERROR
         (void)terminateOnError;
-        SHUI_Fail(0, "command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, line);
+        SHU_UtilFail(0, "command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, line);
 #else
-        SHUI_Fail(terminateOnError ? result : 0, "command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, line);
+        SHU_UtilFail(terminateOnError ? result : 0, "command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, line);
 #endif
     }
 }
@@ -1306,6 +1372,7 @@ static i32 SHUI_CRun(const SHUI_StringList *command, bool terminateOnError)
     char *line = NULL;
     i32 result = SHUI_CWait(SHUI_CStart(command, &line));
     SHUI_CReport(result, terminateOnError, line);
+    free(line);
 
     return result;
 }
@@ -1316,7 +1383,7 @@ static void SHUI_CWaitJob(void)
     usz index = 0;
     i32 result = -1;
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     result = SHUI_CWait(SHUILD.JOBS.processes[0]);
 #else
     // a child that is not a job, like one the build script started itself, is passed over
@@ -1364,13 +1431,15 @@ static void SHUI_CWaitJob(void)
             SHUILD.JOBS.failure = result;
         }
     }
+
+    free(line);
 }
 
 static void SHUI_CStartJob(const SHUI_StringList *command)
 {
     if (SHUILD.JOBS.limit == 0)
     {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
         SYSTEM_INFO systemInfo = {0};
         GetSystemInfo(&systemInfo);
         usz processors = (usz)systemInfo.dwNumberOfProcessors;
@@ -1401,6 +1470,7 @@ static void SHUI_CStartJob(const SHUI_StringList *command)
     if (process < 0)
     {
         SHUI_CReport(-1, false, line);
+        free(line);
         SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? -1 : SHUILD.JOBS.failure;
         return;
     }
@@ -1422,7 +1492,7 @@ static void SHUI_CWaitJobs(void)
 #ifndef SHUC_NO_RUN_ERROR
     if (failure != 0)
     {
-        SHUI_Fail(failure, SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
+        SHU_UtilFail(failure, SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
     }
 #else
     (void)failure;
@@ -1431,7 +1501,7 @@ static void SHUI_CWaitJobs(void)
 
 static SHUFileType SHUI_UFileExists(const char *path)
 {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     DWORD attributes = GetFileAttributesA(path);
 
     if (attributes == INVALID_FILE_ATTRIBUTES)
@@ -1463,7 +1533,7 @@ static void SHUI_UMakeDirectory(const char *path)
 {
     i32 result = 0;
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     result = _mkdir(path);
 #else
     result = mkdir(path, 0755);
@@ -1471,14 +1541,14 @@ static void SHUI_UMakeDirectory(const char *path)
 
     if (result != 0 && errno != EEXIST)
     {
-        SHUI_Fail(result, "directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_SShort(path), strerror(errno));
+        SHU_UtilFail(result, "directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_PShort(path), strerror(errno));
     }
 }
 
 static void SHUI_UMakeDirectoryRecursive(const char *path)
 {
     // each directory on the way is made, ending the path after it for a moment
-    char *partial = SHUI_Format("%s", path);
+    char *partial = SHUI_Copy(path);
 
     for (usz i = 1; partial[i] != '\0'; i++)
     {
@@ -1491,6 +1561,7 @@ static void SHUI_UMakeDirectoryRecursive(const char *path)
     }
 
     SHUI_UMakeDirectory(partial);
+    free(partial);
 }
 
 static void SHUI_UDeleteSingleFile(const char *path)
@@ -1499,18 +1570,18 @@ static void SHUI_UDeleteSingleFile(const char *path)
 
     if (result != 0)
     {
-        SHUI_Fail(result, "file " SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_SShort(path), strerror(errno));
+        SHU_UtilFail(result, "file " SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PShort(path), strerror(errno));
     }
 }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
 static void SHUI_UDeleteDirectory(const char *path)
 {
     i32 result = _rmdir(path);
 
     if (result != 0)
     {
-        SHUI_Fail(result, "directory " SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_SShort(path), strerror(errno));
+        SHU_UtilFail(result, "directory " SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PShort(path), strerror(errno));
     }
 }
 #else
@@ -1540,9 +1611,11 @@ static void SHUI_UDeleteRecursive(const char *path)
         return;
     }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     WIN32_FIND_DATAA ffd;
-    HANDLE hFind = FindFirstFileA(SHUI_Format("%s\\*", path), &ffd);
+    char *pattern = SHU_UtilFormat("%s\\*", path);
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    free(pattern);
     if (hFind == INVALID_HANDLE_VALUE)
     {
         return;
@@ -1553,7 +1626,7 @@ static void SHUI_UDeleteRecursive(const char *path)
         if (strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
             continue;
 
-        char *subPath = SHUI_Format("%s\\%s", path, ffd.cFileName);
+        char *subPath = SHU_UtilFormat("%s\\%s", path, ffd.cFileName);
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
@@ -1563,6 +1636,8 @@ static void SHUI_UDeleteRecursive(const char *path)
         {
             SHUI_UDeleteSingleFile(subPath);
         }
+
+        free(subPath);
     } while (FindNextFileA(hFind, &ffd));
 
     FindClose(hFind);
@@ -1578,7 +1653,7 @@ static SHUSlice SHUI_UReadFile(const char *path)
 
     if (fileHandle == NULL)
     {
-        SHUI_Fail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_SShort(path), strerror(errno));
+        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_PShort(path), strerror(errno));
     }
 
     fseek(fileHandle, 0, SEEK_END);
@@ -1605,8 +1680,10 @@ static void SHUI_UWriteFile(const char *path, SHUSliceView content)
     if (SHUI_UFileExists(path) == SHUFileType_Regular)
     {
         SHUSlice old = SHUI_UReadFile(path);
+        bool same = old.size == content.size && (content.size == 0 || memcmp(old.data, content.data, content.size) == 0);
+        free(old.data);
 
-        if (old.size == content.size && (content.size == 0 || memcmp(old.data, content.data, content.size) == 0))
+        if (same)
         {
             return;
         }
@@ -1616,7 +1693,7 @@ static void SHUI_UWriteFile(const char *path, SHUSliceView content)
 
     if (fileHandle == NULL)
     {
-        SHUI_Fail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_SShort(path), strerror(errno));
+        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_PShort(path), strerror(errno));
     }
 
     usz fileWritten = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, fileHandle);
@@ -1626,15 +1703,17 @@ static void SHUI_UWriteFile(const char *path, SHUSliceView content)
 
 static void SHUI_UCopySingleFile(const char *src, const char *dst)
 {
-    SHUI_UWriteFile(dst, csv(SHUI_UReadFile(src)));
+    SHUSlice content = SHUI_UReadFile(src);
+    SHUI_UWriteFile(dst, csv(content));
+    free(content.data);
 
-#if !SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if !SHUM_HOST_WINDOWS
     // the copy keeps the permissions, so a copied program or script still runs
     struct stat stats;
 
     if (stat(src, &stats) == 0 && chmod(dst, stats.st_mode & 07777) != 0)
     {
-        SHUI_Fail(SHUResult_ErrFile, "permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_SShort(dst), strerror(errno));
+        SHU_UtilFail(SHUResult_ErrFile, "permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_PShort(dst), strerror(errno));
     }
 #endif
 }
@@ -1660,12 +1739,14 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
         SHUI_UMakeDirectoryRecursive(dst);
     }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     WIN32_FIND_DATAA ffd;
-    HANDLE hFind = FindFirstFileA(SHUI_Format("%s\\*", src), &ffd);
+    char *pattern = SHU_UtilFormat("%s\\*", src);
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    free(pattern);
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        SHUI_Fail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_SShort(src));
+        SHU_UtilFail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PShort(src));
     }
 
     do
@@ -1675,7 +1756,11 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
             continue;
         }
 
-        SHUI_UCopyRecursive(SHUI_Format("%s\\%s", src, ffd.cFileName), SHUI_Format("%s\\%s", dst, ffd.cFileName));
+        char *from = SHU_UtilFormat("%s\\%s", src, ffd.cFileName);
+        char *to = SHU_UtilFormat("%s\\%s", dst, ffd.cFileName);
+        SHUI_UCopyRecursive(from, to);
+        free(from);
+        free(to);
     } while (FindNextFileA(hFind, &ffd));
 
     FindClose(hFind);
@@ -1683,7 +1768,7 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
     DIR *dir = opendir(src);
     if (!dir)
     {
-        SHUI_Fail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_SShort(src));
+        SHU_UtilFail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PShort(src));
     }
 
     struct dirent *entry;
@@ -1694,7 +1779,11 @@ static void SHUI_UCopyRecursive(const char *src, const char *dst)
             continue;
         }
 
-        SHUI_UCopyRecursive(SHUI_Format("%s/%s", src, entry->d_name), SHUI_Format("%s/%s", dst, entry->d_name));
+        char *from = SHU_UtilFormat("%s/%s", src, entry->d_name);
+        char *to = SHU_UtilFormat("%s/%s", dst, entry->d_name);
+        SHUI_UCopyRecursive(from, to);
+        free(from);
+        free(to);
     }
 
     closedir(dir);
@@ -1712,7 +1801,7 @@ static void SHUI_URenameFile(const char *file, const char *name)
 
     if (result != 0)
     {
-        SHUI_Fail(result, SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_SShort(file), SHUI_SShort(name), strerror(errno));
+        SHU_UtilFail(result, SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_PShort(file), SHUI_PShort(name), strerror(errno));
     }
 }
 
@@ -1724,12 +1813,12 @@ static i64 SHUI_UGetFileEditTime(const char *file)
 
     if (result != 0)
     {
-        SHUI_Fail(SHUResult_ErrInternal, "file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_SShort(file), strerror(errno));
+        SHU_UtilFail(SHUResult_ErrInternal, "file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_PShort(file), strerror(errno));
     }
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_LINUX)
+#if SHUM_HOST_LINUX
     return (i64)attr.st_mtim.tv_sec * 1000000000LL + (i64)attr.st_mtim.tv_nsec;
-#elif SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
+#elif SHUM_HOST_MACOS
     return (i64)attr.st_mtimespec.tv_sec * 1000000000LL + (i64)attr.st_mtimespec.tv_nsec;
 #else
     return (i64)attr.st_mtime * 1000000000LL;
@@ -1774,9 +1863,17 @@ static bool SHUI_CDependencyDirty(const char *dependencyFile, const char *target
 
         if (c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\0')
         {
-            if (dependentFile.length != 0 && objectTime < SHUI_UGetFileEditTime(SHUI_BTake(&dependentFile)))
+            if (dependentFile.length != 0)
             {
-                return true;
+                char *file = SHUI_BTake(&dependentFile);
+                bool newer = objectTime < SHUI_UGetFileEditTime(file);
+                free(file);
+
+                if (newer)
+                {
+                    free(dependencies.data);
+                    return true;
+                }
             }
         }
         else
@@ -1787,6 +1884,8 @@ static bool SHUI_CDependencyDirty(const char *dependencyFile, const char *target
         offset++;
     }
 
+    free(dependentFile.data);
+    free(dependencies.data);
     return false;
 }
 
@@ -1812,8 +1911,8 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     }
     const char *sourceFileName = sourceName + sourceNameStartIndex;
 
-    char *executablePath = SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, executableFileName);
-    char *sourcePath = SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, sourceFileName);
+    char *executablePath = SHU_UtilFormat("%s%s", SHUILD.currentExecutableDirectory, executableFileName);
+    char *sourcePath = SHU_UtilFormat("%s%s", SHUILD.currentExecutableDirectory, sourceFileName);
 
     i64 exeTime = SHUI_UGetFileEditTime(executablePath);
     i64 sourceTime = SHUI_UGetFileEditTime(sourcePath);
@@ -1822,7 +1921,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
 
     if (!rebuild)
     {
-        char *depFileMap = SHUI_Format("%s." SHUC_FILE_EXTENSION, executablePath);
+        char *depFileMap = SHU_UtilFormat("%s." SHUC_FILE_EXTENSION, executablePath);
 
         SHUI_StringList command = {0};
         SHUI_CAddArguments(&command, SHUI_CScriptCompiler());
@@ -1840,16 +1939,21 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
         {
             SHUI_UDeleteSingleFile(depFileMap);
         }
+
+        SHUI_SLFree(&command);
+        free(depFileMap);
     }
 
     if (!rebuild)
     {
+        free(executablePath);
+        free(sourcePath);
         return;
     }
 
-    SHUI_Log("the build script changed; rebuilding it");
+    SHU_UtilLog("the build script changed; rebuilding it");
 
-    char *oldExePath = SHUI_Format("%s.old", executablePath);
+    char *oldExePath = SHU_UtilFormat("%s.old", executablePath);
     SHUI_URenameFile(executablePath, oldExePath);
 
     SHUI_StringList command = {0};
@@ -1859,6 +1963,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     SHUI_CAddArgument(&command, sourcePath);
     SHUI_CAddArguments(&command, SHUILD_BUILD);
     i32 result = SHUI_CRun(&command, false);
+    SHUI_SLFree(&command);
 
     if (result == 0)
     {
@@ -1868,7 +1973,7 @@ void SHUI_UAutomate(int argc, char **argv, const char *sourceName)
     else
     {
         SHUI_URenameFile(oldExePath, executablePath);
-        SHUI_Fail(result, "the build script cannot be rebuilt.");
+        SHU_UtilFail(result, "the build script cannot be rebuilt.");
     }
 }
 
@@ -1917,14 +2022,16 @@ static SHUI_Hash SHUI_CModuleStateHash(void)
 
 static char *SHUI_CModuleStateFile(const char *moduleName)
 {
-    return SHUI_Format("%s%s%c%s.%s", SHUILD.cacheDirectory, moduleName, SHUM_PATH_SEPARATOR, moduleName, SHUC_MODULE_FILE_EXTENSION);
+    return SHU_UtilFormat("%s%s%c%s.%s", SHUILD.cacheDirectory, moduleName, SHUM_PATH_SEPARATOR, moduleName, SHUC_MODULE_FILE_EXTENSION);
 }
 
 static void SHUI_CModuleStateUpdate(const char *moduleName)
 {
     char *moduleCacheFile = SHUI_CModuleStateFile(moduleName);
+    char *moduleCacheDirectory = SHU_UtilFormat("%s%s%c", SHUILD.cacheDirectory, moduleName, SHUM_PATH_SEPARATOR);
 
-    SHUI_UMakeDirectoryRecursive(SHUI_Format("%s%s%c", SHUILD.cacheDirectory, moduleName, SHUM_PATH_SEPARATOR));
+    SHUI_UMakeDirectoryRecursive(moduleCacheDirectory);
+    free(moduleCacheDirectory);
 
     SHUI_Hash currentConfig = SHUI_CModuleStateHash();
 
@@ -1932,6 +2039,7 @@ static void SHUI_CModuleStateUpdate(const char *moduleName)
     SHU_Assert(cacheFileHandle != NULL, "File open failed for '%s'", moduleCacheFile);
     fprintf(cacheFileHandle, "%llu", (unsigned long long)currentConfig);
     fclose(cacheFileHandle);
+    free(moduleCacheFile);
 }
 
 static bool SHUI_CModuleStateDirty(const char *moduleName)
@@ -1940,6 +2048,7 @@ static bool SHUI_CModuleStateDirty(const char *moduleName)
 
     if (SHUI_UFileExists(moduleCacheFile) != SHUFileType_Regular)
     {
+        free(moduleCacheFile);
         return true;
     }
 
@@ -1952,6 +2061,7 @@ static bool SHUI_CModuleStateDirty(const char *moduleName)
     usz bufferRead = (usz)fread(buffer, 1, sizeof(buffer), cacheFileHandle);
     SHU_Assert(bufferRead < sizeof(buffer), "Buffer overflow for '%s'", moduleCacheFile);
     fclose(cacheFileHandle);
+    free(moduleCacheFile);
 
     SHUI_Hash savedConfig = strtoull(buffer, NULL, 10);
 
@@ -1964,21 +2074,21 @@ static bool SHUI_CUnitRequiresCompilation(const char *sourceFile, char **retObje
     usz fileStartIndex = (usz)strlen(SHUILD.MODULE.root);
     int unitLength = (int)((usz)strlen(sourceFile) - fileStartIndex - 1);
 
-    *retDependencyFile = SHUI_Format("%s%s%c%.*s%s",
-                                     SHUILD.cacheDirectory,
-                                     SHUILD.MODULE.name,
-                                     SHUM_PATH_SEPARATOR,
-                                     unitLength,
-                                     sourceFile + fileStartIndex,
-                                     SHUC_FILE_EXTENSION);
+    *retDependencyFile = SHU_UtilFormat("%s%s%c%.*s%s",
+                                        SHUILD.cacheDirectory,
+                                        SHUILD.MODULE.name,
+                                        SHUM_PATH_SEPARATOR,
+                                        unitLength,
+                                        sourceFile + fileStartIndex,
+                                        SHUC_FILE_EXTENSION);
 
-    *retObjectFile = SHUI_Format("%s%s%c%.*s%s",
-                                 SHUILD.cacheDirectory,
-                                 SHUILD.MODULE.name,
-                                 SHUM_PATH_SEPARATOR,
-                                 unitLength,
-                                 sourceFile + fileStartIndex,
-                                 "o");
+    *retObjectFile = SHU_UtilFormat("%s%s%c%.*s%s",
+                                    SHUILD.cacheDirectory,
+                                    SHUILD.MODULE.name,
+                                    SHUM_PATH_SEPARATOR,
+                                    unitLength,
+                                    sourceFile + fileStartIndex,
+                                    "o");
 
     if (SHUI_UFileExists(*retObjectFile) == SHUFileType_Regular &&
         SHUI_UFileExists(*retDependencyFile) == SHUFileType_Regular &&
@@ -1987,7 +2097,9 @@ static bool SHUI_CUnitRequiresCompilation(const char *sourceFile, char **retObje
         return false;
     }
 
-    SHUI_UMakeDirectoryRecursive(SHUI_SDirectory(*retObjectFile));
+    char *directory = SHUI_PDirectory(*retObjectFile);
+    SHUI_UMakeDirectoryRecursive(directory);
+    free(directory);
     return true;
 }
 #endif
@@ -2025,14 +2137,17 @@ static void SHUI_CCompileUnit(const char *sourceFile, const char *objectFile, co
     }
 
     SHUI_CStartJob(&command);
+    SHUI_SLFree(&command);
     SHUILD.MODULE.compiledCount++;
 }
 
 static void SHUI_MAddSourceDirectoryRecursive(const char *path)
 {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     WIN32_FIND_DATAA ffd = {0};
-    HANDLE hFind = FindFirstFileA(SHUI_Format("%s*", path), &ffd);
+    char *pattern = SHU_UtilFormat("%s*", path);
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    free(pattern);
     if (hFind == INVALID_HANDLE_VALUE)
         return;
 
@@ -2045,11 +2160,13 @@ static void SHUI_MAddSourceDirectoryRecursive(const char *path)
 
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            SHUI_MAddSourceDirectoryRecursive(SHUI_Format("%s%s\\", path, ffd.cFileName));
+            char *directory = SHU_UtilFormat("%s%s\\", path, ffd.cFileName);
+            SHUI_MAddSourceDirectoryRecursive(directory);
+            free(directory);
         }
         else if (SHUI_SEndsWithC(ffd.cFileName, ".c"))
         {
-            SHUI_SLAdd(&SHUILD.MODULE.sourceFiles, SHUI_Format("%s%s", path, ffd.cFileName));
+            SHUI_SLAdd(&SHUILD.MODULE.sourceFiles, SHU_UtilFormat("%s%s", path, ffd.cFileName));
         }
     } while (FindNextFileA(hFind, &ffd));
 
@@ -2059,7 +2176,7 @@ static void SHUI_MAddSourceDirectoryRecursive(const char *path)
 
     if (!dir)
     {
-        SHUI_Fail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_SShort(path));
+        SHU_UtilFail(SHUResult_ErrInternal, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PShort(path));
     }
 
     struct dirent *entry;
@@ -2070,16 +2187,23 @@ static void SHUI_MAddSourceDirectoryRecursive(const char *path)
             continue;
         }
 
-        char *entryPath = SHUI_Format("%s%s", path, entry->d_name);
+        char *entryPath = SHU_UtilFormat("%s%s", path, entry->d_name);
 
         struct stat st;
         if (stat(entryPath, &st) == 0 && S_ISDIR(st.st_mode))
         {
-            SHUI_MAddSourceDirectoryRecursive(SHUI_Format("%s/", entryPath));
+            char *directory = SHU_UtilFormat("%s/", entryPath);
+            SHUI_MAddSourceDirectoryRecursive(directory);
+            free(directory);
+            free(entryPath);
         }
         else if (SHUI_SEndsWithC(entry->d_name, ".c"))
         {
             SHUI_SLAdd(&SHUILD.MODULE.sourceFiles, entryPath);
+        }
+        else
+        {
+            free(entryPath);
         }
     }
 
@@ -2111,18 +2235,26 @@ static void SHUI_MRecordLibrary(bool keepLinks)
         if (SHUILD.LIBRARIES.count >= SHUILD.LIBRARIES.capacity)
         {
             usz capacity = SHUI_GrowCapacity(SHUILD.LIBRARIES.capacity);
-            SHUILD.LIBRARIES.data = (SHUI_Library *)SHUI_Grow(SHUILD.LIBRARIES.data, sizeof(SHUI_Library) * SHUILD.LIBRARIES.count, sizeof(SHUI_Library) * capacity);
+            SHUILD.LIBRARIES.data = (SHUI_Library *)SHUI_Reallocate(SHUILD.LIBRARIES.data, sizeof(SHUI_Library) * capacity);
             SHUILD.LIBRARIES.capacity = capacity;
         }
 
         library = &SHUILD.LIBRARIES.data[SHUILD.LIBRARIES.count++];
-        library->name = SHUILD.MODULE.name;
+        *library = (SHUI_Library){.name = SHUI_Copy(SHUILD.MODULE.name)};
     }
 
-    // the module's lists stay with the record, as the next module starts new ones
-    library->includeDirectories = SHUILD.MODULE.publicIncludeDirectories;
-    library->links = keepLinks ? SHUILD.MODULE.links : (SHUI_StringList){0};
-    library->linkDirectories = keepLinks ? SHUILD.MODULE.linkDirectories : (SHUI_StringList){0};
+    // a library compiled again replaces what it kept, and takes the module's lists, which the module then does not free
+    SHUI_SLFree(&library->includeDirectories);
+    SHUI_SLFree(&library->links);
+    SHUI_SLFree(&library->linkDirectories);
+
+    library->includeDirectories = SHUI_SLTake(&SHUILD.MODULE.publicIncludeDirectories);
+
+    if (keepLinks)
+    {
+        library->links = SHUI_SLTake(&SHUILD.MODULE.links);
+        library->linkDirectories = SHUI_SLTake(&SHUILD.MODULE.linkDirectories);
+    }
 }
 
 // the module gets the public include directories of the libraries it links itself, but not of the libraries those link
@@ -2136,18 +2268,18 @@ static void SHUI_MAddLinkedIncludes(void)
         {
             if (!SHUI_SLContains(&SHUILD.MODULE.linkedIncludeDirectories, library->includeDirectories.data[j]))
             {
-                SHUI_SLAdd(&SHUILD.MODULE.linkedIncludeDirectories, library->includeDirectories.data[j]);
+                SHUI_SLAdd(&SHUILD.MODULE.linkedIncludeDirectories, SHUI_Copy(library->includeDirectories.data[j]));
             }
         }
     }
 }
 
-static void SHUI_MExpandLink(SHUI_StringList *links, char *link, usz depth)
+static void SHUI_MExpandLink(SHUI_StringList *links, const char *link, usz depth)
 {
     // a library that links itself through others would expand forever
     SHU_Assert(depth < 64, "Library '%s' links itself through other libraries.", link);
 
-    SHUI_SLAdd(links, link);
+    SHUI_SLAdd(links, SHUI_Copy(link));
 
     const SHUI_Library *library = SHUI_MFindLibrary(link);
 
@@ -2160,7 +2292,7 @@ static void SHUI_MExpandLink(SHUI_StringList *links, char *link, usz depth)
     {
         if (!SHUI_SLContains(&SHUILD.MODULE.linkDirectories, library->linkDirectories.data[i]))
         {
-            SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, library->linkDirectories.data[i]);
+            SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, SHUI_Copy(library->linkDirectories.data[i]));
         }
     }
 
@@ -2187,22 +2319,25 @@ static void SHUI_MExpandLinks(void)
     {
         if (!SHUI_SLContains(&reversed, links.data[i - 1]))
         {
-            SHUI_SLAdd(&reversed, links.data[i - 1]);
+            SHUI_SLAdd(&reversed, SHUI_Copy(links.data[i - 1]));
         }
     }
 
-    SHUILD.MODULE.links = (SHUI_StringList){0};
+    SHUI_SLFree(&links);
+    SHUI_SLFree(&SHUILD.MODULE.links);
 
     for (usz i = reversed.count; i > 0; i--)
     {
-        SHUI_SLAdd(&SHUILD.MODULE.links, reversed.data[i - 1]);
+        SHUI_SLAdd(&SHUILD.MODULE.links, SHUI_Copy(reversed.data[i - 1]));
     }
+
+    SHUI_SLFree(&reversed);
 }
 
 // the dynamic library's file where the linker finds it: on Windows, its import library, which names the DLL
 static char *SHUI_MLinkedDynamicFile(const char *name)
 {
-    return SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? SHUI_Format("lib%s.dll.a", name) : SHU_UtilLibraryFile(name, SHUModuleType_LibraryDynamic);
+    return SHUILD.COMPILER.target == SHUPlatform_Windows ? SHU_UtilFormat("lib%s.dll.a", name) : SHU_UtilLibraryFile(name, SHUModuleType_LibraryDynamic);
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -2215,20 +2350,24 @@ static bool SHUI_MLinksNewer(const char *outFile)
     {
         for (usz j = 0; j < SHUILD.MODULE.links.count; j++)
         {
-            const char *files[] = {
+            char *files[] = {
                 SHU_UtilLibraryFile(SHUILD.MODULE.links.data[j], SHUModuleType_LibraryStatic),
                 SHUI_MLinkedDynamicFile(SHUILD.MODULE.links.data[j]),
             };
+            bool newer = false;
 
             for (usz k = 0; k < sizeof(files) / sizeof(*files); k++)
             {
-                char *libFile = SHUI_Format("%s%s", SHUILD.MODULE.linkDirectories.data[i], files[k]);
+                char *libFile = SHU_UtilFormat("%s%s", SHUILD.MODULE.linkDirectories.data[i], files[k]);
 
-                if (SHUI_UFileExists(libFile) == SHUFileType_Regular &&
-                    SHUI_UGetFileEditTime(libFile) > outTime)
-                {
-                    return true;
-                }
+                newer = newer || (SHUI_UFileExists(libFile) == SHUFileType_Regular && SHUI_UGetFileEditTime(libFile) > outTime);
+                free(libFile);
+                free(files[k]);
+            }
+
+            if (newer)
+            {
+                return true;
             }
         }
     }
@@ -2240,15 +2379,18 @@ static bool SHUI_MLinksNewer(const char *outFile)
 // a directory is searched at run time only if it holds a dynamic library that the module links
 static bool SHUI_MHoldsDynamicLink(const char *directory)
 {
-    for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
+    bool holds = false;
+
+    for (usz i = 0; i < SHUILD.MODULE.links.count && !holds; i++)
     {
-        if (SHUI_UFileExists(SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
-        {
-            return true;
-        }
+        char *file = SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
+        char *path = SHU_UtilFormat("%s%s", directory, file);
+        holds = SHUI_UFileExists(path) == SHUFileType_Regular;
+        free(path);
+        free(file);
     }
 
-    return false;
+    return holds;
 }
 
 /// @param directory Output directory of the module, from which its run-time search paths start.
@@ -2258,25 +2400,26 @@ static void SHUI_MAddLinks(SHUI_StringList *command, const char *directory)
     {
         const char *linkDirectory = SHUILD.MODULE.linkDirectories.data[i];
 
-        SHUI_SLAdd(command, SHUI_Format("-L%s", linkDirectory));
+        SHUI_SLAdd(command, SHU_UtilFormat("-L%s", linkDirectory));
 
         // the path from the module's own directory, so the two can move together; Windows has none, see SHU_ModuleCopyDynamicLinks
-        if (SHUILD.COMPILER.target != SHUM_PLATFORM_WINDOWS && SHUI_MHoldsDynamicLink(linkDirectory))
+        if (SHUILD.COMPILER.target != SHUPlatform_Windows && SHUI_MHoldsDynamicLink(linkDirectory))
         {
-            char *relative = SHUI_SRelative(directory, linkDirectory);
+            char *relative = SHUI_PRelative(directory, linkDirectory);
             usz length = (usz)strlen(relative);
 
-            SHUI_SLAdd(command, SHUI_Format("-Wl,-rpath,%s%s%.*s",
-                                            SHUILD.COMPILER.target == SHUM_PLATFORM_MACOS ? "@loader_path" : "$ORIGIN",
-                                            length == 0 ? "" : "/",
-                                            (int)(length == 0 ? 0 : length - 1),
-                                            relative));
+            SHUI_SLAdd(command, SHU_UtilFormat("-Wl,-rpath,%s%s%.*s",
+                                               SHUILD.COMPILER.target == SHUPlatform_MacOS ? "@loader_path" : "$ORIGIN",
+                                               length == 0 ? "" : "/",
+                                               (int)(length == 0 ? 0 : length - 1),
+                                               relative));
+            free(relative);
         }
     }
 
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        SHUI_SLAdd(command, SHUI_Format("-l%s", SHUILD.MODULE.links.data[i]));
+        SHUI_SLAdd(command, SHU_UtilFormat("-l%s", SHUILD.MODULE.links.data[i]));
     }
 }
 
@@ -2289,24 +2432,40 @@ static void SHUI_MCopyDynamicLinks(const char *directory)
 
         for (usz j = 0; j < SHUILD.MODULE.linkDirectories.count; j++)
         {
-            char *library = SHUI_Format("%s%s", SHUILD.MODULE.linkDirectories.data[j], file);
+            char *library = SHU_UtilFormat("%s%s", SHUILD.MODULE.linkDirectories.data[j], file);
+            bool found = SHUI_UFileExists(library) == SHUFileType_Regular;
 
-            if (SHUI_UFileExists(library) == SHUFileType_Regular)
+            if (found)
             {
-                if (strcmp(SHUI_SClean(SHUILD.MODULE.linkDirectories.data[j]), SHUI_SClean(directory)) != 0)
+                char *from = SHUI_PClean(SHUILD.MODULE.linkDirectories.data[j]);
+                char *to = SHUI_PClean(directory);
+
+                if (strcmp(from, to) != 0)
                 {
-                    SHUI_UCopySingleFile(library, SHUI_Format("%s%s", directory, file));
+                    char *copy = SHU_UtilFormat("%s%s", directory, file);
+                    SHUI_UCopySingleFile(library, copy);
+                    free(copy);
                 }
 
+                free(from);
+                free(to);
+            }
+
+            free(library);
+
+            if (found)
+            {
                 break;
             }
         }
+
+        free(file);
     }
 }
 
 static void SHUI_MCompileExecutable(const char *directory)
 {
-    SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, SHUILD.currentExecutableDirectory);
+    SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, SHUI_Copy(SHUILD.currentExecutableDirectory));
 
     bool skipExePacking = true;
 
@@ -2326,21 +2485,22 @@ static void SHUI_MCompileExecutable(const char *directory)
             skipExePacking = false;
         }
 
+        free(dependencyFile);
         SHUI_SLAdd(&inputFiles, objectFile);
 #else
         skipExePacking = false;
         SHUILD.MODULE.compiledCount++;
 
-        SHUI_SLAdd(&inputFiles, sourceFile);
+        SHUI_SLAdd(&inputFiles, SHUI_Copy(sourceFile));
 #endif
     }
 
     SHUI_CWaitJobs();
 
-    char *outFile = SHUI_Format("%s%s%s",
-                                directory,
-                                SHUILD.MODULE.name,
-                                SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? ".exe" : "");
+    char *outFile = SHU_UtilFormat("%s%s%s",
+                                   directory,
+                                   SHUILD.MODULE.name,
+                                   SHUILD.COMPILER.target == SHUPlatform_Windows ? ".exe" : "");
 
 #ifdef SHUC_ENABLE_INCREMENTAL
     if (SHUI_UFileExists(outFile) != SHUFileType_Regular || SHUI_MLinksNewer(outFile))
@@ -2359,7 +2519,7 @@ static void SHUI_MCompileExecutable(const char *directory)
 
         for (usz i = 0; i < inputFiles.count; i++)
         {
-            SHUI_SLAdd(&command, inputFiles.data[i]);
+            SHUI_CAddArgument(&command, inputFiles.data[i]);
         }
 
         SHUI_MAddLinks(&command, directory);
@@ -2367,8 +2527,15 @@ static void SHUI_MCompileExecutable(const char *directory)
         SHUI_CAddFlags(&command);
         SHUI_CAddLinkerFlags(&command);
         SHUI_CRun(&command, true);
+        SHUI_SLFree(&command);
         SHUILD.MODULE.output = outFile;
     }
+    else
+    {
+        free(outFile);
+    }
+
+    SHUI_SLFree(&inputFiles);
 }
 
 static void SHUI_MCompileLibraryStatic(const char *directory)
@@ -2391,10 +2558,12 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
 
             skipLibPacking = false;
         }
+
+        free(dependencyFile);
 #else
         skipLibPacking = false;
 
-        objectFile = SHUI_Format("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
+        objectFile = SHU_UtilFormat("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
 
         SHUI_CCompileUnit(sourceFile, objectFile, NULL, NULL);
 #endif
@@ -2404,7 +2573,9 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
 
     SHUI_CWaitJobs();
 
-    char *libraryFile = SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryStatic));
+    char *libraryName = SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryStatic);
+    char *libraryFile = SHU_UtilFormat("%s%s", directory, libraryName);
+    free(libraryName);
 
     if (SHUI_UFileExists(libraryFile) != SHUFileType_Regular)
     {
@@ -2420,17 +2591,22 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
         }
 
         SHUI_StringList command = {0};
-        SHUI_CAddArgument(&command, SHUI_CArchiver());
+        SHUI_SLAdd(&command, SHUI_CArchiver());
         SHUI_CAddArgument(&command, "rcs");
-        SHUI_SLAdd(&command, libraryFile);
+        SHUI_CAddArgument(&command, libraryFile);
 
         for (usz i = 0; i < objFiles.count; i++)
         {
-            SHUI_SLAdd(&command, objFiles.data[i]);
+            SHUI_CAddArgument(&command, objFiles.data[i]);
         }
 
         SHUI_CRun(&command, true);
+        SHUI_SLFree(&command);
         SHUILD.MODULE.output = libraryFile;
+    }
+    else
+    {
+        free(libraryFile);
     }
 
 #ifndef SHUC_ENABLE_INCREMENTAL
@@ -2439,6 +2615,8 @@ static void SHUI_MCompileLibraryStatic(const char *directory)
         SHUI_UDeleteSingleFile(objFiles.data[i]);
     }
 #endif
+
+    SHUI_SLFree(&objFiles);
 }
 
 static void SHUI_MCompileLibraryDynamic(const char *directory)
@@ -2448,7 +2626,7 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
     bool skipLibPacking = true;
 
     // code for a DLL needs no position-independent flag, and some compilers refuse it
-    const char *positionIndependent = SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS ? NULL : "-fPIC";
+    const char *positionIndependent = SHUILD.COMPILER.target == SHUPlatform_Windows ? NULL : "-fPIC";
 
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
@@ -2464,10 +2642,12 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
             skipLibPacking = false;
         }
+
+        free(dependencyFile);
 #else
         skipLibPacking = false;
 
-        objectFile = SHUI_Format("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
+        objectFile = SHU_UtilFormat("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
 
         SHUI_CCompileUnit(sourceFile, objectFile, NULL, positionIndependent);
 #endif
@@ -2477,7 +2657,9 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 
     SHUI_CWaitJobs();
 
-    char *libraryFile = SHUI_Format("%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryDynamic));
+    char *libraryName = SHU_UtilLibraryFile(SHUILD.MODULE.name, SHUModuleType_LibraryDynamic);
+    char *libraryFile = SHU_UtilFormat("%s%s", directory, libraryName);
+    free(libraryName);
 
     if (SHUI_UFileExists(libraryFile) != SHUFileType_Regular)
     {
@@ -2496,23 +2678,30 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
         SHUI_CAddArguments(&command, SHUILD.COMPILER.command);
         SHUI_CAddArgument(&command, "-shared");
         SHUI_CAddArgument(&command, "-o");
-        SHUI_SLAdd(&command, libraryFile);
+        SHUI_CAddArgument(&command, libraryFile);
 
         // a DLL is linked through its import library, which -l finds as lib<name>.dll.a
-        if (SHUILD.COMPILER.target == SHUM_PLATFORM_WINDOWS)
+        if (SHUILD.COMPILER.target == SHUPlatform_Windows)
         {
-            SHUI_SLAdd(&command, SHUI_Format("-Wl,--out-implib,%s%s", directory, SHUI_MLinkedDynamicFile(SHUILD.MODULE.name)));
+            char *importLibrary = SHUI_MLinkedDynamicFile(SHUILD.MODULE.name);
+            SHUI_SLAdd(&command, SHU_UtilFormat("-Wl,--out-implib,%s%s", directory, importLibrary));
+            free(importLibrary);
         }
 
         for (usz i = 0; i < objFiles.count; i++)
         {
-            SHUI_SLAdd(&command, objFiles.data[i]);
+            SHUI_CAddArgument(&command, objFiles.data[i]);
         }
 
         SHUI_MAddLinks(&command, directory);
         SHUI_CAddLinkerFlags(&command);
         SHUI_CRun(&command, true);
+        SHUI_SLFree(&command);
         SHUILD.MODULE.output = libraryFile;
+    }
+    else
+    {
+        free(libraryFile);
     }
 
 #ifndef SHUC_ENABLE_INCREMENTAL
@@ -2521,6 +2710,8 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
         SHUI_UDeleteSingleFile(objFiles.data[i]);
     }
 #endif
+
+    SHUI_SLFree(&objFiles);
 }
 
 #pragma endregion Internals
@@ -2530,19 +2721,19 @@ static void SHUI_MCompileLibraryDynamic(const char *directory)
 static i32 SHUI_URunCommand(bool stopOnFailure, const char *command)
 {
 #ifdef SHUC_LOG_COMMANDS
-    SHUI_Log("$ " SHUM_LOG_COMMAND("%s"), command);
+    SHU_UtilLog("$ " SHUM_LOG_COMMAND("%s"), command);
 #endif
 
     i32 result = system(command);
 
-#if !SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if !SHUM_HOST_WINDOWS
     // system returns the wait status, not the exit code
     result = result == -1 ? -1 : WIFEXITED(result) ? WEXITSTATUS(result) : -1;
 #endif
 
     if (result != 0 && !stopOnFailure)
     {
-        SHUI_Warn("command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, command);
+        SHU_UtilWarn("command failed with exit code %d: " SHUM_LOG_COMMAND("%s"), result, command);
     }
     else
     {
@@ -2550,18 +2741,6 @@ static i32 SHUI_URunCommand(bool stopOnFailure, const char *command)
     }
 
     return result;
-}
-
-char *SHU_UtilFormat(const char *format, ...)
-{
-    SHU_AssertNullPointer(format);
-
-    va_list args;
-    va_start(args, format);
-    char *string = SHUI_VFormat(format, args);
-    va_end(args);
-
-    return string;
 }
 
 i32 SHU_UtilRun(const char *commandFormat, ...)
@@ -2573,10 +2752,13 @@ i32 SHU_UtilRun(const char *commandFormat, ...)
     char *command = SHUI_VFormat(commandFormat, args);
     va_end(args);
 
-    return SHUI_URunCommand(true, command);
+    i32 result = SHUI_URunCommand(true, command);
+    free(command);
+
+    return result;
 }
 
-i32 SHU_UtilTryRun(const char *commandFormat, ...)
+i32 SHU_UtilRunTry(const char *commandFormat, ...)
 {
     SHU_AssertNullPointer(commandFormat);
 
@@ -2585,7 +2767,10 @@ i32 SHU_UtilTryRun(const char *commandFormat, ...)
     char *command = SHUI_VFormat(commandFormat, args);
     va_end(args);
 
-    return SHUI_URunCommand(false, command);
+    i32 result = SHUI_URunCommand(false, command);
+    free(command);
+
+    return result;
 }
 
 i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
@@ -2594,10 +2779,12 @@ i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     SHU_AssertNullPointer(commandFormat);
 
     // the path gets the system's separators, so its directory can be made on Windows too
-    char *logPath = SHUI_SPath(SHUILD.currentExecutableDirectory, log, false);
+    char *logPath = SHUI_PPath(SHUILD.currentExecutableDirectory, log, false);
 
     // the log's directory is made first, as the shell does not make it
-    SHUI_UMakeDirectoryRecursive(SHUI_SDirectory(logPath));
+    char *logDirectory = SHUI_PDirectory(logPath);
+    SHUI_UMakeDirectoryRecursive(logDirectory);
+    free(logDirectory);
 
     va_list args;
     va_start(args, commandFormat);
@@ -2605,7 +2792,9 @@ i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     va_end(args);
 
     // both POSIX shells and cmd.exe send the output and the errors to the file this way
-    i32 result = SHUI_URunCommand(false, SHUI_Format("%s > \"%s\" 2>&1", command, logPath));
+    char *logged = SHU_UtilFormat("%s > \"%s\" 2>&1", command, logPath);
+    i32 result = SHUI_URunCommand(false, logged);
+    free(logged);
 
     if (result != 0)
     {
@@ -2619,13 +2808,17 @@ i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
         }
 
         fprintf(SHU_LOG_STREAM, "%s\n", start);
+        free(text.data);
 
 #ifdef SHUC_NO_RUN_ERROR
-        SHUI_Fail(0, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_SShort(logPath), command);
+        SHU_UtilFail(0, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PShort(logPath), command);
 #else
-        SHUI_Fail(result, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_SShort(logPath), command);
+        SHU_UtilFail(result, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PShort(logPath), command);
 #endif
     }
+
+    free(command);
+    free(logPath);
 
     return result;
 }
@@ -2637,23 +2830,26 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
     SHU_AssertNullPointer(flags);
     SHU_AssertNullPointer(arguments);
 
-    char *scriptPath = SHUI_SPath(SHUILD.currentExecutableDirectory, script, false);
-    char *programPath = SHUI_SPath(SHUILD.currentExecutableDirectory, SHUI_Format("%s%s", program, SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS) ? ".exe" : ""), false);
+    char *programFile = SHU_UtilFormat("%s%s", program, SHUM_HOST_WINDOWS ? ".exe" : "");
+    char *scriptPath = SHUI_PPath(SHUILD.currentExecutableDirectory, script, false);
+    char *programPath = SHUI_PPath(SHUILD.currentExecutableDirectory, programFile, false);
+    free(programFile);
 
     SHUI_StringList command = {0};
     SHUI_CAddArguments(&command, SHUI_CScriptCompiler());
     SHUI_CAddArgument(&command, "-o");
-    SHUI_SLAdd(&command, programPath);
-    SHUI_SLAdd(&command, scriptPath);
+    SHUI_CAddArgument(&command, programPath);
+    SHUI_CAddArgument(&command, scriptPath);
     SHUI_CAddArguments(&command, SHUILD_BUILD);
     SHUI_CAddArguments(&command, flags);
     SHUI_CRun(&command, true);
+    SHUI_SLFree(&command);
 
     // it runs in its own directory, as it would if it were run there by hand, and the build goes on here after it
-    char *directory = SHUI_SDirectory(programPath);
-    char *run = SHUI_Format("\"%s\" %s", programPath, arguments);
+    char *directory = SHUI_PDirectory(programPath);
+    char *run = SHU_UtilFormat("\"%s\" %s", programPath, arguments);
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     char *previous = _getcwd(NULL, 0);
     SHU_Assert(previous != NULL && _chdir(directory) == 0, "Cannot run '%s' in its directory.", programPath);
     SHUI_URunCommand(true, run);
@@ -2664,6 +2860,12 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
     SHUI_URunCommand(true, run);
     SHU_Assert(chdir(previous) == 0, "Cannot go back to '%s'.", previous);
 #endif
+
+    free(previous);
+    free(run);
+    free(directory);
+    free(programPath);
+    free(scriptPath);
 }
 
 i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
@@ -2671,10 +2873,10 @@ i32 SHU_UtilSpawnProcessSync(const char *executable, char *const *argv)
     i32 result = 0;
 
 #ifdef SHUC_LOG_COMMANDS
-    SHUI_Log("$ " SHUM_LOG_COMMAND("%s"), executable);
+    SHU_UtilLog("$ " SHUM_LOG_COMMAND("%s"), executable);
 #endif
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     result = (i32)_spawnv(_P_WAIT, executable, (const char *const *)argv);
 #else
     pid_t pid = fork();
@@ -2713,26 +2915,34 @@ SHUFileType SHU_UtilFileExists(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    return SHUI_UFileExists(SHUI_SPath(SHUILD.currentExecutableDirectory, file, false));
+    char *path = SHUI_PPath(SHUILD.currentExecutableDirectory, file, false);
+    SHUFileType type = SHUI_UFileExists(path);
+    free(path);
+
+    return type;
 }
 
 void SHU_UtilCreateDirectory(const char *directory)
 {
     SHU_AssertNullPointer(directory);
 
-    char *directoryPath = SHUI_SPath(SHUILD.currentExecutableDirectory, directory, true);
+    char *directoryPath = SHUI_PPath(SHUILD.currentExecutableDirectory, directory, true);
 
     if (SHUI_UFileExists(directoryPath) == SHUFileType_Invalid)
     {
         SHUI_UMakeDirectoryRecursive(directoryPath);
     }
+
+    free(directoryPath);
 }
 
 void SHU_UtilDeleteFile(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    SHUI_UDeleteRecursive(SHUI_SPath(SHUILD.currentExecutableDirectory, file, false));
+    char *path = SHUI_PPath(SHUILD.currentExecutableDirectory, file, false);
+    SHUI_UDeleteRecursive(path);
+    free(path);
 }
 
 void SHU_UtilCopyFile(const char *file, const char *directory)
@@ -2740,8 +2950,8 @@ void SHU_UtilCopyFile(const char *file, const char *directory)
     SHU_AssertNullPointer(file);
     SHU_AssertNullPointer(directory);
 
-    char *directoryPath = SHUI_SPath(SHUILD.currentExecutableDirectory, directory, false);
-    char *filePath = SHUI_SPath(SHUILD.currentExecutableDirectory, file, false);
+    char *directoryPath = SHUI_PPath(SHUILD.currentExecutableDirectory, directory, false);
+    char *filePath = SHUI_PPath(SHUILD.currentExecutableDirectory, file, false);
 
     if (SHUI_UFileExists(directoryPath) == SHUFileType_Invalid)
     {
@@ -2753,15 +2963,20 @@ void SHU_UtilCopyFile(const char *file, const char *directory)
     {
         const char *name = file + strlen(file);
 
-        while (name > file && !SHUI_SIsSeparator(name[-1]))
+        while (name > file && !SHUI_PIsSeparator(name[-1]))
         {
             name--;
         }
 
-        directoryPath = SHUI_SPath(SHUI_SPath(directoryPath, "", true), name, false);
+        char *into = SHUI_PPath(directoryPath, "", true);
+        free(directoryPath);
+        directoryPath = SHUI_PPath(into, name, false);
+        free(into);
     }
 
     SHUI_UCopyRecursive(filePath, directoryPath);
+    free(directoryPath);
+    free(filePath);
 }
 
 void SHU_UtilRenameFile(const char *file, const char *name)
@@ -2769,14 +2984,22 @@ void SHU_UtilRenameFile(const char *file, const char *name)
     SHU_AssertNullPointer(file);
     SHU_AssertNullPointer(name);
 
-    SHUI_URenameFile(SHUI_SPath(SHUILD.currentExecutableDirectory, file, false), SHUI_SPath(SHUILD.currentExecutableDirectory, name, false));
+    char *from = SHUI_PPath(SHUILD.currentExecutableDirectory, file, false);
+    char *to = SHUI_PPath(SHUILD.currentExecutableDirectory, name, false);
+    SHUI_URenameFile(from, to);
+    free(from);
+    free(to);
 }
 
 i64 SHU_GetFileEditTime(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    return SHUI_UGetFileEditTime(SHUI_SPath(SHUILD.currentExecutableDirectory, file, false)) / 1000000000LL;
+    char *path = SHUI_PPath(SHUILD.currentExecutableDirectory, file, false);
+    i64 time = SHUI_UGetFileEditTime(path) / 1000000000LL;
+    free(path);
+
+    return time;
 }
 
 static int SHUI_SCompare(const void *a, const void *b)
@@ -2786,23 +3009,25 @@ static int SHUI_SCompare(const void *a, const void *b)
 
 static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFunction function, void *data)
 {
-    char *path = SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, directory);
+    char *path = SHU_UtilFormat("%s%s", SHUILD.currentExecutableDirectory, directory);
 
     SHUI_StringList names = {0};
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     WIN32_FIND_DATAA ffd = {0};
-    HANDLE hFind = FindFirstFileA(SHUI_Format("%s*", path), &ffd);
+    char *pattern = SHU_UtilFormat("%s*", path);
+    HANDLE hFind = FindFirstFileA(pattern, &ffd);
+    free(pattern);
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        SHUI_Fail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " to list does not exist.", SHUI_SShort(path));
+        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " to list does not exist.", SHUI_PShort(path));
     }
 
     do
     {
         if (ffd.cFileName[0] != '.')
         {
-            SHUI_SLAdd(&names, SHUI_Format("%s", ffd.cFileName));
+            SHUI_SLAdd(&names, SHUI_Copy(ffd.cFileName));
         }
     } while (FindNextFileA(hFind, &ffd));
 
@@ -2812,7 +3037,7 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
 
     if (!dir)
     {
-        SHUI_Fail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " to list does not exist.", SHUI_SShort(path));
+        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " to list does not exist.", SHUI_PShort(path));
     }
 
     struct dirent *entry;
@@ -2820,7 +3045,7 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
     {
         if (entry->d_name[0] != '.')
         {
-            SHUI_SLAdd(&names, SHUI_Format("%s", entry->d_name));
+            SHUI_SLAdd(&names, SHUI_Copy(entry->d_name));
         }
     }
 
@@ -2834,8 +3059,10 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
 
     for (usz i = 0; i < names.count; i++)
     {
-        SHUFileType type = SHUI_UFileExists(SHUI_Format("%s%s", path, names.data[i]));
-        char *entryPath = SHUI_Format("%s%s%s", directory, names.data[i], type == SHUFileType_Directory ? SHUM_PATH_SEPARATOR_STR : "");
+        char *fullPath = SHU_UtilFormat("%s%s", path, names.data[i]);
+        SHUFileType type = SHUI_UFileExists(fullPath);
+        free(fullPath);
+        char *entryPath = SHU_UtilFormat("%s%s%s", directory, names.data[i], type == SHUFileType_Directory ? SHUM_PATH_SEPARATOR_STR : "");
 
         function(entryPath, type, data);
 
@@ -2843,7 +3070,12 @@ static void SHUI_UListDirectory(const char *directory, bool recursive, SHUListFu
         {
             SHUI_UListDirectory(entryPath, recursive, function, data);
         }
+
+        free(entryPath);
     }
+
+    SHUI_SLFree(&names);
+    free(path);
 }
 
 void SHU_UtilListDirectory(const char *directory, bool recursive, SHUListFunction function, void *data)
@@ -2852,7 +3084,9 @@ void SHU_UtilListDirectory(const char *directory, bool recursive, SHUListFunctio
     SHU_AssertNullPointer(function);
 
     // the executable's own directory is listed with an empty path
-    SHUI_UListDirectory(directory[0] == '\0' ? "" : SHUI_SPath("", directory, true), recursive, function, data);
+    char *path = SHUI_PPath("", directory, directory[0] != '\0');
+    SHUI_UListDirectory(path, recursive, function, data);
+    free(path);
 }
 
 bool SHU_UtilMatch(const char *string, const char *pattern)
@@ -2899,14 +3133,20 @@ SHUSlice SHU_UtilReadFile(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    return SHUI_UReadFile(SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, file));
+    char *path = SHU_UtilFormat("%s%s", SHUILD.currentExecutableDirectory, file);
+    SHUSlice content = SHUI_UReadFile(path);
+    free(path);
+
+    return content;
 }
 
 void SHU_UtilWriteFile(const char *file, SHUSliceView content)
 {
     SHU_AssertNullPointer(file);
 
-    SHUI_UWriteFile(SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, file), content);
+    char *path = SHU_UtilFormat("%s%s", SHUILD.currentExecutableDirectory, file);
+    SHUI_UWriteFile(path, content);
+    free(path);
 }
 
 char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
@@ -2916,17 +3156,17 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
 
     if (type == SHUModuleType_LibraryStatic)
     {
-        return SHUI_Format("lib%s.a", name);
+        return SHU_UtilFormat("lib%s.a", name);
     }
 
     switch (SHUILD.COMPILER.target)
     {
-    case SHUM_PLATFORM_WINDOWS:
-        return SHUI_Format("%s.dll", name);
-    case SHUM_PLATFORM_MACOS:
-        return SHUI_Format("lib%s.dylib", name);
+    case SHUPlatform_Windows:
+        return SHU_UtilFormat("%s.dll", name);
+    case SHUPlatform_MacOS:
+        return SHU_UtilFormat("lib%s.dylib", name);
     default:
-        return SHUI_Format("lib%s.so", name);
+        return SHU_UtilFormat("lib%s.so", name);
     }
 }
 
@@ -2939,7 +3179,8 @@ void SHU_CacheConfigure(const char *cacheDirectory)
 {
     SHU_AssertNullPointer(cacheDirectory);
 
-    SHUILD.cacheDirectory = SHUI_SPath(SHUILD.currentExecutableDirectory, cacheDirectory, true);
+    free(SHUILD.cacheDirectory);
+    SHUILD.cacheDirectory = SHUI_PPath(SHUILD.currentExecutableDirectory, cacheDirectory, true);
 
     SHUI_UMakeDirectoryRecursive(SHUILD.cacheDirectory);
 }
@@ -2948,7 +3189,7 @@ void SHU_CacheClearModule(const char *moduleName)
 {
     SHU_Assert(SHUILD.cacheDirectory != NULL, "Cache directory is not configured.");
 
-    char *moduleCacheDirectory = SHUI_Format("%s%s", SHUILD.cacheDirectory, moduleName);
+    char *moduleCacheDirectory = SHU_UtilFormat("%s%s", SHUILD.cacheDirectory, moduleName);
 
     if (SHUI_UFileExists(moduleCacheDirectory) != SHUFileType_Invalid)
     {
@@ -2956,6 +3197,7 @@ void SHU_CacheClearModule(const char *moduleName)
     }
 
     SHUI_UMakeDirectoryRecursive(moduleCacheDirectory);
+    free(moduleCacheDirectory);
 }
 
 void SHU_CacheClearAll(void)
@@ -2978,10 +3220,10 @@ static char *SHUI_CExecutableDirectory(void)
     char *path = NULL;
     usz length = 0;
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     for (DWORD size = 256;; size *= 2)
     {
-        path = (char *)SHUI_Allocate(size);
+        path = (char *)SHUI_Reallocate(path, size);
         length = (usz)GetModuleFileNameA(NULL, (LPSTR)path, size);
 
         if (length < size)
@@ -2989,7 +3231,7 @@ static char *SHUI_CExecutableDirectory(void)
             break;
         }
     }
-#elif SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_MACOS)
+#elif SHUM_HOST_MACOS
     u32 size = 0;
     _NSGetExecutablePath(NULL, &size);
     path = (char *)SHUI_Allocate(size);
@@ -2998,7 +3240,7 @@ static char *SHUI_CExecutableDirectory(void)
 #else
     for (usz size = 256;; size *= 2)
     {
-        path = (char *)SHUI_Allocate(size);
+        path = (char *)SHUI_Reallocate(path, size);
         ssize_t read = readlink("/proc/self/exe", path, size);
         SHU_Assert(read >= 0, "Internal: The executable's path cannot be read.");
 
@@ -3021,10 +3263,10 @@ static char *SHUI_CExecutableDirectory(void)
 
 // a compiler's name on PATH is gcc or clang, maybe with a version (gcc-14) and the target's triple before it (x86_64-w64-mingw32-gcc), which has two dashes or more;
 // other tools, such as gcc-ar, clang-format or c99-gcc, are not compilers to pick
-static u8 SHUI_CNameCompiler(const char *name)
+static SHUCompiler SHUI_CNameCompiler(const char *name)
 {
     const char *families[] = {"gcc", "clang"};
-    const u8 identifiers[] = {SHUM_COMPILER_GCC, SHUM_COMPILER_CLANG};
+    const SHUCompiler identifiers[] = {SHUCompiler_GCC, SHUCompiler_Clang};
 
     for (usz i = 0; i < sizeof(families) / sizeof(*families); i++)
     {
@@ -3048,7 +3290,7 @@ static u8 SHUI_CNameCompiler(const char *name)
         }
     }
 
-    return SHUM_COMPILER_UNKNOWN;
+    return SHUCompiler_Unknown;
 }
 
 // "14.2.0" is 140200, and "14" is 140000
@@ -3062,11 +3304,15 @@ static u32 SHUI_CParseVersion(const char *text)
 // the sanitizers need their libraries, which a compiler may not have, so a small program is compiled and linked with them
 static bool SHUI_CHasSanitizers(const char *command)
 {
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     (void)command;
     return false; // MinGW has no sanitizers
 #else
-    return system(SHUI_Format("printf 'int main(void){return 0;}' | %s -x c - -fsanitize=address,undefined -o /dev/null >/dev/null 2>&1", command)) == 0;
+    char *test = SHU_UtilFormat("printf 'int main(void){return 0;}' | %s -x c - -fsanitize=address,undefined -o /dev/null >/dev/null 2>&1", command);
+    bool works = system(test) == 0;
+    free(test);
+
+    return works;
 #endif
 }
 
@@ -3076,7 +3322,7 @@ static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
     SHUI_StringList names = {0};
     const char *path = getenv("PATH");
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
     const char separator = ';';
 #else
     const char separator = ':';
@@ -3086,55 +3332,62 @@ static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
     {
         const char *end = strchr(path, separator);
         usz length = end == NULL ? strlen(path) : (usz)(end - path);
-        char *directory = SHUI_Format("%.*s", (int)length, path);
+        char *directory = SHU_UtilFormat("%.*s", (int)length, path);
         path = end == NULL ? NULL : end + 1;
 
-        if (length == 0)
-        {
-            continue;
-        }
-
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
         WIN32_FIND_DATAA ffd = {0};
-        HANDLE hFind = FindFirstFileA(SHUI_Format("%s\\*.exe", directory), &ffd);
+        char *pattern = SHU_UtilFormat("%s\\*.exe", directory);
+        HANDLE hFind = length == 0 ? INVALID_HANDLE_VALUE : FindFirstFileA(pattern, &ffd);
+        free(pattern);
 
         if (hFind == INVALID_HANDLE_VALUE)
         {
+            free(directory);
             continue;
         }
 
         do
         {
-            char *name = SHUI_Format("%.*s", (int)(strlen(ffd.cFileName) - 4), ffd.cFileName);
+            char *name = SHU_UtilFormat("%.*s", (int)(strlen(ffd.cFileName) - 4), ffd.cFileName);
 #else
-        DIR *dir = opendir(directory);
+        DIR *dir = length == 0 ? NULL : opendir(directory);
 
         if (dir == NULL)
         {
+            free(directory);
             continue;
         }
 
         for (struct dirent *entry = readdir(dir); entry != NULL; entry = readdir(dir))
         {
-            char *name = SHUI_Format("%s", entry->d_name);
+            char *name = SHUI_Copy(entry->d_name);
+            char *file = SHU_UtilFormat("%s/%s", directory, name);
+            bool runs = access(file, X_OK) == 0;
+            free(file);
 
-            if (access(SHUI_Format("%s/%s", directory, name), X_OK) != 0)
+            if (!runs)
             {
+                free(name);
                 continue;
             }
 #endif
-            bool skip = SHUI_CNameCompiler(name) == SHUM_COMPILER_UNKNOWN;
+            bool skip = SHUI_CNameCompiler(name) == SHUCompiler_Unknown;
 
             for (usz i = 0; i < names.count && !skip; i++)
             {
                 skip = strcmp(names.data[i], name) == 0;
             }
 
-            if (!skip)
+            if (skip)
+            {
+                free(name);
+            }
+            else
             {
                 SHUI_SLAdd(&names, name);
             }
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
+#if SHUM_HOST_WINDOWS
         } while (FindNextFileA(hFind, &ffd));
 
         FindClose(hFind);
@@ -3143,6 +3396,7 @@ static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
 
         closedir(dir);
 #endif
+        free(directory);
     }
 
     if (names.count > 1)
@@ -3155,32 +3409,56 @@ static SHUCompilerInfo *SHUI_CFind(usz *retCount, bool sanitizers)
 
     for (usz i = 0; i < names.count; i++)
     {
+        char *machine = SHUI_CAsk(names.data[i], "-dumpmachine");
+
         compilers[i].command = names.data[i];
         compilers[i].identifier = SHUI_CNameCompiler(names.data[i]);
-        compilers[i].machine = SHUI_CAsk(names.data[i], "-dumpmachine");
-        compilers[i].target = SHUI_CTargetOf(compilers[i].machine);
+        compilers[i].machine = machine;
+        compilers[i].target = SHUI_CTargetOf(machine);
 
         // some clang compilers go by gcc's name too, such as LLVM-MinGW's x86_64-w64-mingw32-gcc and macOS's gcc
-        if (compilers[i].identifier == SHUM_COMPILER_GCC && strstr(SHUI_CAsk(names.data[i], "--version"), "clang") != NULL)
+        if (compilers[i].identifier == SHUCompiler_GCC)
         {
-            compilers[i].identifier = SHUM_COMPILER_CLANG;
+            char *about = SHUI_CAsk(names.data[i], "--version");
+            compilers[i].identifier = strstr(about, "clang") != NULL ? SHUCompiler_Clang : SHUCompiler_GCC;
+            free(about);
         }
 
         // gcc's -dumpversion may give only the major version, and clang knows no -dumpfullversion
         char *version = SHUI_CAsk(names.data[i], "-dumpfullversion");
-        compilers[i].version = SHUI_CParseVersion(version[0] != '\0' ? version : SHUI_CAsk(names.data[i], "-dumpversion"));
-        compilers[i].sanitizers = sanitizers && compilers[i].target == SHUM_HOST_PLATFORM && SHUI_CRunsOnHost(compilers[i].machine) && SHUI_CHasSanitizers(names.data[i]);
+
+        if (version[0] == '\0')
+        {
+            free(version);
+            version = SHUI_CAsk(names.data[i], "-dumpversion");
+        }
+
+        compilers[i].version = SHUI_CParseVersion(version);
+        compilers[i].sanitizers = sanitizers && compilers[i].target == SHUM_HOST_PLATFORM && SHUI_CRunsOnHost(machine) && SHUI_CHasSanitizers(names.data[i]);
+        free(version);
     }
+
+    // the compilers own the names now, so only the list's array is freed
+    free(names.data);
 
     *retCount = names.count;
     return compilers;
 }
 
-// the newest compiler that compiles for the host's system and processor, of the host compiler's family if one is found; a shorter name wins a tie, so gcc is kept over x86_64-linux-gnu-gcc
-static const SHUCompilerInfo *SHUI_CPick(void)
+void SHU_CompilerDetectFree(SHUCompilerInfo *compilers, usz count)
 {
-    usz count = 0;
-    const SHUCompilerInfo *compilers = SHUI_CFind(&count, false);
+    for (usz i = 0; compilers != NULL && i < count; i++)
+    {
+        free((char *)compilers[i].command);
+        free((char *)compilers[i].machine);
+    }
+
+    free(compilers);
+}
+
+// the newest compiler that compiles for the host's system and processor, of the host compiler's family if one is found; a shorter name wins a tie, so gcc is kept over x86_64-linux-gnu-gcc
+static const SHUCompilerInfo *SHUI_CPick(const SHUCompilerInfo *compilers, usz count)
+{
     const SHUCompilerInfo *best = NULL;
 
     for (usz i = 0; i < count; i++)
@@ -3218,12 +3496,13 @@ static const SHUCompilerInfo *SHUI_CPick(void)
     return best;
 }
 
-void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
+void SHU_CompilerConfigure(SHUCompiler compiler, const char *compilerCommand)
 {
     SHU_AssertNullPointer(compilerCommand);
 
+    free(SHUILD.COMPILER.command);
     SHUILD.COMPILER.identifier = compiler;
-    SHUILD.COMPILER.command = SHUI_Format("%s", compilerCommand);
+    SHUILD.COMPILER.command = SHUI_Copy(compilerCommand);
     SHUILD.COMPILER.target = SHUI_CDetectTarget(compilerCommand);
 
     if (SHUILD.currentExecutableDirectory == NULL)
@@ -3236,36 +3515,40 @@ void SHU_CompilerConfigure(u8 compiler, const char *compilerCommand)
     }
 }
 
-void SHU_CompilerTryConfigure(const char *compilerCommand)
+void SHU_CompilerConfigureTry(const char *compilerCommand)
 {
     if (compilerCommand == NULL || strlen(compilerCommand) == 0)
     {
-        const SHUCompilerInfo *picked = SHUI_CPick();
+        usz count = 0;
+        SHUCompilerInfo *compilers = SHUI_CFind(&count, false);
+        const SHUCompilerInfo *picked = SHUI_CPick(compilers, count);
 
         if (picked == NULL)
         {
-            SHU_CompilerConfigure(SHUM_HOST_COMPILER, SHUM_COMPILER_GET_COMMAND(SHUM_HOST_COMPILER));
+            SHU_CompilerConfigure((SHUCompiler)SHUM_HOST_COMPILER, SHUCompiler_GetCommand(SHUM_HOST_COMPILER));
         }
         else
         {
             SHU_CompilerConfigure(picked->identifier, picked->command);
         }
+
+        SHU_CompilerDetectFree(compilers, count);
     }
     else if (strstr(compilerCommand, "clang") != 0)
     {
-        SHU_CompilerConfigure(SHUM_COMPILER_CLANG, compilerCommand);
+        SHU_CompilerConfigure(SHUCompiler_Clang, compilerCommand);
     }
     else if (strstr(compilerCommand, "gcc") != 0)
     {
-        SHU_CompilerConfigure(SHUM_COMPILER_GCC, compilerCommand);
+        SHU_CompilerConfigure(SHUCompiler_GCC, compilerCommand);
     }
     else
     {
-        SHUI_Fail(SHUResult_Err, "compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", compilerCommand);
+        SHU_UtilFail(SHUResult_Err, "compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", compilerCommand);
     }
 }
 
-const SHUCompilerInfo *SHU_CompilerDetect(usz *retCount)
+SHUCompilerInfo *SHU_CompilerDetect(usz *retCount)
 {
     SHU_AssertNullPointer(retCount);
 
@@ -3276,7 +3559,7 @@ static void SHUI_CAddFlag(const char *flags)
 {
     SHU_AssertNullPointer(flags);
 
-    SHUI_SLAdd(&SHUILD.COMPILER.flags, SHUI_Format("%s", flags));
+    SHUI_SLAdd(&SHUILD.COMPILER.flags, SHUI_Copy(flags));
 }
 
 void SHUI_CompilerAddFlags(const char *flags, ...)
@@ -3295,15 +3578,15 @@ void SHU_CompilerSetFlags(const char *flags)
 
 void SHU_CompilerClearFlags(void)
 {
-    SHUILD.COMPILER.flags.count = 0;
-    SHUILD.COMPILER.linkerFlags.count = 0;
+    SHUI_SLFree(&SHUILD.COMPILER.flags);
+    SHUI_SLFree(&SHUILD.COMPILER.linkerFlags);
 }
 
 static void SHUI_CAddLinkerFlag(const char *flags)
 {
     SHU_AssertNullPointer(flags);
 
-    SHUI_SLAdd(&SHUILD.COMPILER.linkerFlags, SHUI_Format("%s", flags));
+    SHUI_SLAdd(&SHUILD.COMPILER.linkerFlags, SHUI_Copy(flags));
 }
 
 void SHUI_CompilerAddLinkerFlags(const char *flags, ...)
@@ -3330,7 +3613,7 @@ usz SHU_CompilerGetFlags(SHUSlice buffer)
 
         if (written < 0 || (usz)written >= buffer.size - bufferIndex)
         {
-            SHUI_Warn("the buffer is too small for the compiler flags, so they are cut.");
+            SHU_UtilWarn("the buffer is too small for the compiler flags, so they are cut.");
             bufferIndex = buffer.size - 1;
             break;
         }
@@ -3353,10 +3636,10 @@ void SHUI_CompilerAddDefinition(const char *macros, ...)
     {
         const char *value = va_arg(args, const char *);
 
-#if SHUM_PLATFORM_IS_HOST(SHUM_PLATFORM_WINDOWS)
-        SHUI_SLAdd(&SHUILD.COMPILER.flags, value == NULL ? SHUI_Format("-D%s", macros) : SHUI_Format("-D%s=\"\"%s\"\"", macros, value));
+#if SHUM_HOST_WINDOWS
+        SHUI_SLAdd(&SHUILD.COMPILER.flags, value == NULL ? SHU_UtilFormat("-D%s", macros) : SHU_UtilFormat("-D%s=\"\"%s\"\"", macros, value));
 #else
-        SHUI_SLAdd(&SHUILD.COMPILER.flags, value == NULL ? SHUI_Format("-D%s", macros) : SHUI_Format("-D%s='%s'", macros, value));
+        SHUI_SLAdd(&SHUILD.COMPILER.flags, value == NULL ? SHU_UtilFormat("-D%s", macros) : SHU_UtilFormat("-D%s='%s'", macros, value));
 #endif
 
         macros = va_arg(args, const char *);
@@ -3365,12 +3648,12 @@ void SHUI_CompilerAddDefinition(const char *macros, ...)
     va_end(args);
 }
 
-u8 SHU_CompilerGetIdentifier(void)
+SHUCompiler SHU_CompilerGetIdentifier(void)
 {
     return SHUILD.COMPILER.identifier;
 }
 
-u8 SHU_CompilerGetTarget(void)
+SHUPlatform SHU_CompilerGetTarget(void)
 {
     return SHUILD.COMPILER.target;
 }
@@ -3383,15 +3666,15 @@ void SHU_ModuleBegin(const char *name, const char *root)
 {
     SHU_AssertNullPointer(name);
 
-    SHUILD.MODULE.name = SHUI_Format("%s", name);
-    SHUILD.MODULE.root = root != NULL && strlen(root) != 0 ? SHUI_SPath(SHUILD.currentExecutableDirectory, root, true) : SHUILD.currentExecutableDirectory;
+    SHUILD.MODULE.name = SHUI_Copy(name);
+    SHUILD.MODULE.root = root != NULL && strlen(root) != 0 ? SHUI_PPath(SHUILD.currentExecutableDirectory, root, true) : SHUI_Copy(SHUILD.currentExecutableDirectory);
 }
 
 static void SHUI_MAddIncludeDirectory(const char *directory)
 {
     SHU_AssertNullPointer(directory);
 
-    SHUI_SLAdd(&SHUILD.MODULE.includeDirectories, SHUI_SPath(SHUILD.MODULE.root, directory, true));
+    SHUI_SLAdd(&SHUILD.MODULE.includeDirectories, SHUI_PPath(SHUILD.MODULE.root, directory, true));
 }
 
 void SHUI_ModuleAddIncludeDirectory(const char *directory, ...)
@@ -3403,7 +3686,7 @@ void SHUI_ModuleAddIncludeDirectory(const char *directory, ...)
 static void SHUI_MAddPublicIncludeDirectory(const char *directory)
 {
     SHUI_MAddIncludeDirectory(directory);
-    SHUI_SLAdd(&SHUILD.MODULE.publicIncludeDirectories, SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]);
+    SHUI_SLAdd(&SHUILD.MODULE.publicIncludeDirectories, SHUI_Copy(SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]));
 }
 
 void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...)
@@ -3416,12 +3699,15 @@ static void SHUI_MAddSourceFile(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    char *path = SHUI_SPath(SHUILD.MODULE.root, file, false);
+    char *path = SHUI_PPath(SHUILD.MODULE.root, file, false);
 
     SHUFileType fileType = SHUI_UFileExists(path);
     if (fileType == SHUFileType_Directory)
     {
-        SHUI_MAddSourceDirectoryRecursive(SHUI_SPath(path, "", true));
+        char *directory = SHUI_PPath(path, "", true);
+        SHUI_MAddSourceDirectoryRecursive(directory);
+        free(directory);
+        free(path);
     }
     else if (fileType == SHUFileType_Regular)
     {
@@ -3429,7 +3715,7 @@ static void SHUI_MAddSourceFile(const char *file)
     }
     else
     {
-        SHUI_Fail(SHUResult_ErrNotFound, "source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_SShort(path));
+        SHU_UtilFail(SHUResult_ErrNotFound, "source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PShort(path));
     }
 }
 
@@ -3441,12 +3727,10 @@ void SHUI_ModuleAddSourceFile(const char *file, ...)
 
 void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 {
-    char *directoryPath = SHUILD.currentExecutableDirectory;
+    char *directoryPath = SHUI_PPath(SHUILD.currentExecutableDirectory, directory != NULL ? directory : "", directory != NULL && strlen(directory) != 0);
 
     if (directory != NULL && strlen(directory) != 0)
     {
-        directoryPath = SHUI_SPath(SHUILD.currentExecutableDirectory, directory, true);
-
         if (SHUI_UFileExists(directoryPath) != SHUFileType_Directory)
         {
             SHUI_UMakeDirectoryRecursive(directoryPath);
@@ -3458,7 +3742,9 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
 
 #ifdef SHUC_ENABLE_INCREMENTAL
     // a module compiled for the first time has no settings to change
-    bool cached = SHUI_UFileExists(SHUI_CModuleStateFile(SHUILD.MODULE.name)) == SHUFileType_Regular;
+    char *stateFile = SHUI_CModuleStateFile(SHUILD.MODULE.name);
+    bool cached = SHUI_UFileExists(stateFile) == SHUFileType_Regular;
+    free(stateFile);
 
     if (SHUI_CModuleStateDirty(SHUILD.MODULE.name))
     {
@@ -3487,7 +3773,7 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
         SHUI_MCompileLibraryDynamic(directoryPath);
         break;
     default:
-        SHUI_Fail(SHUResult_Err, "module type %d is not known.", (int)module);
+        SHU_UtilFail(SHUResult_Err, "module type %d is not known.", (int)module);
         break;
     }
 
@@ -3505,24 +3791,34 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType module)
     // one line for the module: what it compiled and made, or that it was up to date
     if (SHUILD.MODULE.output == NULL)
     {
-        SHUI_Log(SHUM_LOG_NAME("%s") " (%s): " SHUM_COLOR_DIM("up to date"), SHUILD.MODULE.name, SHUModuleType_GetLogString(module));
+        SHU_UtilLog(SHUM_LOG_NAME("%s") " (%s): " SHUM_COLOR_DIM("up to date"), SHUILD.MODULE.name, SHUModuleType_GetLogString(module));
     }
     else
     {
-        SHUI_Log(SHUM_LOG_NAME("%s") " (%s): compiled %zu file%s, %s " SHUM_LOG_PATH("%s") SHUM_COLOR_DIM("%s"),
-                 SHUILD.MODULE.name,
-                 SHUModuleType_GetLogString(module),
-                 SHUILD.MODULE.compiledCount,
-                 SHUILD.MODULE.compiledCount == 1 ? "" : "s",
-                 module == SHUModuleType_LibraryStatic ? "packed" : "linked",
-                 SHUI_SShort(SHUILD.MODULE.output),
-                 settingsChanged ? " (settings changed)" : "");
+        SHU_UtilLog(SHUM_LOG_NAME("%s") " (%s): compiled %zu file%s, %s " SHUM_LOG_PATH("%s") SHUM_COLOR_DIM("%s"),
+                    SHUILD.MODULE.name,
+                    SHUModuleType_GetLogString(module),
+                    SHUILD.MODULE.compiledCount,
+                    SHUILD.MODULE.compiledCount == 1 ? "" : "s",
+                    module == SHUModuleType_LibraryStatic ? "packed" : "linked",
+                    SHUI_PShort(SHUILD.MODULE.output),
+                    settingsChanged ? " (settings changed)" : "");
     }
 #else
     (void)settingsChanged;
 #endif
 
-    // the next module starts with new lists, as a library's record keeps these
+    // the next module starts new; a library's record took the lists it keeps
+    free(directoryPath);
+    free(SHUILD.MODULE.name);
+    free(SHUILD.MODULE.root);
+    free(SHUILD.MODULE.output);
+    SHUI_SLFree(&SHUILD.MODULE.includeDirectories);
+    SHUI_SLFree(&SHUILD.MODULE.sourceFiles);
+    SHUI_SLFree(&SHUILD.MODULE.links);
+    SHUI_SLFree(&SHUILD.MODULE.linkDirectories);
+    SHUI_SLFree(&SHUILD.MODULE.publicIncludeDirectories);
+    SHUI_SLFree(&SHUILD.MODULE.linkedIncludeDirectories);
     SHUILD.MODULE = (__typeof__(SHUILD.MODULE)){0};
 }
 
@@ -3530,11 +3826,11 @@ static void SHUI_MAddLibraryDirectory(const char *directory)
 {
     SHU_AssertNullPointer(directory);
 
-    char *path = SHUI_SPath(SHUILD.currentExecutableDirectory, directory, true);
+    char *path = SHUI_PPath(SHUILD.currentExecutableDirectory, directory, true);
 
     if (SHUI_UFileExists(path) != SHUFileType_Directory)
     {
-        SHUI_Fail(SHUResult_ErrNotFound, "library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_SShort(path));
+        SHU_UtilFail(SHUResult_ErrNotFound, "library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PShort(path));
     }
 
     SHUI_SLAdd(&SHUILD.MODULE.linkDirectories, path);
@@ -3550,7 +3846,7 @@ static void SHUI_MLinkLibrary(const char *library)
 {
     SHU_AssertNullPointer(library);
 
-    SHUI_SLAdd(&SHUILD.MODULE.links, SHUI_Format("%s", library));
+    SHUI_SLAdd(&SHUILD.MODULE.links, SHUI_Copy(library));
 }
 
 void SHUI_ModuleLinkLibrary(const char *library, ...)

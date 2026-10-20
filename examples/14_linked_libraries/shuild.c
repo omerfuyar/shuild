@@ -14,10 +14,10 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure(argc > 1 ? argv[1] : "gcc");
+    SHU_CompilerConfigureTry(argc > 1 ? argv[1] : "gcc");
 
     // The static libraries are compiled into a dynamic library too, so their code must be position independent, except for Windows, where it always is.
-    if (SHU_CompilerGetTarget() != SHUM_PLATFORM_WINDOWS)
+    if (SHU_CompilerGetTarget() != SHUPlatform_Windows)
     {
         SHU_CompilerAddFlags("-fPIC");
     }
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 
     // Linker flags go to linking alone, so the compiler does not warn that they are unused. With this one, a dynamic library that uses a function no library it links has fails to link,
     // instead of when it is loaded. macOS's linker refuses such libraries already.
-    if (SHU_CompilerGetTarget() != SHUM_PLATFORM_MACOS)
+    if (SHU_CompilerGetTarget() != SHUPlatform_MacOS)
     {
         SHU_CompilerAddLinkerFlags("-Wl,--no-undefined");
     }
@@ -57,14 +57,18 @@ int main(int argc, char **argv)
     SHU_ModuleAddLibraryDirectory("build/lib/");
     SHU_ModuleLinkLibrary("shapes", "report");
 
-    if (SHU_CompilerGetTarget() == SHUM_PLATFORM_WINDOWS)
+    if (SHU_CompilerGetTarget() == SHUPlatform_Windows)
     {
         SHU_ModuleCopyDynamicLinks();
     }
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
-    SHU_UtilLog("the library files are " SHUM_LOG_PATH("%s") " and " SHUM_LOG_PATH("%s"), SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic), SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic));
+    char *numbers = SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic);
+    char *report = SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic);
+    SHU_UtilLog("the library files are " SHUM_LOG_PATH("%s") " and " SHUM_LOG_PATH("%s"), numbers, report);
+    free(numbers);
+    free(report);
 
     return 0;
 }

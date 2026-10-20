@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    SHU_CompilerConfigure(SHUM_COMPILER_CLANG, "gcc");
+    SHU_CompilerConfigure(SHUCompiler_Clang, "gcc");
 
     // Append custom flags to the current compiler flags.
     SHU_CompilerAddFlags("-O0");

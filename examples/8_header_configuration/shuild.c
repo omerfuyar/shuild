@@ -13,7 +13,7 @@
 
 int main(void)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
 
     SHU_ModuleBegin("example", "");
     SHU_ModuleAddSourceFile("example.c");

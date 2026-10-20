@@ -5,10 +5,12 @@
 void ShuildShuild(const char *name, const char *arg)
 {
     SHU_ModuleBegin("shuild", NULL);
-    SHU_ModuleAddSourceFile(SHU_UtilFormat("%s/shuild.c", name));
+    char *source = SHU_UtilFormat("%s/shuild.c", name);
+    SHU_ModuleAddSourceFile(source);
     SHU_ModuleCompile(name, SHUModuleType_Executable);
+    free(source);
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_WINDOWS
     SHU_UtilRun(".\\%s\\shuild.exe %s", name, arg == NULL ? "" : arg);
 #else
     SHU_UtilRun("./%s/shuild %s", name, arg == NULL ? "" : arg);
@@ -36,9 +38,10 @@ void BuildExample(const char *path, SHUFileType type, void *data)
     }
 
     // the directory's name, without the separator at its end
-    const char *name = SHU_UtilFormat("%.*s", (int)strlen(path) - 1, path);
+    char *name = SHU_UtilFormat("%.*s", (int)strlen(path) - 1, path);
+    bool built = false;
 
-    for (usz i = 0; i < sizeof(EXAMPLE_ARGUMENTS) / sizeof(*EXAMPLE_ARGUMENTS); i++)
+    for (usz i = 0; i < sizeof(EXAMPLE_ARGUMENTS) / sizeof(*EXAMPLE_ARGUMENTS) && !built; i++)
     {
         if (strcmp(EXAMPLE_ARGUMENTS[i].name, name) == 0)
         {
@@ -47,16 +50,21 @@ void BuildExample(const char *path, SHUFileType type, void *data)
                 ShuildShuild(name, EXAMPLE_ARGUMENTS[i].arguments[j]);
             }
 
-            return;
+            built = true;
         }
     }
 
-    ShuildShuild(name, NULL);
+    if (!built)
+    {
+        ShuildShuild(name, NULL);
+    }
+
+    free(name);
 }
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
     SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW);
@@ -70,7 +78,7 @@ int main(int argc, char **argv)
     {
         SHU_UtilLog("all examples are built; running them");
 
-#if SHUM_HOST_PLATFORM == SHUM_PLATFORM_WINDOWS
+#if SHUM_HOST_WINDOWS
         SHU_UtilRun("1_single_source\\build\\example.exe");
         SHU_UtilRun("2_compiler_flags\\exampleDebug.exe");
         SHU_UtilRun("2_compiler_flags\\exampleRelease.exe");

@@ -41,7 +41,7 @@ A minimal simple shuild source file example:
 #include "shuild.h"
 
 int main() {
-    SHU_CompilerTryConfigure("gcc");
+    SHU_CompilerConfigureTry("gcc");
     
     SHU_ModuleBegin("myApp", "");
 
