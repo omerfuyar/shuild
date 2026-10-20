@@ -2593,7 +2593,8 @@ i32 SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     SHU_AssertNullPointer(log);
     SHU_AssertNullPointer(commandFormat);
 
-    char *logPath = SHUI_Format("%s%s", SHUILD.currentExecutableDirectory, log);
+    // the path gets the system's separators, so its directory can be made on Windows too
+    char *logPath = SHUI_SPath(SHUILD.currentExecutableDirectory, log, false);
 
     // the log's directory is made first, as the shell does not make it
     SHUI_UMakeDirectoryRecursive(SHUI_SDirectory(logPath));
