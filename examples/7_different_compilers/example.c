@@ -14,7 +14,7 @@ int main(void)
 {
     printf("Hello from 7_different_compilers example!\n");
 
-    printf("This program compiled with : %s : %d\n", SHUM_COMPILER_GET_STRING(SHUM_HOST_COMPILER), SHUM_HOST_COMPILER_VERSION);
+    printf("This program compiled with : %s : %d\n", SHUCompiler_GetString(SHUM_HOST_COMPILER), SHUM_HOST_COMPILER_VERSION);
 
     return 0;
 }
