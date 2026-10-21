@@ -16,7 +16,7 @@ int main(void)
     {
         SHU_UtilLog(SHUM_LOG_NAME("%s") ": " SHUM_LOG_VALUE("%s %u.%u.%u") " for %s (%s), %s sanitizers",
                     compilers[i].command,
-                    SHUCompiler_GetString(compilers[i].identifier),
+                    SHUCompiler_GetString(compilers[i].family),
                     compilers[i].version / 10000,
                     compilers[i].version / 100 % 100,
                     compilers[i].version % 100,
@@ -25,7 +25,6 @@ int main(void)
                     compilers[i].sanitizers ? "with" : "without");
     }
 
-    SHU_CompilerDetectFree(compilers, count);
     SHU_CompilerConfigureTry(NULL);
 
     SHU_ModuleBegin("example", NULL);

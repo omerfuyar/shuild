@@ -10,7 +10,7 @@
 int main(void)
 {
     // Provide the compiler to use for our build proccess.
-    SHU_CompilerConfigure(SHUCompiler_Clang, "gcc");
+    SHU_CompilerConfigure(SHUCompiler_GCC, "gcc");
 
     // Begin to configure module, A module can be a static/dynamic library or an executable.
     // I want to name it 'example' and root directory of it will be next to executable.
