@@ -13,7 +13,7 @@ Thanks to people who come up with the name of this project and encourage me to i
 
 ## Setup
 
-To use Shuild, simply download the `shuild.h` file and include it in your project. You can just place the header and your build source file (like `shuild.c`) together in your project directory. It is recommended to place the executable `shuild` at the top of the project tree because most path related operations are relative to current executable directory.
+To use Shuild, simply download the `shuild.h` file and include it in your project. You can just place the header and your build source file (like `shuild.c`) together in your project directory. It is recommended to place the executable `shuild` at the top of the project tree, beside `shuild.c`, because the paths that shuild takes are relative to the build script's directory: the directory of that executable (see `SHU_UtilGetScriptDirectory`).
 
 ## How to use
 
@@ -54,7 +54,7 @@ int main() {
 
 ```
 
-You can see more complete examples in the `example` folder.
+You can see more complete examples in the `examples` folder. To build them all, compile `examples/shuild.c` and run it; with any argument, it runs the examples too.
 
 [SHU](https://github.com/omerfuyar/shu) must be cloned to the same directory with shuild to properly run examples
 
