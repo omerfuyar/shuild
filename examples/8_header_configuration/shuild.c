@@ -1,4 +1,3 @@
-#define SHUC_NO_RUN_ERROR
 #define SHUC_ARRAY_INITIAL_COUNT 8        // default 16
 #define SHUC_MAX_JOB_COUNT 4             // default 64, at most as many files compile at a time as there are processors
 // #define SHUC_NO_MODULE_LOG             // leaves out the line each module logs

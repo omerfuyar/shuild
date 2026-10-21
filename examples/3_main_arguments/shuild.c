@@ -9,9 +9,9 @@
 int main(int argc, char **argv)
 {
 
-    // 'Try' configure will guess the compiler in your system
-    // (like 'cc', 'gcc' or 'clang') and configure it for you.
-    // Leave it empty to use the host compiler that compiled this script.
+    // 'Try' configure asks the compiler for its family
+    // (gcc or clang) and configures it for you.
+    // Leave it NULL to use the newest compiler on PATH.
     SHU_CompilerConfigureTry("gcc");
 
     // Add flags from command line.

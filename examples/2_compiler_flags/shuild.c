@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    SHU_CompilerConfigure(SHUCompiler_Clang, "gcc");
+    SHU_CompilerConfigure(SHUCompiler_GCC, "gcc");
 
     // Append custom flags to the current compiler flags.
     SHU_CompilerAddFlags("-O0");
@@ -25,8 +25,9 @@ int main(void)
     // After compilation, all module configurations resets.
     // Compiler configuration doesn't change.
 
-    // Clears all of the accumulated flags and starts a new buffer.
-    SHU_CompilerSetFlags("-O3 -DNDEBUG");
+    // Clears all of the accumulated flags, and adds new ones.
+    SHU_CompilerClearFlags();
+    SHU_CompilerAddFlags("-O3 -DNDEBUG");
     SHU_CompilerAddDefinitions("FOO", "\"this is debug foo\"");
 
     SHU_ModuleBegin("exampleRelease", NULL);
