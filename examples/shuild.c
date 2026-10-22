@@ -4,10 +4,13 @@
 
 void ShuildShuild(const char *name, const char *arg)
 {
-    SHU_ModuleBegin("shuild", NULL);
     char *source = SHU_UtilFormat("%s/shuild.c", name);
-    SHU_ModuleAddSourceFile(source);
-    SHU_ModuleCompile(name, SHUModuleType_Executable);
+
+    SHU_MODULE("shuild", NULL, SHUModuleType_Executable, name)
+    {
+        SHU_ModuleAddSourceFiles(source);
+    }
+
     free(source);
 
 #if SHUM_HOST_WINDOWS
@@ -67,8 +70,7 @@ int main(int argc, char **argv)
     SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
-    SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW);
-    SHU_CompilerAddFlags("-Wno-unused-function -Wno-format-truncation" SHUM_FLAGS_DEBUG SHUM_FLAGS_STANDARD_C23);
+    SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW, "-Wno-unused-function", "-Wno-format-truncation", SHUM_FLAGS_DEBUG, SHUM_FLAGS_STANDARD_C23);
     SHU_CompilerAddDefinitions("SHU_IMPLEMENTATION", NULL);
 
     // every numbered directory beside this file is an example, built in the order of their names

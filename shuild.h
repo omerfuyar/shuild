@@ -6,8 +6,6 @@
 // define SHUC_MAX_JOB_COUNT 1 to compile one file at a time instead of as many as there are processors.
 // define SHUC_ARRAY_INITIAL_COUNT <count> to set how many items shuild's lists make room for first.
 
-// todo add macro helpers like module(...){...} for easy module begin and compile, like shujsn, shuarg or clay.
-
 #pragma once
 
 #ifndef SHU_HEADER
@@ -19,7 +17,7 @@
 #endif
 
 /// @brief Build flags to build shuild.c files
-#define SHUILD_BUILD " -O3 -Wno-format-truncation"
+#define SHUILD_BUILD "-O3 -Wno-format-truncation"
 
 #pragma region Platform Detection
 
@@ -123,26 +121,27 @@ typedef enum SHUCompiler
 #define SHUC_DEFAULT_CACHE_DIRECTORY ".shu/"
 #endif
 
-#define SHUM_FLAGS_DEBUG " -g"
+// each is one string of flags, one argument of SHU_CompilerAddFlags (eg. SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG, SHUM_FLAGS_OPTIMIZATION_DEBUG))
+#define SHUM_FLAGS_DEBUG "-g"
 
-#define SHUM_FLAGS_OPTIMIZATION_DEBUG " -Og"
-#define SHUM_FLAGS_OPTIMIZATION_SIZE " -Os"
-#define SHUM_FLAGS_OPTIMIZATION_LOW " -O1"
-#define SHUM_FLAGS_OPTIMIZATION_MID " -O2"
-#define SHUM_FLAGS_OPTIMIZATION_HIGH " -O3"
+#define SHUM_FLAGS_OPTIMIZATION_DEBUG "-Og"
+#define SHUM_FLAGS_OPTIMIZATION_SIZE "-Os"
+#define SHUM_FLAGS_OPTIMIZATION_LOW "-O1"
+#define SHUM_FLAGS_OPTIMIZATION_MID "-O2"
+#define SHUM_FLAGS_OPTIMIZATION_HIGH "-O3"
 
-#define SHUM_FLAGS_WARNING_LOW " -Wall -Wextra"
-#define SHUM_FLAGS_WARNING_MID " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
-#define SHUM_FLAGS_WARNING_HIGH " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
-#define SHUM_FLAGS_WARNING_ERROR " -Werror"
+#define SHUM_FLAGS_WARNING_LOW "-Wall -Wextra"
+#define SHUM_FLAGS_WARNING_MID "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
+#define SHUM_FLAGS_WARNING_HIGH "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
+#define SHUM_FLAGS_WARNING_ERROR "-Werror"
 
-#define SHUM_FLAGS_STANDARD_C89 " -std=c89"
-#define SHUM_FLAGS_STANDARD_C99 " -std=c99"
-#define SHUM_FLAGS_STANDARD_C11 " -std=c11"
-#define SHUM_FLAGS_STANDARD_C17 " -std=c17"
-#define SHUM_FLAGS_STANDARD_C23 " -std=c23"
-#define SHUM_FLAGS_STANDARD_C2Y " -std=c2y"
-#define SHUM_FLAGS_STANDARD_C2X " -std=c2x"
+#define SHUM_FLAGS_STANDARD_C89 "-std=c89"
+#define SHUM_FLAGS_STANDARD_C99 "-std=c99"
+#define SHUM_FLAGS_STANDARD_C11 "-std=c11"
+#define SHUM_FLAGS_STANDARD_C17 "-std=c17"
+#define SHUM_FLAGS_STANDARD_C23 "-std=c23"
+#define SHUM_FLAGS_STANDARD_C2Y "-std=c2y"
+#define SHUM_FLAGS_STANDARD_C2X "-std=c2x"
 
 #define SHUM_COLOR_RESET "\x1b[0m"
 #define SHUM_COLOR_RED(string) "\x1b[31m" string SHUM_COLOR_RESET
@@ -228,17 +227,16 @@ void SHU_UtilLog(const char *format, ...) __attribute__((format(printf, 1, 2)));
 /// @param format Format of the warning, as printf takes it.
 void SHU_UtilWarn(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Logs an error as shuild logs its own, and ends the build with the code unless it is 0.
-/// @param code Exit code of the build, or 0 to go on.
+/// @brief Logs an error as shuild logs its own, and ends the build with a failure.
 /// @param format Format of the error, as printf takes it.
-void SHU_UtilFail(i32 code, const char *format, ...) __attribute__((format(printf, 2, 3)));
+void SHU_UtilFail(const char *format, ...) __attribute__((noreturn, format(printf, 1, 2)));
 
 /// @brief Formats a string, as printf does, into new memory.
 /// @param format Format of the string. (eg. "%sbin/", directory)
 /// @return The new string. Free it with free.
 char *SHU_UtilFormat(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Runs a command with the shell, through system. When it fails, the build ends with its exit code; use SHU_UtilRunTry for a command that may fail.
+/// @brief Runs a command with the shell, through system. A command that fails ends the build; use SHU_UtilRunTry for a command that may fail.
 /// Modules run the compiler without a shell.
 /// @param commandFormat Command to run, formatted as printf does. (eg. clang example.c -o example)
 void SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
@@ -305,8 +303,8 @@ SHUSlice SHU_UtilReadFile(const char *file);
 /// @param content Content to write.
 void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 
-/// @brief Gets the file name that shuild gives a library on the system the compiler compiles for. A module links it as -l<name> on every system.
-/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and name.dll with its import library libname.dll.a.
+/// @brief Gets the file that a module links a library by, on the system the compiler compiles for: the library itself, or on Windows a DLL's import library. A module links it as -l<name> on every system.
+/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and libname.dll.a, the import library that shuild writes beside name.dll.
 /// @param name Name of the library's module. (eg. math)
 /// @param type SHUModuleType_LibraryStatic or SHUModuleType_LibraryDynamic.
 /// @return The file name, without a directory. (eg. libmath.so) Free it with free.
@@ -380,59 +378,72 @@ SHUCompiler SHU_CompilerGetFamily(void);
 /// @return The system it compiles for.
 SHUPlatform SHU_CompilerGetTarget(void);
 
+/// @brief Gets the command of a tool of the configured compiler's toolchain: the compiler's command with its family's name replaced by the tool's, so the tool has the compiler's prefix and version.
+/// (eg. g++-14 for gcc-14, x86_64-w64-mingw32-windres for x86_64-w64-mingw32-gcc) A command without the family's name gives the tool's name alone.
+/// @param gccTool Name of the tool for a gcc compiler. (eg. g++, gcc-ar, windres)
+/// @param clangTool Name of the tool for a clang compiler. (eg. clang++, llvm-ar, windres)
+/// @return The command. Free it with free.
+char *SHU_CompilerGetTool(const char *gccTool, const char *clangTool);
+
 #pragma endregion Compiler
 
 #pragma region Module
 
-/// @brief Begins a new module with the given name. A module can be an executable or a library. Must be called before any other Module function.
-/// @param name Name of the module. Which will be used also for output file name. (eg. myLibName, myAppName)
-/// @param root Root directory of the module, from which its other files and directories are found. Relative to the build script's directory. Leave it empty string or NULL to use the build script's directory. (eg. dependencies/library/)
-void SHU_ModuleBegin(const char *name, const char *root);
+///!!! This function is not meant to be used directly. Use SHU_MODULE macro instead. !!!
+void SHUI_ModuleBegin(const char *name, const char *root);
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectory macro instead. !!!
-void SHUI_ModuleAddIncludeDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_MODULE macro instead. !!!
+void SHUI_ModuleCompile(SHUModuleType type, const char *directory);
+
+/// @brief Begins a module, runs the block after it, and compiles the module into an executable or a library when the block ends. The other Module functions go in the block.
+/// (eg. SHU_MODULE("app", NULL, SHUModuleType_Executable, "build/") { SHU_ModuleAddSourceFiles("src/"); })
+/// @param name Name of the module, which its output file is named from. (eg. myLibName, myAppName)
+/// @param root Root directory of the module, from which its other files and directories are found. Relative to the build script's directory. Leave it empty string or NULL to use the build script's directory. (eg. dependencies/library/)
+/// @param type What the module compiles into. (eg. SHUModuleType_LibraryStatic)
+/// @param directory Output directory, without the file's name. Relative to the build script's directory. Leave it NULL or empty string to use the build script's directory. (eg. build/)
+/// @note The module compiles when the block reaches its end; a break or return out of the block leaves it uncompiled.
+#define SHU_MODULE(name, root, type, directory) \
+    for (int shuiModuleDone = (SHUI_ModuleBegin(name, root), 0); !shuiModuleDone; shuiModuleDone = 1, SHUI_ModuleCompile(type, directory))
+
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectories macro instead. !!!
+void SHUI_ModuleAddIncludeDirectories(const char *directory, ...);
 
 /// @brief Adds include directories to the module.
-/// @param directory Include directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "include/", "src/")
-#define SHU_ModuleAddIncludeDirectory(directory, ...) SHUI_ModuleAddIncludeDirectory(directory, ##__VA_ARGS__, NULL)
+/// @param directory Include directories to add to the current module, one or more. Relative to the module's root (eg. "include/", "src/")
+#define SHU_ModuleAddIncludeDirectories(directory, ...) SHUI_ModuleAddIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectory macro instead. !!!
-void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectories macro instead. !!!
+void SHUI_ModuleAddPublicIncludeDirectories(const char *directory, ...);
 
 /// @brief Adds include directories to the module, and gives them to the modules that link the module, as system headers, so their warnings stay out.
 /// Only the modules that link the library themselves get them, not the ones that get the library through another library.
-/// @param directory Include directories of the library's interface, one or more. Relative to root directory specified in ModuleBegin (eg. "include/")
-#define SHU_ModuleAddPublicIncludeDirectory(directory, ...) SHUI_ModuleAddPublicIncludeDirectory(directory, ##__VA_ARGS__, NULL)
+/// @param directory Include directories of the library's interface, one or more. Relative to the module's root (eg. "include/")
+#define SHU_ModuleAddPublicIncludeDirectories(directory, ...) SHUI_ModuleAddPublicIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFile macro instead. !!!
-void SHUI_ModuleAddSourceFile(const char *file, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFiles macro instead. !!!
+void SHUI_ModuleAddSourceFiles(const char *file, ...);
 
 /// @brief Adds source files to the module. Each is a single file or a directory, added with its subdirectories.
-/// @param file Files or directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "main.c", "src/")
+/// @param file Files or directories to add to the current module, one or more. Relative to the module's root (eg. "main.c", "src/")
 /// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
-#define SHU_ModuleAddSourceFile(file, ...) SHUI_ModuleAddSourceFile(file, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddSourceFiles(file, ...) SHUI_ModuleAddSourceFiles(file, ##__VA_ARGS__, NULL)
 
-/// @brief Compiles the current module into an executable or a library, and ends it.
-/// @param directory Output directory, without the file's name. Relative to the build script's directory. Leave it NULL or empty string to use the build script's directory. (eg. build/)
-/// @param type What the module compiles into. (eg. SHUModuleType_LibraryStatic)
-void SHU_ModuleCompile(const char *directory, SHUModuleType type);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectories macro instead. !!!
+void SHUI_ModuleAddLibraryDirectories(const char *directory, ...);
 
-/// @brief Adds a directory to search for the libraries that the current module links. A static library keeps it for the modules that link it, as it keeps its libraries.
+/// @brief Adds directories to search for the libraries that the current module links. A static library keeps them for the modules that link it, as it keeps its libraries.
 /// On Linux and macOS, a directory that holds a dynamic library the module links is embedded in it, relative to the module's own directory ($ORIGIN or @loader_path),
 /// so the library is found at run time, also after both are moved together. On Windows, see SHU_ModuleCopyDynamicLinks.
 /// @param directory Directories to search for libraries, one or more. Relative to the build script's directory. (eg. "build/arc/")
-#define SHU_ModuleAddLibraryDirectory(directory, ...) SHUI_ModuleAddLibraryDirectory(directory, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddLibraryDirectories(directory, ...) SHUI_ModuleAddLibraryDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectory macro instead. !!!
-void SHUI_ModuleAddLibraryDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibraries macro instead. !!!
+void SHUI_ModuleLinkLibraries(const char *library, ...);
 
-/// @brief Links a library to the current module. An executable or a dynamic library is linked with it.
-/// A static library cannot be linked, so it keeps the library: a module that links the static library later gets the library too, after it, with its directories.
-/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. "shapes", "numbers")
-#define SHU_ModuleLinkLibrary(library, ...) SHUI_ModuleLinkLibrary(library, ##__VA_ARGS__, NULL)
-
-///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibrary macro instead. !!!
-void SHUI_ModuleLinkLibrary(const char *library, ...);
+/// @brief Links libraries to the current module. An executable or a dynamic library is linked with them.
+/// A static library cannot be linked, so it keeps the libraries: a module that links the static library later gets them too, after it, with their directories.
+/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectories` to search inside. (eg. "shapes", "numbers")
+#define SHU_ModuleLinkLibraries(library, ...) SHUI_ModuleLinkLibraries(library, ##__VA_ARGS__, NULL)
 
 /// @brief Copies the dynamic libraries that the current module links into its output directory when it compiles, so they are found beside it.
 /// Windows needs this, as a program finds its DLLs beside itself or on PATH, not in the directories it was linked with. A copy that has the content already is left as is.
@@ -545,7 +556,7 @@ static struct
         char *commands[SHUC_MAX_JOB_COUNT]; // shown when the job fails
         usz count;
         usz limit;
-        i32 failure;
+        bool failed;
     } JOBS;
 
     struct
@@ -667,17 +678,23 @@ void SHU_UtilWarn(const char *format, ...)
     va_end(args);
 }
 
-void SHU_UtilFail(i32 code, const char *format, ...)
+// an error that does not end the build by itself, such as one of several jobs that fail
+static __attribute__((format(printf, 1, 2))) void SHUI_LogError(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
+    va_end(args);
+}
+
+void SHU_UtilFail(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
     SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
     va_end(args);
 
-    if (code != 0)
-    {
-        exit(code);
-    }
+    exit(EXIT_FAILURE);
 }
 
 #pragma endregion Basics
@@ -1048,7 +1065,7 @@ static void SHUI_FileMakeDirectories(const char *path)
 
         if (result != 0 && errno != EEXIST)
         {
-            SHU_UtilFail(SHUResult_ErrFile, "directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_PathForLog(partial), strerror(errno));
+            SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_PathForLog(partial), strerror(errno));
         }
 
         partial[i] = separator;
@@ -1068,7 +1085,7 @@ static SHUI_StringList SHUI_FileListNames(const char *directory)
 
     if (search == INVALID_HANDLE_VALUE)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
+        SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
     }
 
     do
@@ -1085,7 +1102,7 @@ static SHUI_StringList SHUI_FileListNames(const char *directory)
 
     if (opened == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
+        SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
     }
 
     for (struct dirent *entry = readdir(opened); entry != NULL; entry = readdir(opened))
@@ -1135,7 +1152,7 @@ static void SHUI_FileDelete(const char *path)
 
     if (result != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail(SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PathForLog(path), strerror(errno));
     }
 }
 
@@ -1145,7 +1162,7 @@ static SHUSlice SHUI_FileRead(const char *path)
 
     if (file == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
     fseek(file, 0, SEEK_END);
@@ -1185,7 +1202,7 @@ static void SHUI_FileWrite(const char *path, SHUSliceView content)
 
     if (file == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
     usz written = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, file);
@@ -1220,7 +1237,7 @@ static void SHUI_FileCopy(const char *from, const char *to)
 
     if (stat(from, &stats) == 0 && chmod(to, stats.st_mode & 07777) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_PathForLog(to), strerror(errno));
+        SHU_UtilFail("permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_PathForLog(to), strerror(errno));
     }
 #endif
 }
@@ -1234,7 +1251,7 @@ static void SHUI_FileRename(const char *from, const char *to)
 
     if (rename(from, to) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_PathForLog(from), SHUI_PathForLog(to), strerror(errno));
+        SHU_UtilFail(SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_PathForLog(from), SHUI_PathForLog(to), strerror(errno));
     }
 }
 
@@ -1245,7 +1262,7 @@ static i64 SHUI_FileGetEditTime(const char *path)
 
     if (stat(path, &stats) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
 #if SHUM_HOST_LINUX
@@ -1521,7 +1538,7 @@ static i64 SHUI_CommandStart(const SHUI_StringList *command)
     if (pid == 0)
     {
         execvp(arguments[0], arguments);
-        SHU_UtilFail(0, SHUM_LOG_COMMAND("%s") " cannot start: %s", arguments[0], strerror(errno));
+        SHUI_LogError(SHUM_LOG_COMMAND("%s") " cannot start: %s", arguments[0], strerror(errno));
         _exit(127);
     }
 
@@ -1571,7 +1588,7 @@ static void SHUI_CommandRunOrFail(const SHUI_StringList *command)
 
     if (result != 0)
     {
-        SHU_UtilFail(result, SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(command));
+        SHU_UtilFail(SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(command));
     }
 }
 
@@ -1645,8 +1662,8 @@ static void SHUI_JobWaitOne(void)
 
     if (result != 0)
     {
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, result, line);
-        SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? result : SHUILD.JOBS.failure;
+        SHUI_LogError(SHUI_COMMAND_FAILED, result, line);
+        SHUILD.JOBS.failed = true;
     }
 
     free(line);
@@ -1669,7 +1686,7 @@ static void SHUI_JobStart(const SHUI_StringList *command)
     }
 
     // after a failure, the jobs that run are waited for, and no new ones start
-    if (SHUILD.JOBS.failure != 0)
+    if (SHUILD.JOBS.failed)
     {
         return;
     }
@@ -1684,8 +1701,8 @@ static void SHUI_JobStart(const SHUI_StringList *command)
 
     if (process < 0)
     {
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, -1, line);
-        SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? -1 : SHUILD.JOBS.failure;
+        SHUI_LogError(SHUI_COMMAND_FAILED, -1, line);
+        SHUILD.JOBS.failed = true;
         return;
     }
 
@@ -1701,9 +1718,9 @@ static void SHUI_JobWaitAll(void)
         SHUI_JobWaitOne();
     }
 
-    if (SHUILD.JOBS.failure != 0)
+    if (SHUILD.JOBS.failed)
     {
-        SHU_UtilFail(SHUILD.JOBS.failure, SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
+        SHU_UtilFail(SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
     }
 }
 
@@ -1994,25 +2011,6 @@ static const SHUCompilerInfo *SHUI_CompilerPick(const SHUCompilerInfo *compilers
     }
 
     return best;
-}
-
-// the archiver of the compiler's toolchain: llvm-ar for clang, which reads objects of any system,
-// and for gcc the gcc-ar of the same prefix and version, such as x86_64-w64-mingw32-gcc-ar or gcc-ar-14
-static char *SHUI_CompilerArchiver(void)
-{
-    if (SHUILD.COMPILER.family == SHUCompiler_Clang)
-    {
-        return SHUI_Copy("llvm-ar");
-    }
-
-    const char *gcc = NULL;
-
-    for (const char *found = strstr(SHUILD.COMPILER.command, "gcc"); found != NULL; found = strstr(found + 1, "gcc"))
-    {
-        gcc = found;
-    }
-
-    return gcc == NULL ? SHUI_Copy("ar") : SHU_UtilFormat("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
 }
 
 // build scripts run on the host, so a cross compiler leaves them to the host's own
@@ -2347,10 +2345,23 @@ static void SHUI_ModuleExpandLinks(void)
     }
 }
 
-// the dynamic library's file where the linker finds it: on Windows, its import library, which names the DLL
-static char *SHUI_ModuleLinkedDynamicFile(const char *name)
+// the file that a library compiles into; on Windows, a dynamic library's is its DLL, not the import library that SHU_UtilLibraryFile gives
+static char *SHUI_ModuleLibraryFile(const char *name, SHUModuleType type)
 {
-    return SHUILD.COMPILER.target == SHUPlatform_Windows ? SHU_UtilFormat("lib%s.dll.a", name) : SHU_UtilLibraryFile(name, SHUModuleType_LibraryDynamic);
+    if (type == SHUModuleType_LibraryStatic)
+    {
+        return SHU_UtilFormat("lib%s.a", name);
+    }
+
+    switch (SHUILD.COMPILER.target)
+    {
+    case SHUPlatform_Windows:
+        return SHU_UtilFormat("%s.dll", name);
+    case SHUPlatform_MacOS:
+        return SHU_UtilFormat("lib%s.dylib", name);
+    default:
+        return SHU_UtilFormat("lib%s.so", name);
+    }
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -2373,7 +2384,7 @@ static bool SHUI_ModuleLinksNewer(const char *outputFile)
             const char *link = SHUILD.MODULE.links.data[j];
 
             if (SHUI_FileNewerThan(SHUI_PathJoin(directory, SHU_UtilLibraryFile(link, SHUModuleType_LibraryStatic)), outputTime) ||
-                SHUI_FileNewerThan(SHUI_PathJoin(directory, SHUI_ModuleLinkedDynamicFile(link)), outputTime))
+                SHUI_FileNewerThan(SHUI_PathJoin(directory, SHU_UtilLibraryFile(link, SHUModuleType_LibraryDynamic)), outputTime))
             {
                 return true;
             }
@@ -2389,7 +2400,7 @@ static bool SHUI_ModuleHoldsDynamicLink(const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        if (SHUI_FileGetType(SHUI_PathJoin(directory, SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
+        if (SHUI_FileGetType(SHUI_PathJoin(directory, SHUI_ModuleLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
         {
             return true;
         }
@@ -2432,7 +2443,7 @@ static void SHUI_ModuleCopyDynamicLinks(const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        char *file = SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
+        char *file = SHUI_ModuleLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
 
         for (usz j = 0; j < SHUILD.MODULE.linkDirectories.count; j++)
         {
@@ -2462,7 +2473,7 @@ static char *SHUI_ModuleOutputFile(const char *directory, SHUModuleType type)
         return SHU_UtilFormat("%s%s%s", directory, SHUILD.MODULE.name, SHUILD.COMPILER.target == SHUPlatform_Windows ? ".exe" : "");
     }
 
-    return SHUI_PathJoin(directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, type));
+    return SHUI_PathJoin(directory, SHUI_ModuleLibraryFile(SHUILD.MODULE.name, type));
 }
 
 // links the objects into an executable or a dynamic library, or packs them into a static library
@@ -2478,7 +2489,8 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
             SHUI_FileDelete(outputFile);
         }
 
-        SHUI_ListAdd(&command, SHUI_CompilerArchiver());
+        // llvm-ar reads objects of any system, and gcc-ar of the compiler's prefix and version reads its link-time optimized objects
+        SHUI_ListAdd(&command, SHU_CompilerGetTool("gcc-ar", "llvm-ar"));
         SHUI_CommandAddArgument(&command, "rcs");
         SHUI_CommandAddArgument(&command, outputFile);
     }
@@ -2497,7 +2509,7 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
         // a DLL is linked through its import library, which -l finds as lib<name>.dll.a
         if (type == SHUModuleType_LibraryDynamic && SHUILD.COMPILER.target == SHUPlatform_Windows)
         {
-            SHUI_ListAdd(&command, SHU_UtilFormat("-Wl,--out-implib,%s%s", directory, SHUI_ModuleLinkedDynamicFile(SHUILD.MODULE.name)));
+            SHUI_ListAdd(&command, SHU_UtilFormat("-Wl,--out-implib,%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, type)));
         }
     }
 
@@ -2589,8 +2601,7 @@ void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile)
     if (result != 0)
     {
         SHUI_FileRename(oldProgram, program);
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(&command));
-        SHU_UtilFail(result, "the build script cannot be rebuilt.");
+        SHU_UtilFail("the build script cannot be rebuilt; " SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(&command));
     }
 
     // the new program runs in place of this one, with the same arguments
@@ -2618,7 +2629,7 @@ void SHU_UtilRun(const char *commandFormat, ...)
 
     if (result != 0)
     {
-        SHU_UtilFail(result, SHUI_COMMAND_FAILED, result, command);
+        SHU_UtilFail(SHUI_COMMAND_FAILED, result, command);
     }
 
     free(command);
@@ -2678,7 +2689,7 @@ void SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     }
 
     fprintf(SHU_LOG_STREAM, "%s\n", start);
-    SHU_UtilFail(result, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PathForLog(logPath), command);
+    SHU_UtilFail("command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PathForLog(logPath), command);
 }
 
 void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments)
@@ -2861,20 +2872,13 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
     SHU_AssertNullPointer(name);
     SHU_Assert(type == SHUModuleType_LibraryStatic || type == SHUModuleType_LibraryDynamic, "Module type %d is not a library.", (int)type);
 
-    if (type == SHUModuleType_LibraryStatic)
+    // a DLL is linked through its import library
+    if (type == SHUModuleType_LibraryDynamic && SHUILD.COMPILER.target == SHUPlatform_Windows)
     {
-        return SHU_UtilFormat("lib%s.a", name);
+        return SHU_UtilFormat("lib%s.dll.a", name);
     }
 
-    switch (SHUILD.COMPILER.target)
-    {
-    case SHUPlatform_Windows:
-        return SHU_UtilFormat("%s.dll", name);
-    case SHUPlatform_MacOS:
-        return SHU_UtilFormat("lib%s.dylib", name);
-    default:
-        return SHU_UtilFormat("lib%s.so", name);
-    }
+    return SHUI_ModuleLibraryFile(name, type);
 }
 
 #pragma endregion Utility
@@ -2912,7 +2916,7 @@ void SHU_CompilerConfigureTry(const char *command)
 
         if (family == SHUCompiler_Unknown)
         {
-            SHU_UtilFail(SHUResult_Err, "compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", command);
+            SHU_UtilFail("compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", command);
         }
 
         SHU_CompilerConfigure(family, command);
@@ -3009,11 +3013,37 @@ SHUPlatform SHU_CompilerGetTarget(void)
     return SHUILD.COMPILER.target;
 }
 
+char *SHU_CompilerGetTool(const char *gccTool, const char *clangTool)
+{
+    SHU_AssertNullPointer(gccTool);
+    SHU_AssertNullPointer(clangTool);
+
+    bool clang = SHUILD.COMPILER.family == SHUCompiler_Clang;
+    const char *family = clang ? "clang" : "gcc";
+    const char *tool = clang ? clangTool : gccTool;
+    const char *command = SHUILD.COMPILER.command;
+
+    // the last one is the program's name, as a directory before it may hold the family's name too
+    const char *found = NULL;
+
+    for (const char *c = strstr(command, family); c != NULL; c = strstr(c + 1, family))
+    {
+        found = c;
+    }
+
+    if (found == NULL)
+    {
+        return SHUI_Copy(tool);
+    }
+
+    return SHU_UtilFormat("%.*s%s%s", (int)(found - command), command, tool, found + strlen(family));
+}
+
 #pragma endregion Compiler
 
 #pragma region Module
 
-void SHU_ModuleBegin(const char *name, const char *root)
+void SHUI_ModuleBegin(const char *name, const char *root)
 {
     SHU_AssertNullPointer(name);
 
@@ -3021,30 +3051,30 @@ void SHU_ModuleBegin(const char *name, const char *root)
     SHUILD.MODULE.root = SHUI_PathJoinDirectory(SHUI_PathScriptDirectory(), root != NULL ? root : "");
 }
 
-static void SHUI_ModuleAddIncludeDirectoryOne(const char *directory)
+static void SHUI_ModuleAddIncludeDirectory(const char *directory)
 {
     SHUI_ListAdd(&SHUILD.MODULE.includeDirectories, SHUI_PathJoinDirectory(SHUILD.MODULE.root, directory));
 }
 
-void SHUI_ModuleAddIncludeDirectory(const char *directory, ...)
+void SHUI_ModuleAddIncludeDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddIncludeDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddIncludeDirectory);
 }
 
-static void SHUI_ModuleAddPublicIncludeDirectoryOne(const char *directory)
+static void SHUI_ModuleAddPublicIncludeDirectory(const char *directory)
 {
-    SHUI_ModuleAddIncludeDirectoryOne(directory);
+    SHUI_ModuleAddIncludeDirectory(directory);
     SHUI_ListAdd(&SHUILD.MODULE.publicIncludeDirectories, SHUI_Copy(SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]));
 }
 
-void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...)
+void SHUI_ModuleAddPublicIncludeDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddPublicIncludeDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddPublicIncludeDirectory);
 }
 
-static void SHUI_ModuleAddSourceFileOne(const char *file)
+static void SHUI_ModuleAddSourceFile(const char *file)
 {
     char *path = SHUI_PathJoin(SHUILD.MODULE.root, file);
     SHUFileType type = SHUI_FileGetType(path);
@@ -3059,43 +3089,43 @@ static void SHUI_ModuleAddSourceFileOne(const char *file)
     }
     else
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
+        SHU_UtilFail("source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
     }
 }
 
-void SHUI_ModuleAddSourceFile(const char *file, ...)
+void SHUI_ModuleAddSourceFiles(const char *file, ...)
 {
     SHU_AssertNullPointer(file);
-    SHUI_EACH_ARGUMENT(file, SHUI_ModuleAddSourceFileOne);
+    SHUI_EACH_ARGUMENT(file, SHUI_ModuleAddSourceFile);
 }
 
-static void SHUI_ModuleAddLibraryDirectoryOne(const char *directory)
+static void SHUI_ModuleAddLibraryDirectory(const char *directory)
 {
     char *path = SHUI_PathJoinDirectory(SHUI_PathScriptDirectory(), directory);
 
     if (SHUI_FileGetType(path) != SHUFileType_Directory)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
+        SHU_UtilFail("library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
     }
 
     SHUI_ListAdd(&SHUILD.MODULE.linkDirectories, path);
 }
 
-void SHUI_ModuleAddLibraryDirectory(const char *directory, ...)
+void SHUI_ModuleAddLibraryDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddLibraryDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddLibraryDirectory);
 }
 
-static void SHUI_ModuleLinkLibraryOne(const char *library)
+static void SHUI_ModuleLinkLibrary(const char *library)
 {
     SHUI_ListAdd(&SHUILD.MODULE.links, SHUI_Copy(library));
 }
 
-void SHUI_ModuleLinkLibrary(const char *library, ...)
+void SHUI_ModuleLinkLibraries(const char *library, ...)
 {
     SHU_AssertNullPointer(library);
-    SHUI_EACH_ARGUMENT(library, SHUI_ModuleLinkLibraryOne);
+    SHUI_EACH_ARGUMENT(library, SHUI_ModuleLinkLibrary);
 }
 
 void SHU_ModuleCopyDynamicLinks(void)
@@ -3103,7 +3133,7 @@ void SHU_ModuleCopyDynamicLinks(void)
     SHUILD.MODULE.copyDynamicLinks = true;
 }
 
-void SHU_ModuleCompile(const char *directory, SHUModuleType type)
+void SHUI_ModuleCompile(SHUModuleType type, const char *directory)
 {
     SHU_Assert(type == SHUModuleType_Executable || type == SHUModuleType_LibraryStatic || type == SHUModuleType_LibraryDynamic, "Module type %d is not known.", (int)type);
 

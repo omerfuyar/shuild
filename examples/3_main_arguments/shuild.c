@@ -20,9 +20,10 @@ int main(int argc, char **argv)
         SHU_CompilerAddFlags(argv[i]);
     }
 
-    SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddSourceFile("example.c");
-    SHU_ModuleCompile(NULL, SHUModuleType_Executable);
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, NULL)
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     return 0;
 }

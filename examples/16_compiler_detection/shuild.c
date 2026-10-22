@@ -27,9 +27,10 @@ int main(void)
 
     SHU_CompilerConfigureTry(NULL);
 
-    SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddSourceFile("example.c");
-    SHU_ModuleCompile("", SHUModuleType_Executable);
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, "")
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     return 0;
 }

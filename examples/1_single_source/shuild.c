@@ -14,13 +14,14 @@ int main(void)
 
     // Begin to configure module, A module can be a static/dynamic library or an executable.
     // I want to name it 'example' and root directory of it will be next to executable.
-    SHU_ModuleBegin("example", NULL);
-    // Get the file 'example.c' from the root directory of current module.
-    SHU_ModuleAddSourceFile("example.c");
-    // Compile the module, output the artifacts to 'build/' relative to current executable directory.
+    // When the block ends, the module compiles, and its artifacts go to 'build/' relative to current executable directory.
     // Trailing path separator is not mandatory but definitely recommended.
     // This is NOT relative to modules root directory.
-    SHU_ModuleCompile("build/", SHUModuleType_Executable);
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/")
+    {
+        // Get the file 'example.c' from the root directory of current module.
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     return 0;
 }

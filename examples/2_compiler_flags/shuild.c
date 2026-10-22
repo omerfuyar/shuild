@@ -16,11 +16,11 @@ int main(void)
 
     SHU_CompilerAddDefinitions("BAZ", NULL, "FOO", "\"foo,bar,baz\"");
 
-    SHU_ModuleBegin("exampleDebug", NULL);
-    SHU_ModuleAddSourceFile("example.c");
-
     // Leave the output directory NULL to set it current executable directory.
-    SHU_ModuleCompile(NULL, SHUModuleType_Executable);
+    SHU_MODULE("exampleDebug", NULL, SHUModuleType_Executable, NULL)
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     // After compilation, all module configurations resets.
     // Compiler configuration doesn't change.
@@ -30,11 +30,11 @@ int main(void)
     SHU_CompilerAddFlags("-O3 -DNDEBUG");
     SHU_CompilerAddDefinitions("FOO", "\"this is debug foo\"");
 
-    SHU_ModuleBegin("exampleRelease", NULL);
-    SHU_ModuleAddSourceFile("example.c");
-
-    // Same behaviour as the one above.
-    SHU_ModuleCompile("", SHUModuleType_Executable);
+    // An empty output directory has the same behaviour as the one above.
+    SHU_MODULE("exampleRelease", NULL, SHUModuleType_Executable, "")
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     // Clear the flags entirely.
     SHU_CompilerClearFlags();

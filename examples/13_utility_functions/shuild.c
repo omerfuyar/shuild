@@ -16,7 +16,7 @@ static void AddSource(const char *path, SHUFileType type, void *data)
 
     if (type == SHUFileType_Regular && SHU_UtilMatch(path, "*.c"))
     {
-        SHU_ModuleAddSourceFile(path);
+        SHU_ModuleAddSourceFiles(path);
         (*sourceCount)++;
     }
 }
@@ -26,22 +26,25 @@ int main(int argc, char **argv)
     SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
-    SHU_ModuleBegin("example", NULL);
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/")
+    {
+        // Entries are given sorted by name, and with recursive, the directories inside are listed too.
+        usz sourceCount = 0;
+        SHU_UtilListDirectory("src/", true, AddSource, &sourceCount);
 
-    // Entries are given sorted by name, and with recursive, the directories inside are listed too.
-    usz sourceCount = 0;
-    SHU_UtilListDirectory("src/", true, AddSource, &sourceCount);
+        // Files can be read and written whole.
+        SHUSlice greeting = SHU_UtilReadFile("greeting.txt");
 
-    // Files can be read and written whole.
-    SHUSlice greeting = SHU_UtilReadFile("greeting.txt");
+        // Strings are formatted into new memory, which the script frees when it is done with it, as it frees what it reads.
+        char *header = SHU_UtilFormat("#define SOURCE_COUNT %zu\n#define GREETING_SIZE %zu\n", sourceCount, greeting.size);
 
-    // Strings are formatted into new memory, which the script frees when it is done with it, as it frees what it reads.
-    char *header = SHU_UtilFormat("#define SOURCE_COUNT %zu\n#define GREETING_SIZE %zu\n", sourceCount, greeting.size);
+        SHU_UtilCreateDirectory("build/");
+        SHU_UtilWriteFile("build/generated.h", csv(cs(header, strlen(header))));
+        free(header);
+        free(greeting.data);
 
-    SHU_UtilCreateDirectory("build/");
-    SHU_UtilWriteFile("build/generated.h", csv(cs(header, strlen(header))));
-    free(header);
-    free(greeting.data);
+        SHU_ModuleAddIncludeDirectories("build/");
+    }
 
     // A file is copied into a directory under its own name. A file that has the content already is left as is, by copying and by writing,
     // so its edit time stays and what includes it does not compile again.
@@ -55,9 +58,6 @@ int main(int argc, char **argv)
     // A command whose output is long, such as another build tool's, writes it to a log. When it fails, the end of the log is shown.
     SHU_UtilRunLogged("build/logs/echo.log", "echo %s", "This goes to the log.");
     SHU_Assert(SHU_UtilFileExists("build/logs/echo.log") == SHUFileType_Regular, "The log is not written.");
-
-    SHU_ModuleAddIncludeDirectory("build/");
-    SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
     return 0;
 }
