@@ -18,8 +18,8 @@ int main(void)
     SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG);
 
     SHU_ModuleBegin("example", "");
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddSourceFiles("src/");
     SHU_ModuleCompile("build/debug/", SHUModuleType_Executable);
 
     // Change the cache configuration and build again.
@@ -30,8 +30,8 @@ int main(void)
     SHU_CompilerAddFlags("-DNDEBUG");
 
     SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddSourceFiles("src/");
     SHU_ModuleCompile("build/release", SHUModuleType_Executable);
 
     // At the end, this two modules will be considered as different

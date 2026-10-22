@@ -389,28 +389,28 @@ SHUPlatform SHU_CompilerGetTarget(void);
 /// @param root Root directory of the module, from which its other files and directories are found. Relative to the build script's directory. Leave it empty string or NULL to use the build script's directory. (eg. dependencies/library/)
 void SHU_ModuleBegin(const char *name, const char *root);
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectory macro instead. !!!
-void SHUI_ModuleAddIncludeDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectories macro instead. !!!
+void SHUI_ModuleAddIncludeDirectories(const char *directory, ...);
 
 /// @brief Adds include directories to the module.
 /// @param directory Include directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "include/", "src/")
-#define SHU_ModuleAddIncludeDirectory(directory, ...) SHUI_ModuleAddIncludeDirectory(directory, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddIncludeDirectories(directory, ...) SHUI_ModuleAddIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectory macro instead. !!!
-void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectories macro instead. !!!
+void SHUI_ModuleAddPublicIncludeDirectories(const char *directory, ...);
 
 /// @brief Adds include directories to the module, and gives them to the modules that link the module, as system headers, so their warnings stay out.
 /// Only the modules that link the library themselves get them, not the ones that get the library through another library.
 /// @param directory Include directories of the library's interface, one or more. Relative to root directory specified in ModuleBegin (eg. "include/")
-#define SHU_ModuleAddPublicIncludeDirectory(directory, ...) SHUI_ModuleAddPublicIncludeDirectory(directory, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddPublicIncludeDirectories(directory, ...) SHUI_ModuleAddPublicIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFile macro instead. !!!
-void SHUI_ModuleAddSourceFile(const char *file, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFiles macro instead. !!!
+void SHUI_ModuleAddSourceFiles(const char *file, ...);
 
 /// @brief Adds source files to the module. Each is a single file or a directory, added with its subdirectories.
 /// @param file Files or directories to add to the current module, one or more. Relative to root directory specified in ModuleBegin (eg. "main.c", "src/")
 /// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
-#define SHU_ModuleAddSourceFile(file, ...) SHUI_ModuleAddSourceFile(file, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddSourceFiles(file, ...) SHUI_ModuleAddSourceFiles(file, ##__VA_ARGS__, NULL)
 
 /// @brief Compiles the current module into an executable or a library, and ends it.
 /// @param directory Output directory, without the file's name. Relative to the build script's directory. Leave it NULL or empty string to use the build script's directory. (eg. build/)
@@ -421,18 +421,18 @@ void SHU_ModuleCompile(const char *directory, SHUModuleType type);
 /// On Linux and macOS, a directory that holds a dynamic library the module links is embedded in it, relative to the module's own directory ($ORIGIN or @loader_path),
 /// so the library is found at run time, also after both are moved together. On Windows, see SHU_ModuleCopyDynamicLinks.
 /// @param directory Directories to search for libraries, one or more. Relative to the build script's directory. (eg. "build/arc/")
-#define SHU_ModuleAddLibraryDirectory(directory, ...) SHUI_ModuleAddLibraryDirectory(directory, ##__VA_ARGS__, NULL)
+#define SHU_ModuleAddLibraryDirectories(directory, ...) SHUI_ModuleAddLibraryDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectory macro instead. !!!
-void SHUI_ModuleAddLibraryDirectory(const char *directory, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectories macro instead. !!!
+void SHUI_ModuleAddLibraryDirectories(const char *directory, ...);
 
 /// @brief Links a library to the current module. An executable or a dynamic library is linked with it.
 /// A static library cannot be linked, so it keeps the library: a module that links the static library later gets the library too, after it, with its directories.
-/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectory` to search inside. (eg. "shapes", "numbers")
-#define SHU_ModuleLinkLibrary(library, ...) SHUI_ModuleLinkLibrary(library, ##__VA_ARGS__, NULL)
+/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectories` to search inside. (eg. "shapes", "numbers")
+#define SHU_ModuleLinkLibraries(library, ...) SHUI_ModuleLinkLibraries(library, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibrary macro instead. !!!
-void SHUI_ModuleLinkLibrary(const char *library, ...);
+///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibraries macro instead. !!!
+void SHUI_ModuleLinkLibraries(const char *library, ...);
 
 /// @brief Copies the dynamic libraries that the current module links into its output directory when it compiles, so they are found beside it.
 /// Windows needs this, as a program finds its DLLs beside itself or on PATH, not in the directories it was linked with. A copy that has the content already is left as is.
@@ -3021,30 +3021,30 @@ void SHU_ModuleBegin(const char *name, const char *root)
     SHUILD.MODULE.root = SHUI_PathJoinDirectory(SHUI_PathScriptDirectory(), root != NULL ? root : "");
 }
 
-static void SHUI_ModuleAddIncludeDirectoryOne(const char *directory)
+static void SHUI_ModuleAddIncludeDirectory(const char *directory)
 {
     SHUI_ListAdd(&SHUILD.MODULE.includeDirectories, SHUI_PathJoinDirectory(SHUILD.MODULE.root, directory));
 }
 
-void SHUI_ModuleAddIncludeDirectory(const char *directory, ...)
+void SHUI_ModuleAddIncludeDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddIncludeDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddIncludeDirectory);
 }
 
-static void SHUI_ModuleAddPublicIncludeDirectoryOne(const char *directory)
+static void SHUI_ModuleAddPublicIncludeDirectory(const char *directory)
 {
-    SHUI_ModuleAddIncludeDirectoryOne(directory);
+    SHUI_ModuleAddIncludeDirectory(directory);
     SHUI_ListAdd(&SHUILD.MODULE.publicIncludeDirectories, SHUI_Copy(SHUILD.MODULE.includeDirectories.data[SHUILD.MODULE.includeDirectories.count - 1]));
 }
 
-void SHUI_ModuleAddPublicIncludeDirectory(const char *directory, ...)
+void SHUI_ModuleAddPublicIncludeDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddPublicIncludeDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddPublicIncludeDirectory);
 }
 
-static void SHUI_ModuleAddSourceFileOne(const char *file)
+static void SHUI_ModuleAddSourceFile(const char *file)
 {
     char *path = SHUI_PathJoin(SHUILD.MODULE.root, file);
     SHUFileType type = SHUI_FileGetType(path);
@@ -3063,13 +3063,13 @@ static void SHUI_ModuleAddSourceFileOne(const char *file)
     }
 }
 
-void SHUI_ModuleAddSourceFile(const char *file, ...)
+void SHUI_ModuleAddSourceFiles(const char *file, ...)
 {
     SHU_AssertNullPointer(file);
-    SHUI_EACH_ARGUMENT(file, SHUI_ModuleAddSourceFileOne);
+    SHUI_EACH_ARGUMENT(file, SHUI_ModuleAddSourceFile);
 }
 
-static void SHUI_ModuleAddLibraryDirectoryOne(const char *directory)
+static void SHUI_ModuleAddLibraryDirectory(const char *directory)
 {
     char *path = SHUI_PathJoinDirectory(SHUI_PathScriptDirectory(), directory);
 
@@ -3081,21 +3081,21 @@ static void SHUI_ModuleAddLibraryDirectoryOne(const char *directory)
     SHUI_ListAdd(&SHUILD.MODULE.linkDirectories, path);
 }
 
-void SHUI_ModuleAddLibraryDirectory(const char *directory, ...)
+void SHUI_ModuleAddLibraryDirectories(const char *directory, ...)
 {
     SHU_AssertNullPointer(directory);
-    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddLibraryDirectoryOne);
+    SHUI_EACH_ARGUMENT(directory, SHUI_ModuleAddLibraryDirectory);
 }
 
-static void SHUI_ModuleLinkLibraryOne(const char *library)
+static void SHUI_ModuleLinkLibrary(const char *library)
 {
     SHUI_ListAdd(&SHUILD.MODULE.links, SHUI_Copy(library));
 }
 
-void SHUI_ModuleLinkLibrary(const char *library, ...)
+void SHUI_ModuleLinkLibraries(const char *library, ...)
 {
     SHU_AssertNullPointer(library);
-    SHUI_EACH_ARGUMENT(library, SHUI_ModuleLinkLibraryOne);
+    SHUI_EACH_ARGUMENT(library, SHUI_ModuleLinkLibrary);
 }
 
 void SHU_ModuleCopyDynamicLinks(void)

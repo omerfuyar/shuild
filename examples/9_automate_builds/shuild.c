@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("example", "");
-    SHU_ModuleAddSourceFile("example.c");
+    SHU_ModuleAddSourceFiles("example.c");
     SHU_ModuleCompile("", SHUModuleType_Executable);
 
     // Compile this program without the code below,

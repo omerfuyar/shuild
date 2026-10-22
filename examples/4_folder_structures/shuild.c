@@ -15,9 +15,9 @@ int main(void)
     // Add preconfigred flags to add include directory for current module.
     //  Thats why should needs to know your compiler.
     // Path relative to current executable
-    SHU_ModuleAddIncludeDirectory("include/");
+    SHU_ModuleAddIncludeDirectories("include/");
     // Same function can be used
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddSourceFiles("src/");
 
     SHU_ModuleCompile(NULL, SHUModuleType_Executable);
 

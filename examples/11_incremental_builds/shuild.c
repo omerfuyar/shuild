@@ -18,18 +18,18 @@ int main(int argc, char **argv)
     SHU_UtilAutomate(argc, argv);
 
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddSourceFiles("src/");
 
     SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
 
     SHU_ModuleBegin("example", "");
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceFile("src/");
-    SHU_ModuleAddLibraryDirectory("build/lib/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
+    SHU_ModuleAddSourceFiles("src/");
+    SHU_ModuleAddLibraryDirectories("build/lib/");
 
-    SHU_ModuleLinkLibrary("exampleLib");
+    SHU_ModuleLinkLibraries("exampleLib");
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 

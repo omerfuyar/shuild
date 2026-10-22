@@ -16,7 +16,7 @@ static void AddSource(const char *path, SHUFileType type, void *data)
 
     if (type == SHUFileType_Regular && SHU_UtilMatch(path, "*.c"))
     {
-        SHU_ModuleAddSourceFile(path);
+        SHU_ModuleAddSourceFiles(path);
         (*sourceCount)++;
     }
 }
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     SHU_UtilRunLogged("build/logs/echo.log", "echo %s", "This goes to the log.");
     SHU_Assert(SHU_UtilFileExists("build/logs/echo.log") == SHUFileType_Regular, "The log is not written.");
 
-    SHU_ModuleAddIncludeDirectory("build/");
+    SHU_ModuleAddIncludeDirectories("build/");
     SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
     return 0;

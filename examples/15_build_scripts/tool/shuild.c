@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
     SHU_ModuleBegin("tool", NULL);
     SHU_CompilerAddDefinitions("BUILD_KIND", release ? "\"release\"" : "\"debug\"");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddSourceFiles("src/");
     SHU_ModuleCompile("build/", SHUModuleType_Executable);
 
     return 0;

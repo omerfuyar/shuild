@@ -16,7 +16,7 @@ int main(void)
     // I want to name it 'example' and root directory of it will be next to executable.
     SHU_ModuleBegin("example", NULL);
     // Get the file 'example.c' from the root directory of current module.
-    SHU_ModuleAddSourceFile("example.c");
+    SHU_ModuleAddSourceFiles("example.c");
     // Compile the module, output the artifacts to 'build/' relative to current executable directory.
     // Trailing path separator is not mandatory but definitely recommended.
     // This is NOT relative to modules root directory.

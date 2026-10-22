@@ -10,19 +10,19 @@ int main(void)
     SHU_CompilerConfigureTry("gcc");
 
     SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddSourceFiles("src/");
     // Same thing with previous example but as dynamic.
     SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
 
     SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddIncludeDirectory("include/");
-    SHU_ModuleAddIncludeDirectory("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceFile("src/");
+    SHU_ModuleAddIncludeDirectories("include/");
+    SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
+    SHU_ModuleAddSourceFiles("src/");
 
     // This path will be baked/embedded to the executable.
-    SHU_ModuleAddLibraryDirectory("build/lib/");
-    SHU_ModuleLinkLibrary("exampleLib");
+    SHU_ModuleAddLibraryDirectories("build/lib/");
+    SHU_ModuleLinkLibraries("exampleLib");
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 

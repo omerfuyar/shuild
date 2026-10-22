@@ -6,7 +6,7 @@ void ShuildShuild(const char *name, const char *arg)
 {
     SHU_ModuleBegin("shuild", NULL);
     char *source = SHU_UtilFormat("%s/shuild.c", name);
-    SHU_ModuleAddSourceFile(source);
+    SHU_ModuleAddSourceFiles(source);
     SHU_ModuleCompile(name, SHUModuleType_Executable);
     free(source);
 

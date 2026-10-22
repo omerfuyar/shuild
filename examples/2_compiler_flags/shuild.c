@@ -17,7 +17,7 @@ int main(void)
     SHU_CompilerAddDefinitions("BAZ", NULL, "FOO", "\"foo,bar,baz\"");
 
     SHU_ModuleBegin("exampleDebug", NULL);
-    SHU_ModuleAddSourceFile("example.c");
+    SHU_ModuleAddSourceFiles("example.c");
 
     // Leave the output directory NULL to set it current executable directory.
     SHU_ModuleCompile(NULL, SHUModuleType_Executable);
@@ -31,7 +31,7 @@ int main(void)
     SHU_CompilerAddDefinitions("FOO", "\"this is debug foo\"");
 
     SHU_ModuleBegin("exampleRelease", NULL);
-    SHU_ModuleAddSourceFile("example.c");
+    SHU_ModuleAddSourceFiles("example.c");
 
     // Same behaviour as the one above.
     SHU_ModuleCompile("", SHUModuleType_Executable);
