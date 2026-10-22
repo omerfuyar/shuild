@@ -19,7 +19,7 @@
 #endif
 
 /// @brief Build flags to build shuild.c files
-#define SHUILD_BUILD " -O3 -Wno-format-truncation"
+#define SHUILD_BUILD "-O3 -Wno-format-truncation"
 
 #pragma region Platform Detection
 
@@ -123,26 +123,27 @@ typedef enum SHUCompiler
 #define SHUC_DEFAULT_CACHE_DIRECTORY ".shu/"
 #endif
 
-#define SHUM_FLAGS_DEBUG " -g"
+// each is one string of flags, one argument of SHU_CompilerAddFlags (eg. SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG, SHUM_FLAGS_OPTIMIZATION_DEBUG))
+#define SHUM_FLAGS_DEBUG "-g"
 
-#define SHUM_FLAGS_OPTIMIZATION_DEBUG " -Og"
-#define SHUM_FLAGS_OPTIMIZATION_SIZE " -Os"
-#define SHUM_FLAGS_OPTIMIZATION_LOW " -O1"
-#define SHUM_FLAGS_OPTIMIZATION_MID " -O2"
-#define SHUM_FLAGS_OPTIMIZATION_HIGH " -O3"
+#define SHUM_FLAGS_OPTIMIZATION_DEBUG "-Og"
+#define SHUM_FLAGS_OPTIMIZATION_SIZE "-Os"
+#define SHUM_FLAGS_OPTIMIZATION_LOW "-O1"
+#define SHUM_FLAGS_OPTIMIZATION_MID "-O2"
+#define SHUM_FLAGS_OPTIMIZATION_HIGH "-O3"
 
-#define SHUM_FLAGS_WARNING_LOW " -Wall -Wextra"
-#define SHUM_FLAGS_WARNING_MID " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
-#define SHUM_FLAGS_WARNING_HIGH " -Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
-#define SHUM_FLAGS_WARNING_ERROR " -Werror"
+#define SHUM_FLAGS_WARNING_LOW "-Wall -Wextra"
+#define SHUM_FLAGS_WARNING_MID "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -Wformat=2 -fstack-protector-strong"
+#define SHUM_FLAGS_WARNING_HIGH "-Wall -Wextra -Wshadow -Wpedantic -Wconversion -fstack-protector-strong -Wpointer-arith -Wcast-align -Wcast-qual -Wformat=2 -Winit-self -Wmissing-declarations -Wredundant-decls -Wsign-conversion -Wpointer-to-int-cast -Wint-to-pointer-cast"
+#define SHUM_FLAGS_WARNING_ERROR "-Werror"
 
-#define SHUM_FLAGS_STANDARD_C89 " -std=c89"
-#define SHUM_FLAGS_STANDARD_C99 " -std=c99"
-#define SHUM_FLAGS_STANDARD_C11 " -std=c11"
-#define SHUM_FLAGS_STANDARD_C17 " -std=c17"
-#define SHUM_FLAGS_STANDARD_C23 " -std=c23"
-#define SHUM_FLAGS_STANDARD_C2Y " -std=c2y"
-#define SHUM_FLAGS_STANDARD_C2X " -std=c2x"
+#define SHUM_FLAGS_STANDARD_C89 "-std=c89"
+#define SHUM_FLAGS_STANDARD_C99 "-std=c99"
+#define SHUM_FLAGS_STANDARD_C11 "-std=c11"
+#define SHUM_FLAGS_STANDARD_C17 "-std=c17"
+#define SHUM_FLAGS_STANDARD_C23 "-std=c23"
+#define SHUM_FLAGS_STANDARD_C2Y "-std=c2y"
+#define SHUM_FLAGS_STANDARD_C2X "-std=c2x"
 
 #define SHUM_COLOR_RESET "\x1b[0m"
 #define SHUM_COLOR_RED(string) "\x1b[31m" string SHUM_COLOR_RESET
@@ -228,17 +229,16 @@ void SHU_UtilLog(const char *format, ...) __attribute__((format(printf, 1, 2)));
 /// @param format Format of the warning, as printf takes it.
 void SHU_UtilWarn(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Logs an error as shuild logs its own, and ends the build with the code unless it is 0.
-/// @param code Exit code of the build, or 0 to go on.
+/// @brief Logs an error as shuild logs its own, and ends the build with a failure.
 /// @param format Format of the error, as printf takes it.
-void SHU_UtilFail(i32 code, const char *format, ...) __attribute__((format(printf, 2, 3)));
+void SHU_UtilFail(const char *format, ...) __attribute__((noreturn, format(printf, 1, 2)));
 
 /// @brief Formats a string, as printf does, into new memory.
 /// @param format Format of the string. (eg. "%sbin/", directory)
 /// @return The new string. Free it with free.
 char *SHU_UtilFormat(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Runs a command with the shell, through system. When it fails, the build ends with its exit code; use SHU_UtilRunTry for a command that may fail.
+/// @brief Runs a command with the shell, through system. A command that fails ends the build; use SHU_UtilRunTry for a command that may fail.
 /// Modules run the compiler without a shell.
 /// @param commandFormat Command to run, formatted as printf does. (eg. clang example.c -o example)
 void SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
@@ -545,7 +545,7 @@ static struct
         char *commands[SHUC_MAX_JOB_COUNT]; // shown when the job fails
         usz count;
         usz limit;
-        i32 failure;
+        bool failed;
     } JOBS;
 
     struct
@@ -667,17 +667,23 @@ void SHU_UtilWarn(const char *format, ...)
     va_end(args);
 }
 
-void SHU_UtilFail(i32 code, const char *format, ...)
+// an error that does not end the build by itself, such as one of several jobs that fail
+static __attribute__((format(printf, 1, 2))) void SHUI_LogError(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
+    va_end(args);
+}
+
+void SHU_UtilFail(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
     SHUI_LogLine(SHUM_COLOR_RED("error: "), format, args);
     va_end(args);
 
-    if (code != 0)
-    {
-        exit(code);
-    }
+    exit(EXIT_FAILURE);
 }
 
 #pragma endregion Basics
@@ -1048,7 +1054,7 @@ static void SHUI_FileMakeDirectories(const char *path)
 
         if (result != 0 && errno != EEXIST)
         {
-            SHU_UtilFail(SHUResult_ErrFile, "directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_PathForLog(partial), strerror(errno));
+            SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be made: %s", SHUI_PathForLog(partial), strerror(errno));
         }
 
         partial[i] = separator;
@@ -1068,7 +1074,7 @@ static SHUI_StringList SHUI_FileListNames(const char *directory)
 
     if (search == INVALID_HANDLE_VALUE)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
+        SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
     }
 
     do
@@ -1085,7 +1091,7 @@ static SHUI_StringList SHUI_FileListNames(const char *directory)
 
     if (opened == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
+        SHU_UtilFail("directory " SHUM_LOG_PATH("%s") " cannot be opened.", SHUI_PathForLog(directory));
     }
 
     for (struct dirent *entry = readdir(opened); entry != NULL; entry = readdir(opened))
@@ -1135,7 +1141,7 @@ static void SHUI_FileDelete(const char *path)
 
     if (result != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail(SHUM_LOG_PATH("%s") " cannot be deleted: %s", SHUI_PathForLog(path), strerror(errno));
     }
 }
 
@@ -1145,7 +1151,7 @@ static SHUSlice SHUI_FileRead(const char *path)
 
     if (file == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be read: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
     fseek(file, 0, SEEK_END);
@@ -1185,7 +1191,7 @@ static void SHUI_FileWrite(const char *path, SHUSliceView content)
 
     if (file == NULL)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be written: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
     usz written = content.size == 0 ? 0 : (usz)fwrite(content.data, 1, content.size, file);
@@ -1220,7 +1226,7 @@ static void SHUI_FileCopy(const char *from, const char *to)
 
     if (stat(from, &stats) == 0 && chmod(to, stats.st_mode & 07777) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_PathForLog(to), strerror(errno));
+        SHU_UtilFail("permissions of " SHUM_LOG_PATH("%s") " cannot be set: %s", SHUI_PathForLog(to), strerror(errno));
     }
 #endif
 }
@@ -1234,7 +1240,7 @@ static void SHUI_FileRename(const char *from, const char *to)
 
     if (rename(from, to) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_PathForLog(from), SHUI_PathForLog(to), strerror(errno));
+        SHU_UtilFail(SHUM_LOG_PATH("%s") " cannot be renamed to " SHUM_LOG_PATH("%s") ": %s", SHUI_PathForLog(from), SHUI_PathForLog(to), strerror(errno));
     }
 }
 
@@ -1245,7 +1251,7 @@ static i64 SHUI_FileGetEditTime(const char *path)
 
     if (stat(path, &stats) != 0)
     {
-        SHU_UtilFail(SHUResult_ErrFile, "file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_PathForLog(path), strerror(errno));
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be found: %s", SHUI_PathForLog(path), strerror(errno));
     }
 
 #if SHUM_HOST_LINUX
@@ -1521,7 +1527,7 @@ static i64 SHUI_CommandStart(const SHUI_StringList *command)
     if (pid == 0)
     {
         execvp(arguments[0], arguments);
-        SHU_UtilFail(0, SHUM_LOG_COMMAND("%s") " cannot start: %s", arguments[0], strerror(errno));
+        SHUI_LogError(SHUM_LOG_COMMAND("%s") " cannot start: %s", arguments[0], strerror(errno));
         _exit(127);
     }
 
@@ -1571,7 +1577,7 @@ static void SHUI_CommandRunOrFail(const SHUI_StringList *command)
 
     if (result != 0)
     {
-        SHU_UtilFail(result, SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(command));
+        SHU_UtilFail(SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(command));
     }
 }
 
@@ -1645,8 +1651,8 @@ static void SHUI_JobWaitOne(void)
 
     if (result != 0)
     {
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, result, line);
-        SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? result : SHUILD.JOBS.failure;
+        SHUI_LogError(SHUI_COMMAND_FAILED, result, line);
+        SHUILD.JOBS.failed = true;
     }
 
     free(line);
@@ -1669,7 +1675,7 @@ static void SHUI_JobStart(const SHUI_StringList *command)
     }
 
     // after a failure, the jobs that run are waited for, and no new ones start
-    if (SHUILD.JOBS.failure != 0)
+    if (SHUILD.JOBS.failed)
     {
         return;
     }
@@ -1684,8 +1690,8 @@ static void SHUI_JobStart(const SHUI_StringList *command)
 
     if (process < 0)
     {
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, -1, line);
-        SHUILD.JOBS.failure = SHUILD.JOBS.failure == 0 ? -1 : SHUILD.JOBS.failure;
+        SHUI_LogError(SHUI_COMMAND_FAILED, -1, line);
+        SHUILD.JOBS.failed = true;
         return;
     }
 
@@ -1701,9 +1707,9 @@ static void SHUI_JobWaitAll(void)
         SHUI_JobWaitOne();
     }
 
-    if (SHUILD.JOBS.failure != 0)
+    if (SHUILD.JOBS.failed)
     {
-        SHU_UtilFail(SHUILD.JOBS.failure, SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
+        SHU_UtilFail(SHUM_LOG_NAME("%s") " failed to compile.", SHUILD.MODULE.name);
     }
 }
 
@@ -2589,8 +2595,7 @@ void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile)
     if (result != 0)
     {
         SHUI_FileRename(oldProgram, program);
-        SHU_UtilFail(0, SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(&command));
-        SHU_UtilFail(result, "the build script cannot be rebuilt.");
+        SHU_UtilFail("the build script cannot be rebuilt; " SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(&command));
     }
 
     // the new program runs in place of this one, with the same arguments
@@ -2618,7 +2623,7 @@ void SHU_UtilRun(const char *commandFormat, ...)
 
     if (result != 0)
     {
-        SHU_UtilFail(result, SHUI_COMMAND_FAILED, result, command);
+        SHU_UtilFail(SHUI_COMMAND_FAILED, result, command);
     }
 
     free(command);
@@ -2678,7 +2683,7 @@ void SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     }
 
     fprintf(SHU_LOG_STREAM, "%s\n", start);
-    SHU_UtilFail(result, "command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PathForLog(logPath), command);
+    SHU_UtilFail("command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PathForLog(logPath), command);
 }
 
 void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments)
@@ -2912,7 +2917,7 @@ void SHU_CompilerConfigureTry(const char *command)
 
         if (family == SHUCompiler_Unknown)
         {
-            SHU_UtilFail(SHUResult_Err, "compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", command);
+            SHU_UtilFail("compiler " SHUM_LOG_VALUE("%s") " is not known; configure it with SHU_CompilerConfigure.", command);
         }
 
         SHU_CompilerConfigure(family, command);
@@ -3059,7 +3064,7 @@ static void SHUI_ModuleAddSourceFile(const char *file)
     }
     else
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
+        SHU_UtilFail("source " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
     }
 }
 
@@ -3075,7 +3080,7 @@ static void SHUI_ModuleAddLibraryDirectory(const char *directory)
 
     if (SHUI_FileGetType(path) != SHUFileType_Directory)
     {
-        SHU_UtilFail(SHUResult_ErrNotFound, "library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
+        SHU_UtilFail("library directory " SHUM_LOG_PATH("%s") " does not exist.", SHUI_PathForLog(path));
     }
 
     SHUI_ListAdd(&SHUILD.MODULE.linkDirectories, path);
