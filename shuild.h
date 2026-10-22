@@ -305,8 +305,8 @@ SHUSlice SHU_UtilReadFile(const char *file);
 /// @param content Content to write.
 void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 
-/// @brief Gets the file name that shuild gives a library on the system the compiler compiles for. A module links it as -l<name> on every system.
-/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and name.dll with its import library libname.dll.a.
+/// @brief Gets the file that a module links a library by, on the system the compiler compiles for: the library itself, or on Windows a DLL's import library. A module links it as -l<name> on every system.
+/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and libname.dll.a, the import library that shuild writes beside name.dll.
 /// @param name Name of the library's module. (eg. math)
 /// @param type SHUModuleType_LibraryStatic or SHUModuleType_LibraryDynamic.
 /// @return The file name, without a directory. (eg. libmath.so) Free it with free.
@@ -379,6 +379,13 @@ SHUCompiler SHU_CompilerGetFamily(void);
 /// The names of executables and libraries, and how they find their dynamic libraries, follow it. Build scripts are compiled for the host.
 /// @return The system it compiles for.
 SHUPlatform SHU_CompilerGetTarget(void);
+
+/// @brief Gets the command of a tool of the configured compiler's toolchain: the compiler's command with its family's name replaced by the tool's, so the tool has the compiler's prefix and version.
+/// (eg. g++-14 for gcc-14, x86_64-w64-mingw32-windres for x86_64-w64-mingw32-gcc) A command without the family's name gives the tool's name alone.
+/// @param gccTool Name of the tool for a gcc compiler. (eg. g++, gcc-ar, windres)
+/// @param clangTool Name of the tool for a clang compiler. (eg. clang++, llvm-ar, windres)
+/// @return The command. Free it with free.
+char *SHU_CompilerGetTool(const char *gccTool, const char *clangTool);
 
 #pragma endregion Compiler
 
@@ -2002,25 +2009,6 @@ static const SHUCompilerInfo *SHUI_CompilerPick(const SHUCompilerInfo *compilers
     return best;
 }
 
-// the archiver of the compiler's toolchain: llvm-ar for clang, which reads objects of any system,
-// and for gcc the gcc-ar of the same prefix and version, such as x86_64-w64-mingw32-gcc-ar or gcc-ar-14
-static char *SHUI_CompilerArchiver(void)
-{
-    if (SHUILD.COMPILER.family == SHUCompiler_Clang)
-    {
-        return SHUI_Copy("llvm-ar");
-    }
-
-    const char *gcc = NULL;
-
-    for (const char *found = strstr(SHUILD.COMPILER.command, "gcc"); found != NULL; found = strstr(found + 1, "gcc"))
-    {
-        gcc = found;
-    }
-
-    return gcc == NULL ? SHUI_Copy("ar") : SHU_UtilFormat("%.*sgcc-ar%s", (int)(gcc - SHUILD.COMPILER.command), SHUILD.COMPILER.command, gcc + 3);
-}
-
 // build scripts run on the host, so a cross compiler leaves them to the host's own
 static const char *SHUI_CompilerForScripts(void)
 {
@@ -2353,10 +2341,23 @@ static void SHUI_ModuleExpandLinks(void)
     }
 }
 
-// the dynamic library's file where the linker finds it: on Windows, its import library, which names the DLL
-static char *SHUI_ModuleLinkedDynamicFile(const char *name)
+// the file that a library compiles into; on Windows, a dynamic library's is its DLL, not the import library that SHU_UtilLibraryFile gives
+static char *SHUI_ModuleLibraryFile(const char *name, SHUModuleType type)
 {
-    return SHUILD.COMPILER.target == SHUPlatform_Windows ? SHU_UtilFormat("lib%s.dll.a", name) : SHU_UtilLibraryFile(name, SHUModuleType_LibraryDynamic);
+    if (type == SHUModuleType_LibraryStatic)
+    {
+        return SHU_UtilFormat("lib%s.a", name);
+    }
+
+    switch (SHUILD.COMPILER.target)
+    {
+    case SHUPlatform_Windows:
+        return SHU_UtilFormat("%s.dll", name);
+    case SHUPlatform_MacOS:
+        return SHU_UtilFormat("lib%s.dylib", name);
+    default:
+        return SHU_UtilFormat("lib%s.so", name);
+    }
 }
 
 #ifdef SHUC_ENABLE_INCREMENTAL
@@ -2379,7 +2380,7 @@ static bool SHUI_ModuleLinksNewer(const char *outputFile)
             const char *link = SHUILD.MODULE.links.data[j];
 
             if (SHUI_FileNewerThan(SHUI_PathJoin(directory, SHU_UtilLibraryFile(link, SHUModuleType_LibraryStatic)), outputTime) ||
-                SHUI_FileNewerThan(SHUI_PathJoin(directory, SHUI_ModuleLinkedDynamicFile(link)), outputTime))
+                SHUI_FileNewerThan(SHUI_PathJoin(directory, SHU_UtilLibraryFile(link, SHUModuleType_LibraryDynamic)), outputTime))
             {
                 return true;
             }
@@ -2395,7 +2396,7 @@ static bool SHUI_ModuleHoldsDynamicLink(const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        if (SHUI_FileGetType(SHUI_PathJoin(directory, SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
+        if (SHUI_FileGetType(SHUI_PathJoin(directory, SHUI_ModuleLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic))) == SHUFileType_Regular)
         {
             return true;
         }
@@ -2438,7 +2439,7 @@ static void SHUI_ModuleCopyDynamicLinks(const char *directory)
 {
     for (usz i = 0; i < SHUILD.MODULE.links.count; i++)
     {
-        char *file = SHU_UtilLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
+        char *file = SHUI_ModuleLibraryFile(SHUILD.MODULE.links.data[i], SHUModuleType_LibraryDynamic);
 
         for (usz j = 0; j < SHUILD.MODULE.linkDirectories.count; j++)
         {
@@ -2468,7 +2469,7 @@ static char *SHUI_ModuleOutputFile(const char *directory, SHUModuleType type)
         return SHU_UtilFormat("%s%s%s", directory, SHUILD.MODULE.name, SHUILD.COMPILER.target == SHUPlatform_Windows ? ".exe" : "");
     }
 
-    return SHUI_PathJoin(directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, type));
+    return SHUI_PathJoin(directory, SHUI_ModuleLibraryFile(SHUILD.MODULE.name, type));
 }
 
 // links the objects into an executable or a dynamic library, or packs them into a static library
@@ -2484,7 +2485,8 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
             SHUI_FileDelete(outputFile);
         }
 
-        SHUI_ListAdd(&command, SHUI_CompilerArchiver());
+        // llvm-ar reads objects of any system, and gcc-ar of the compiler's prefix and version reads its link-time optimized objects
+        SHUI_ListAdd(&command, SHU_CompilerGetTool("gcc-ar", "llvm-ar"));
         SHUI_CommandAddArgument(&command, "rcs");
         SHUI_CommandAddArgument(&command, outputFile);
     }
@@ -2503,7 +2505,7 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
         // a DLL is linked through its import library, which -l finds as lib<name>.dll.a
         if (type == SHUModuleType_LibraryDynamic && SHUILD.COMPILER.target == SHUPlatform_Windows)
         {
-            SHUI_ListAdd(&command, SHU_UtilFormat("-Wl,--out-implib,%s%s", directory, SHUI_ModuleLinkedDynamicFile(SHUILD.MODULE.name)));
+            SHUI_ListAdd(&command, SHU_UtilFormat("-Wl,--out-implib,%s%s", directory, SHU_UtilLibraryFile(SHUILD.MODULE.name, type)));
         }
     }
 
@@ -2866,20 +2868,13 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
     SHU_AssertNullPointer(name);
     SHU_Assert(type == SHUModuleType_LibraryStatic || type == SHUModuleType_LibraryDynamic, "Module type %d is not a library.", (int)type);
 
-    if (type == SHUModuleType_LibraryStatic)
+    // a DLL is linked through its import library
+    if (type == SHUModuleType_LibraryDynamic && SHUILD.COMPILER.target == SHUPlatform_Windows)
     {
-        return SHU_UtilFormat("lib%s.a", name);
+        return SHU_UtilFormat("lib%s.dll.a", name);
     }
 
-    switch (SHUILD.COMPILER.target)
-    {
-    case SHUPlatform_Windows:
-        return SHU_UtilFormat("%s.dll", name);
-    case SHUPlatform_MacOS:
-        return SHU_UtilFormat("lib%s.dylib", name);
-    default:
-        return SHU_UtilFormat("lib%s.so", name);
-    }
+    return SHUI_ModuleLibraryFile(name, type);
 }
 
 #pragma endregion Utility
@@ -3012,6 +3007,32 @@ SHUCompiler SHU_CompilerGetFamily(void)
 SHUPlatform SHU_CompilerGetTarget(void)
 {
     return SHUILD.COMPILER.target;
+}
+
+char *SHU_CompilerGetTool(const char *gccTool, const char *clangTool)
+{
+    SHU_AssertNullPointer(gccTool);
+    SHU_AssertNullPointer(clangTool);
+
+    bool clang = SHUILD.COMPILER.family == SHUCompiler_Clang;
+    const char *family = clang ? "clang" : "gcc";
+    const char *tool = clang ? clangTool : gccTool;
+    const char *command = SHUILD.COMPILER.command;
+
+    // the last one is the program's name, as a directory before it may hold the family's name too
+    const char *found = NULL;
+
+    for (const char *c = strstr(command, family); c != NULL; c = strstr(c + 1, family))
+    {
+        found = c;
+    }
+
+    if (found == NULL)
+    {
+        return SHUI_Copy(tool);
+    }
+
+    return SHU_UtilFormat("%.*s%s%s", (int)(found - command), command, tool, found + strlen(family));
 }
 
 #pragma endregion Compiler

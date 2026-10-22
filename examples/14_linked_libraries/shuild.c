@@ -64,9 +64,11 @@ int main(int argc, char **argv)
 
     SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
 
+    // A module links a library by its file, which a build script can check for. On Windows, a DLL's is its import library, libreport.dll.a.
     char *numbers = SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic);
     char *report = SHU_UtilLibraryFile("report", SHUModuleType_LibraryDynamic);
-    SHU_UtilLog("the library files are " SHUM_LOG_PATH("%s") " and " SHUM_LOG_PATH("%s"), numbers, report);
+    SHU_Assert(SHU_UtilFileExists(SHU_UtilFormat("build/lib/%s", report)) == SHUFileType_Regular, "The dynamic library is not built.");
+    SHU_UtilLog("the libraries are linked by " SHUM_LOG_PATH("%s") " and " SHUM_LOG_PATH("%s"), numbers, report);
     free(numbers);
     free(report);
 
