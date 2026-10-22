@@ -17,21 +17,21 @@ int main(int argc, char **argv)
     SHU_CompilerConfigureTry("gcc");
     SHU_UtilAutomate(argc, argv);
 
-    SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
-    SHU_ModuleAddIncludeDirectories("include/");
-    SHU_ModuleAddSourceFiles("src/");
+    SHU_MODULE("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryStatic, "build/lib/")
+    {
+        SHU_ModuleAddIncludeDirectories("include/");
+        SHU_ModuleAddSourceFiles("src/");
+    }
 
-    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
+    SHU_MODULE("example", "", SHUModuleType_Executable, "build/bin/")
+    {
+        SHU_ModuleAddIncludeDirectories("include/");
+        SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
+        SHU_ModuleAddSourceFiles("src/");
+        SHU_ModuleAddLibraryDirectories("build/lib/");
 
-    SHU_ModuleBegin("example", "");
-    SHU_ModuleAddIncludeDirectories("include/");
-    SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleAddLibraryDirectories("build/lib/");
-
-    SHU_ModuleLinkLibraries("exampleLib");
-
-    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
+        SHU_ModuleLinkLibraries("exampleLib");
+    }
 
     return 0;
 }

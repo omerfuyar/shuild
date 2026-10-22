@@ -4,10 +4,13 @@
 
 void ShuildShuild(const char *name, const char *arg)
 {
-    SHU_ModuleBegin("shuild", NULL);
     char *source = SHU_UtilFormat("%s/shuild.c", name);
-    SHU_ModuleAddSourceFiles(source);
-    SHU_ModuleCompile(name, SHUModuleType_Executable);
+
+    SHU_MODULE("shuild", NULL, SHUModuleType_Executable, name)
+    {
+        SHU_ModuleAddSourceFiles(source);
+    }
+
     free(source);
 
 #if SHUM_HOST_WINDOWS

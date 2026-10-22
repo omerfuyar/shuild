@@ -12,9 +12,10 @@ int main(int argc, char **argv)
     // Even automate function must be called after compiler configuration.
     SHU_UtilAutomate(argc, argv);
 
-    SHU_ModuleBegin("example", "");
-    SHU_ModuleAddSourceFiles("example.c");
-    SHU_ModuleCompile("", SHUModuleType_Executable);
+    SHU_MODULE("example", "", SHUModuleType_Executable, "")
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     // Compile this program without the code below,
     // activate this line and save, then you can directly run it.

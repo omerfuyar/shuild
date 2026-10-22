@@ -23,9 +23,10 @@ int main(int argc, char **argv)
 
     // totally dynamic/runtime configurations
 
-    SHU_ModuleBegin(buffer, NULL);
-    SHU_ModuleAddSourceFiles("example.c");
-    SHU_ModuleCompile("", SHUModuleType_Executable);
+    SHU_MODULE(buffer, NULL, SHUModuleType_Executable, "")
+    {
+        SHU_ModuleAddSourceFiles("example.c");
+    }
 
     return 0;
 }

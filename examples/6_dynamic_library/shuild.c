@@ -9,22 +9,23 @@ int main(void)
 {
     SHU_CompilerConfigureTry("gcc");
 
-    SHU_ModuleBegin("exampleLib", "dependencies/exampleLib/");
-    SHU_ModuleAddIncludeDirectories("include/");
-    SHU_ModuleAddSourceFiles("src/");
     // Same thing with previous example but as dynamic.
-    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
+    SHU_MODULE("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryDynamic, "build/lib/")
+    {
+        SHU_ModuleAddIncludeDirectories("include/");
+        SHU_ModuleAddSourceFiles("src/");
+    }
 
-    SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddIncludeDirectories("include/");
-    SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
-    SHU_ModuleAddSourceFiles("src/");
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/bin/")
+    {
+        SHU_ModuleAddIncludeDirectories("include/");
+        SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");
+        SHU_ModuleAddSourceFiles("src/");
 
-    // This path will be baked/embedded to the executable.
-    SHU_ModuleAddLibraryDirectories("build/lib/");
-    SHU_ModuleLinkLibraries("exampleLib");
-
-    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
+        // This path will be baked/embedded to the executable.
+        SHU_ModuleAddLibraryDirectories("build/lib/");
+        SHU_ModuleLinkLibraries("exampleLib");
+    }
 
     return 0;
 }

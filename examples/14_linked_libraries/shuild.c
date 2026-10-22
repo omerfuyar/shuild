@@ -22,18 +22,20 @@ int main(int argc, char **argv)
         SHU_CompilerAddFlags("-fPIC");
     }
 
-    SHU_ModuleBegin("numbers", "dependencies/numbers/");
-    SHU_ModuleAddPublicIncludeDirectories("include/");
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
+    SHU_MODULE("numbers", "dependencies/numbers/", SHUModuleType_LibraryStatic, "build/lib/")
+    {
+        SHU_ModuleAddPublicIncludeDirectories("include/");
+        SHU_ModuleAddSourceFiles("src/");
+    }
 
     // shapes uses numbers, and gets its headers by linking it. It keeps the link, and the directory to find numbers in.
-    SHU_ModuleBegin("shapes", "dependencies/shapes/");
-    SHU_ModuleAddPublicIncludeDirectories("include/");
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleAddLibraryDirectories("build/lib/");
-    SHU_ModuleLinkLibraries("numbers");
-    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryStatic);
+    SHU_MODULE("shapes", "dependencies/shapes/", SHUModuleType_LibraryStatic, "build/lib/")
+    {
+        SHU_ModuleAddPublicIncludeDirectories("include/");
+        SHU_ModuleAddSourceFiles("src/");
+        SHU_ModuleAddLibraryDirectories("build/lib/");
+        SHU_ModuleLinkLibraries("numbers");
+    }
 
     // Linker flags go to linking alone, so the compiler does not warn that they are unused. With this one, a dynamic library that uses a function no library it links has fails to link,
     // instead of when it is loaded. macOS's linker refuses such libraries already.
@@ -43,26 +45,27 @@ int main(int argc, char **argv)
     }
 
     // report links only shapes, and is linked with numbers too. It gets shapes' headers, but not numbers', which it does not use.
-    SHU_ModuleBegin("report", "dependencies/report/");
-    SHU_ModuleAddPublicIncludeDirectories("include/");
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleAddLibraryDirectories("build/lib/");
-    SHU_ModuleLinkLibraries("shapes");
-    SHU_ModuleCompile("build/lib/", SHUModuleType_LibraryDynamic);
+    SHU_MODULE("report", "dependencies/report/", SHUModuleType_LibraryDynamic, "build/lib/")
+    {
+        SHU_ModuleAddPublicIncludeDirectories("include/");
+        SHU_ModuleAddSourceFiles("src/");
+        SHU_ModuleAddLibraryDirectories("build/lib/");
+        SHU_ModuleLinkLibraries("shapes");
+    }
 
     // The executable links shapes and report, and gets their headers. Functions that add to a module take one value or more. It gets numbers after shapes, so the linker finds what shapes needs.
     // On Linux and macOS, it finds report in ../lib/, from its own directory. On Windows, a program finds its DLLs beside itself, so report is copied there.
-    SHU_ModuleBegin("example", NULL);
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleAddLibraryDirectories("build/lib/");
-    SHU_ModuleLinkLibraries("shapes", "report");
-
-    if (SHU_CompilerGetTarget() == SHUPlatform_Windows)
+    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/bin/")
     {
-        SHU_ModuleCopyDynamicLinks();
-    }
+        SHU_ModuleAddSourceFiles("src/");
+        SHU_ModuleAddLibraryDirectories("build/lib/");
+        SHU_ModuleLinkLibraries("shapes", "report");
 
-    SHU_ModuleCompile("build/bin/", SHUModuleType_Executable);
+        if (SHU_CompilerGetTarget() == SHUPlatform_Windows)
+        {
+            SHU_ModuleCopyDynamicLinks();
+        }
+    }
 
     // A module links a library by its file, which a build script can check for. On Windows, a DLL's is its import library, libreport.dll.a.
     char *numbers = SHU_UtilLibraryFile("numbers", SHUModuleType_LibraryStatic);

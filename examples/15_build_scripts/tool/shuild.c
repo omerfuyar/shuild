@@ -14,10 +14,11 @@ int main(int argc, char **argv)
     // the build that runs it says which kind of build to make
     bool release = argc > 1 && strcmp(argv[1], "release") == 0;
 
-    SHU_ModuleBegin("tool", NULL);
-    SHU_CompilerAddDefinitions("BUILD_KIND", release ? "\"release\"" : "\"debug\"");
-    SHU_ModuleAddSourceFiles("src/");
-    SHU_ModuleCompile("build/", SHUModuleType_Executable);
+    SHU_MODULE("tool", NULL, SHUModuleType_Executable, "build/")
+    {
+        SHU_CompilerAddDefinitions("BUILD_KIND", release ? "\"release\"" : "\"debug\"");
+        SHU_ModuleAddSourceFiles("src/");
+    }
 
     return 0;
 }
