@@ -43,11 +43,12 @@ A minimal simple shuild source file example:
 int main() {
     SHU_CompilerConfigureTry("gcc");
     
-    SHU_ModuleBegin("myApp", "");
-
-    //... Specify include directories, source directories, targets, links etc.
-
-    SHU_ModuleCompile("build/", SHUModuleType_Executable);
+    // the module compiles into build/ when its block ends
+    SHU_MODULE("myApp", "", SHUModuleType_Executable, "build/")
+    {
+        //... Specify include directories, source directories, links etc.
+        SHU_ModuleAddSourceFiles("main.c");
+    }
 
     return 0;
 }
