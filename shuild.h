@@ -2,6 +2,7 @@
 // define SHU_IMPLEMENTATION in one file to include the implementation.
 // define SHUC_ENABLE_INCREMENTAL to enable incremental builds.
 // define SHUC_NO_MODULE_LOG to leave out the line that each module logs when it compiles.
+// define SHUC_NO_COMPILE_DATABASE to write no compile_commands.json. Otherwise the build script's directory gets one, with each source file's compile command, for clangd and clang-tidy.
 // define SHUC_LOG_COMMANDS to log each command that runs. Otherwise a command is logged only when it fails.
 // define SHUC_MAX_JOB_COUNT 1 to compile one file at a time instead of as many as there are processors.
 // define SHUC_ARRAY_INITIAL_COUNT <count> to set how many items shuild's lists make room for first.
@@ -580,6 +581,10 @@ static struct
         usz capacity;
         SHUI_Library *data;
     } LIBRARIES;
+
+#if !defined(SHUC_NO_COMPILE_DATABASE) && !defined(SHUC_ENABLE_INCREMENTAL)
+    SHUI_StringList databaseEntries; // the compile commands of every module so far, as JSON objects; with incremental builds, each module keeps its own in the cache
+#endif
 } SHUILD = {0};
 
 #pragma region Basics
@@ -2138,10 +2143,9 @@ static char *SHUI_CacheUnitFile(const char *sourceFile, const char *extension)
 
 #pragma region Module
 
-static void SHUI_ModuleCompileUnit(const char *sourceFile, const char *objectFile, const char *dependencyFile, const char *extraFlag)
+// the command that compiles a source file of the module into its object
+static SHUI_StringList SHUI_ModuleCompileCommand(const char *sourceFile, const char *objectFile, const char *dependencyFile, const char *extraFlag)
 {
-    SHUI_FileMakeDirectories(SHUI_PathDirectory(objectFile));
-
     // the compiler writes the dependency file as it compiles, with the module's flags, so the headers that definitions include are in it too
     SHUI_StringList command = {0};
     SHUI_CommandAddArguments(&command, SHUILD.COMPILER.command);
@@ -2172,15 +2176,130 @@ static void SHUI_ModuleCompileUnit(const char *sourceFile, const char *objectFil
         SHUI_CommandAddArgument(&command, dependencyFile);
     }
 
-    SHUI_JobStart(&command);
-    SHUI_ListFree(&command);
+    return command;
+}
+
+static void SHUI_ModuleCompileUnit(const SHUI_StringList *command, const char *objectFile)
+{
+    SHUI_FileMakeDirectories(SHUI_PathDirectory(objectFile));
+    SHUI_JobStart(command);
     SHUILD.MODULE.compiledCount++;
 }
 
-// the module's sources compile to objects, each in a job; with incremental builds, only the ones whose files changed
+#ifndef SHUC_NO_COMPILE_DATABASE
+// a string as JSON writes it, in quotes
+static void SHUI_DatabaseAppendString(SHUI_Builder *text, const char *string)
+{
+    SHUI_BuilderAppendChar(text, '"');
+
+    for (const char *c = string; *c != '\0'; c++)
+    {
+        if (*c == '"' || *c == '\\')
+        {
+            SHUI_BuilderAppendChar(text, '\\');
+        }
+
+        SHUI_BuilderAppendChar(text, *c);
+    }
+
+    SHUI_BuilderAppendChar(text, '"');
+}
+
+// a source file's entry of compile_commands.json: the directory its paths start from, the file, its object and the command's arguments
+static char *SHUI_DatabaseEntry(const char *sourceFile, const char *objectFile, const SHUI_StringList *command)
+{
+    SHUI_Builder entry = {0};
+    SHUI_BuilderAppend(&entry, "  {\n    \"directory\": ");
+    SHUI_DatabaseAppendString(&entry, SHUI_PathScriptDirectory());
+    SHUI_BuilderAppend(&entry, ",\n    \"file\": ");
+    SHUI_DatabaseAppendString(&entry, sourceFile);
+    SHUI_BuilderAppend(&entry, ",\n    \"output\": ");
+    SHUI_DatabaseAppendString(&entry, objectFile);
+    SHUI_BuilderAppend(&entry, ",\n    \"arguments\": [");
+
+    for (usz i = 0; i < command->count; i++)
+    {
+        SHUI_BuilderAppend(&entry, i == 0 ? "" : ", ");
+        SHUI_DatabaseAppendString(&entry, command->data[i]);
+    }
+
+    SHUI_BuilderAppend(&entry, "]\n  }");
+    return SHUI_BuilderTake(&entry);
+}
+
+// entries joined into one text, with a comma between two of them
+static void SHUI_DatabaseAppendEntries(SHUI_Builder *text, const SHUI_StringList *entries)
+{
+    for (usz i = 0; i < entries->count; i++)
+    {
+        SHUI_BuilderAppend(text, text->length == 0 ? "" : ",\n");
+        SHUI_BuilderAppend(text, entries->data[i]);
+    }
+}
+
+// writes compile_commands.json in the build script's directory: a list of entries
+static void SHUI_DatabaseWriteFile(const char *entries)
+{
+    char *database = SHU_UtilFormat("[\n%s\n]\n", entries);
+    SHUI_FileWrite(SHUI_PathFromScript("compile_commands.json"), csv(cs(database, strlen(database))));
+}
+
+#ifdef SHUC_ENABLE_INCREMENTAL
+// with incremental builds, a module that the build script skips keeps its entries from an earlier build, so each module keeps its own in the cache,
+// and compile_commands.json joins those of every module in the cache
+static void SHUI_DatabaseWrite(const SHUI_StringList *moduleEntries)
+{
+    SHUI_Builder moduleText = {0};
+    SHUI_DatabaseAppendEntries(&moduleText, moduleEntries);
+    char *text = SHUI_BuilderTake(&moduleText);
+    SHUI_FileWrite(SHU_UtilFormat("%scommands.json", SHUI_CacheModuleDirectory()), csv(cs(text, strlen(text))));
+    free(text);
+
+    SHUI_Builder entries = {0};
+    SHUI_StringList modules = SHUI_FileListNames(SHUI_CacheDirectory());
+
+    for (usz i = 0; i < modules.count; i++)
+    {
+        char *file = SHU_UtilFormat("%s%s" SHUM_PATH_SEPARATOR_STR "commands.json", SHUI_CacheDirectory(), modules.data[i]);
+
+        if (SHUI_FileGetType(file) == SHUFileType_Regular)
+        {
+            SHUSlice saved = SHUI_FileRead(file);
+            SHUI_BuilderAppend(&entries, entries.length == 0 || saved.size == 0 ? "" : ",\n");
+            SHUI_BuilderAppend(&entries, (const char *)saved.data);
+            free(saved.data);
+        }
+    }
+
+    SHUI_ListFree(&modules);
+    char *database = SHUI_BuilderTake(&entries);
+    SHUI_DatabaseWriteFile(database);
+    free(database);
+}
+#else
+// without incremental builds, every module compiles each time, so compile_commands.json holds the modules of this build
+static void SHUI_DatabaseWrite(const SHUI_StringList *moduleEntries)
+{
+    for (usz i = 0; i < moduleEntries->count; i++)
+    {
+        SHUI_ListAdd(&SHUILD.databaseEntries, SHUI_Copy(moduleEntries->data[i]));
+    }
+
+    SHUI_Builder entries = {0};
+    SHUI_DatabaseAppendEntries(&entries, &SHUILD.databaseEntries);
+    char *database = SHUI_BuilderTake(&entries);
+    SHUI_DatabaseWriteFile(database);
+    free(database);
+}
+#endif
+#endif // SHUC_NO_COMPILE_DATABASE
+
+// the module's sources compile to objects, each in a job; with incremental builds, only the ones whose files changed.
+// compile_commands.json gets every source's command, also of those that did not compile again
 static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
 {
     SHUI_StringList objectFiles = {0};
+    SHUI_StringList databaseEntries = {0};
 
     for (usz i = 0; i < SHUILD.MODULE.sourceFiles.count; i++)
     {
@@ -2189,23 +2308,36 @@ static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
 #ifdef SHUC_ENABLE_INCREMENTAL
         char *objectFile = SHUI_CacheUnitFile(sourceFile, "o");
         char *dependencyFile = SHUI_CacheUnitFile(sourceFile, "d");
+        SHUI_StringList command = SHUI_ModuleCompileCommand(sourceFile, objectFile, dependencyFile, extraFlag);
 
         if (SHUI_FileGetType(objectFile) != SHUFileType_Regular ||
             SHUI_FileGetType(dependencyFile) != SHUFileType_Regular ||
             SHUI_FileHasNewerDependency(dependencyFile, objectFile))
         {
-            SHUI_ModuleCompileUnit(sourceFile, objectFile, dependencyFile, extraFlag);
+            SHUI_ModuleCompileUnit(&command, objectFile);
         }
 #else
         // the object goes beside its source, and is deleted after linking
         char *objectFile = SHU_UtilFormat("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
-        SHUI_ModuleCompileUnit(sourceFile, objectFile, NULL, extraFlag);
+        SHUI_StringList command = SHUI_ModuleCompileCommand(sourceFile, objectFile, NULL, extraFlag);
+        SHUI_ModuleCompileUnit(&command, objectFile);
 #endif
 
+#ifndef SHUC_NO_COMPILE_DATABASE
+        SHUI_ListAdd(&databaseEntries, SHUI_DatabaseEntry(sourceFile, objectFile, &command));
+#endif
+
+        SHUI_ListFree(&command);
         SHUI_ListAdd(&objectFiles, objectFile);
     }
 
     SHUI_JobWaitAll();
+
+#ifndef SHUC_NO_COMPILE_DATABASE
+    SHUI_DatabaseWrite(&databaseEntries);
+#endif
+
+    SHUI_ListFree(&databaseEntries);
 
     return objectFiles;
 }
