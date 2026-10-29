@@ -253,6 +253,7 @@ i32 SHU_UtilRunTry(const char *commandFormat, ...) __attribute__((format(printf,
 void SHU_UtilRunLogged(const char *log, const char *commandFormat, ...) __attribute__((format(printf, 2, 3)));
 
 /// @brief Builds another build script and runs it in its own directory, as for a project inside this one. The script is compiled with the configured compiler and SHUILD_BUILD.
+/// Its log starts with a line that sets it apart, which names it by its directory, and ends with a line when it is built; its own lines go between them.
 /// @param script Build script to compile, relative to the build script's directory. (eg. plugins/shuild.c)
 /// @param program Program to compile it into, relative to the build script's directory, without .exe. (eg. plugins/shuild)
 /// @param flags More flags for the compiler, such as the script's include directories, or an empty string. (eg. -Idependencies)
@@ -263,6 +264,11 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
 /// @return The directory, with a separator at its end. Do not free or edit it.
 const char *SHU_UtilGetScriptDirectory(void);
 
+/// @brief Gets the full path of a path from the build script's directory, with the system's separators, as a command run with SHU_UtilRun takes it; cmd.exe runs a program only by backslashes.
+/// @param path Path relative to the build script's directory. (eg. build/bin/app)
+/// @return The full path. Free it with free.
+char *SHU_UtilGetPath(const char *path);
+
 /// @brief Checks if a file exist in the environment.
 /// @param file File to check, relative to the build script's directory.
 /// @return The type of the file, or SHUFileType_Invalid if it does not exist.
@@ -272,7 +278,7 @@ SHUFileType SHU_UtilFileExists(const char *file);
 /// @param directory Directory to create, relative to the build script's directory. (eg. resources/)
 void SHU_UtilCreateDirectory(const char *directory);
 
-/// @brief Deletes a file, or a directory with what it holds.
+/// @brief Deletes a file, or a directory with what it holds, if it exists.
 /// @param file File to delete, relative to the build script's directory.
 void SHU_UtilDeleteFile(const char *file);
 
@@ -2833,6 +2839,14 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
 
     char *programPath = SHUI_PathFromScript(SHU_UtilFormat("%s%s", program, SHUM_HOST_WINDOWS ? ".exe" : ""));
 
+    // the script is named by its directory, such as plugins for plugins/shuild.c, or by its program when it is in this directory
+    char *scriptDirectory = SHUI_PathDirectory(script);
+    usz nameLength = strlen(scriptDirectory) > 0 ? strlen(scriptDirectory) - 1 : 0;
+    char *name = nameLength > 0 ? SHU_UtilFormat("%.*s", (int)nameLength, scriptDirectory) : SHU_UtilFormat("%s", program);
+
+    // a line sets its log apart from the lines before it
+    SHU_UtilLog(SHUM_COLOR_DIM("---- ") SHUM_LOG_NAME("%s") " (" SHUM_COLOR_GREEN("Build Script") "): building " SHUM_COLOR_DIM("----"), name);
+
     SHUI_StringList command = {0};
     SHUI_CommandAddArguments(&command, SHUI_CompilerForScripts());
     SHUI_CommandAddArgument(&command, "-o");
@@ -2858,12 +2872,22 @@ void SHU_UtilBuildScript(const char *script, const char *program, const char *fl
     SHU_Assert(chdir(previous) == 0, "Cannot go back to '%s'.", previous);
 #endif
 
+    SHU_UtilLog(SHUM_LOG_NAME("%s") " (" SHUM_COLOR_GREEN("Build Script") "): built", name);
     free(previous);
+    free(scriptDirectory);
+    free(name);
 }
 
 const char *SHU_UtilGetScriptDirectory(void)
 {
     return SHUI_PathScriptDirectory();
+}
+
+char *SHU_UtilGetPath(const char *path)
+{
+    SHU_AssertNullPointer(path);
+
+    return SHUI_PathFromScript(path);
 }
 
 SHUFileType SHU_UtilFileExists(const char *file)
@@ -2884,7 +2908,14 @@ void SHU_UtilDeleteFile(const char *file)
 {
     SHU_AssertNullPointer(file);
 
-    SHUI_FileDelete(SHUI_PathFromScript(file));
+    char *path = SHUI_PathFromScript(file);
+
+    if (SHUI_FileGetType(path) != SHUFileType_Invalid)
+    {
+        SHUI_FileDelete(path);
+    }
+
+    free(path);
 }
 
 void SHU_UtilCopyFile(const char *file, const char *directory)
