@@ -4,6 +4,7 @@
 /*
     This example shows a build script that builds another one, as for a project inside this one.
     The other script is compiled with the configured compiler, and runs in its own directory with the arguments it is given.
+    Its log starts with a line that names it by its directory, tool, and ends with a line when it is built.
 */
 
 int main(int argc, char **argv)

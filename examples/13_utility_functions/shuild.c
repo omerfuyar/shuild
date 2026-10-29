@@ -51,6 +51,14 @@ int main(int argc, char **argv)
     SHU_UtilCopyFile("greeting.txt", "build/");
     SHU_Assert(SHU_UtilFileExists("build/greeting.txt") == SHUFileType_Regular, "The greeting is not copied.");
 
+    // A path that a command takes, such as a program's, comes from SHU_UtilGetPath with the system's separators, as cmd.exe runs a program only by backslashes.
+    char *program = SHU_UtilGetPath("build/tool");
+    SHU_UtilLog("a command would run " SHUM_LOG_PATH("%s"), program);
+    free(program);
+
+    // Deleting what is not there does nothing, so a build removes an old file or directory without checking first.
+    SHU_UtilDeleteFile("build/old/");
+
     // A command that may fail runs with SHU_UtilRunTry, which gives its exit code instead of stopping the build.
     i32 exitCode = SHU_UtilRunTry("exit 3");
     SHU_UtilLog("the command that may fail gave %d", exitCode);
