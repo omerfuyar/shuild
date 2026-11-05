@@ -7,12 +7,11 @@
 
 int main(int argc, char **argv)
 {
-
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
     // Even automate function must be called after compiler configuration.
     SHU_UtilAutomate(argc, argv);
 
-    SHU_MODULE("example", "", SHUModuleType_Executable, "")
+    SHU_Module("example", "", SHUModuleType_Executable, "")
     {
         SHU_ModuleAddSourceFiles("example.c");
     }

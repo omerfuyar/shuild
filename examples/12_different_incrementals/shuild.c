@@ -9,7 +9,7 @@
 
 int main(void)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
     // SHU_UtilAutomate(argc, argv);
 
     // Configure the cache directory of the current project.
@@ -17,7 +17,7 @@ int main(void)
 
     SHU_CompilerAddFlags(SHUM_FLAGS_DEBUG);
 
-    SHU_MODULE("example", "", SHUModuleType_Executable, "build/debug/")
+    SHU_Module("example", "", SHUModuleType_Executable, "build/debug/")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
@@ -30,7 +30,7 @@ int main(void)
     SHU_CompilerAddFlags(SHUM_FLAGS_OPTIMIZATION_HIGH);
     SHU_CompilerAddFlags("-DNDEBUG");
 
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/release")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "build/release")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");

@@ -7,8 +7,7 @@
 
 int main(int argc, char **argv)
 {
-
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
 
     // SHU_UtilFail logs the error and ends the build.
     if (argc < 2)
@@ -32,7 +31,7 @@ int main(int argc, char **argv)
         SHU_UtilFail("the first argument must be d or r");
     }
 
-    SHU_MODULE("example", "", SHUModuleType_Executable, "")
+    SHU_Module("example", "", SHUModuleType_Executable, "")
     {
         SHU_ModuleAddSourceFiles("example.c");
     }

@@ -9,15 +9,15 @@
 
 int main(void)
 {
-    // Provide the compiler to use for our build proccess.
-    SHU_CompilerConfigure(SHUCompiler_GCC, "gcc");
+    // Set shuild up with the newest compiler on PATH. Example 3 shows how to choose one.
+    SHU_InitializeShuild();
 
     // Begin to configure module, A module can be a static/dynamic library or an executable.
     // I want to name it 'example' and root directory of it will be next to executable.
     // When the block ends, the module compiles, and its artifacts go to 'build/' relative to current executable directory.
     // Trailing path separator is not mandatory but definitely recommended.
     // This is NOT relative to modules root directory.
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "build/")
     {
         // Get the file 'example.c' from the root directory of current module.
         SHU_ModuleAddSourceFiles("example.c");

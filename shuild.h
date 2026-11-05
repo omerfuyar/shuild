@@ -1,11 +1,11 @@
-// You can define various macros to configure Shuild before including this file.
-// define SHU_IMPLEMENTATION in one file to include the implementation.
-// define SHUC_ENABLE_INCREMENTAL to enable incremental builds.
-// define SHUC_NO_MODULE_LOG to leave out the line that each module logs when it compiles.
-// define SHUC_NO_COMPILE_DATABASE to write no compile_commands.json. Otherwise the build script's directory gets one, with each source file's compile command, for clangd and clang-tidy.
-// define SHUC_LOG_COMMANDS to log each command that runs. Otherwise a command is logged only when it fails.
-// define SHUC_MAX_JOB_COUNT 1 to compile one file at a time instead of as many as there are processors.
-// define SHUC_ARRAY_INITIAL_COUNT <count> to set how many items shuild's lists make room for first.
+// Define these before including shuild.h:
+// SHU_IMPLEMENTATION in one file, to include the implementation.
+// SHUC_ENABLE_INCREMENTAL to compile only what changed.
+// SHUC_NO_MODULE_LOG to log no line for each module.
+// SHUC_NO_COMPILE_DATABASE to write no compile_commands.json, which clangd and clang-tidy read.
+// SHUC_LOG_COMMANDS to log every command, not only failed ones.
+// SHUC_MAX_JOB_COUNT <count> to compile at most that many files at once. (eg. 1)
+// SHUC_ARRAY_INITIAL_COUNT <count> to set the first capacity of shuild's lists.
 
 #pragma once
 
@@ -17,7 +17,7 @@
 #endif
 #endif
 
-/// @brief Build flags to build shuild.c files
+/// @brief The flags that build scripts compile with.
 #define SHUILD_BUILD "-O3 -Wno-format-truncation"
 
 #pragma region Platform Detection
@@ -175,7 +175,7 @@ typedef enum SHUCompiler
 
 typedef enum SHUFileType
 {
-    SHUFileType_Invalid,
+    SHUFileType_Invalid, // missing
     SHUFileType_Regular,
     SHUFileType_Directory,
 } SHUFileType;
@@ -187,134 +187,119 @@ typedef enum SHUModuleType
     SHUModuleType_LibraryDynamic,
 } SHUModuleType;
 
+/// @brief Get the name of the given file type.
+#define SHUFileType_GetString(type) (type == SHUFileType_Regular     ? "Regular"   \
+                                     : type == SHUFileType_Directory ? "Directory" \
+                                                                     : "Invalid")
+
+/// @brief Get the name of the given module type.
+#define SHUModuleType_GetString(type) (type == SHUModuleType_Executable       ? "Executable"      \
+                                       : type == SHUModuleType_LibraryStatic  ? "Static Library"  \
+                                       : type == SHUModuleType_LibraryDynamic ? "Dynamic Library" \
+                                                                              : "Unknown")
+
+/// @brief Get the name of the given module type as log lines show it, in its colour.
+#define SHUModuleType_GetLogString(type) (type == SHUModuleType_Executable       ? SHUM_COLOR_GREEN("Executable") \
+                                          : type == SHUModuleType_LibraryStatic  ? SHUM_COLOR_BLUE("Static")      \
+                                          : type == SHUModuleType_LibraryDynamic ? SHUM_COLOR_YELLOW("Dynamic")   \
+                                                                                 : "Unknown")
+
 /// @brief A compiler that SHU_CompilerDetect found.
 typedef struct SHUCompilerInfo
 {
-    const char *command; // the name it runs by, as found on PATH (eg. gcc-14, x86_64-w64-mingw32-clang)
+    const char *command; // as found on PATH (eg. gcc-14, x86_64-w64-mingw32-clang)
     SHUCompiler family;
     SHUPlatform target;  // the system it compiles for
-    const char *machine; // the system it compiles for, as it names it (eg. x86_64-linux-gnu, aarch64-w64-mingw32), or "" if it does not tell
-    u32 version;         // major * 10000 + minor * 100 + patch, as SHUM_HOST_COMPILER_VERSION
-    bool sanitizers;     // it compiles and links a program with -fsanitize=address,undefined
+    const char *machine; // its target as it names it (eg. x86_64-linux-gnu), or ""
+    u32 version;         // major * 10000 + minor * 100 + patch
+    bool sanitizers;     // it can build with -fsanitize=address,undefined
 } SHUCompilerInfo;
 
-/// @brief Function that SHU_UtilListDirectory calls for each entry.
-/// @param path Path of the entry, relative to the build script's directory. Directories end with a separator. (eg. src/utils/)
-/// @param type Type of the entry.
-/// @param data Data given to SHU_UtilListDirectory.
+/// @brief Called by SHU_UtilListDirectory for each entry. A directory's path ends with a separator. (eg. src/utils/)
 typedef void (*SHUListFunction)(const char *path, SHUFileType type, void *data);
 
-/// @brief The type of a module as log lines show it, in its colour: green for executables, blue for static libraries and yellow for dynamic ones.
-#define SHUModuleType_GetLogString(module) (module == SHUModuleType_Executable       ? SHUM_COLOR_GREEN("Executable") \
-                                            : module == SHUModuleType_LibraryStatic  ? SHUM_COLOR_BLUE("Static")      \
-                                            : module == SHUModuleType_LibraryDynamic ? SHUM_COLOR_YELLOW("Dynamic")   \
-                                                                                     : "Unknown")
+// every path that shuild takes is relative to the build script's directory, unless it says otherwise
+
+#pragma region Shuild
+
+/// @brief Sets shuild up with the newest compiler on PATH for this system. Call it first. To choose the compiler, call SHU_CompilerConfigureTry or SHU_CompilerConfigure instead.
+#define SHU_InitializeShuild() SHU_CompilerConfigureTry(NULL)
+
+/// @brief Compiles another build script with the configured compiler and SHUILD_BUILD, and runs it in its own directory.
+/// @param script The build script. (eg. plugins/shuild.c)
+/// @param program The program to compile it into, without .exe. (eg. plugins/shuild)
+/// @param flags More compiler flags, or "". (eg. -Idependencies)
+/// @param arguments Arguments for the program, or "". (eg. -b release)
+void SHU_Shuild(const char *script, const char *program, const char *flags, const char *arguments);
+
+///!!! Use SHU_UtilAutomate. !!!
+void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile);
+
+/// @brief Rebuilds and reruns the build script when its source or shuild changed. Call it after configuring the compiler.
+#define SHU_UtilAutomate(argc, argv) SHUI_UtilAutomate(argc, argv, __FILE__)
+
+#pragma endregion Shuild
 
 #pragma region Utility
 
-///!!! This function is not meant to be used directly. Use SHU_UtilAutomate macro instead. !!!
-void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile);
-
-/// @brief Enables autonomously rebuilding the build script when the source or header is edited. It works only if the build system is one script. Run after configuring the compiler.
-/// @param argc Argument count from main function.
-/// @param argv Argument array from main function.
-#define SHU_UtilAutomate(argc, argv) SHUI_UtilAutomate(argc, argv, __FILE__)
-
-/// @brief Logs a line as shuild logs its own: "[shuild]" then the message. The SHUM_LOG_ macros colour its parts as shuild's are. (eg. "built " SHUM_LOG_NAME("%s"))
-/// @param format Format of the line, as printf takes it.
+/// @brief Logs a line as shuild does. The SHUM_LOG_ macros colour its parts. (eg. "built " SHUM_LOG_NAME("%s"))
 void SHU_UtilLog(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Logs a warning as shuild logs its own.
-/// @param format Format of the warning, as printf takes it.
+/// @brief Logs a warning.
 void SHU_UtilWarn(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Logs an error as shuild logs its own, and ends the build with a failure.
-/// @param format Format of the error, as printf takes it.
+/// @brief Logs an error and ends the build.
 void SHU_UtilFail(const char *format, ...) __attribute__((noreturn, format(printf, 1, 2)));
 
-/// @brief Formats a string, as printf does, into new memory.
-/// @param format Format of the string. (eg. "%sbin/", directory)
-/// @return The new string. Free it with free.
+/// @brief Formats a string as printf does. Free it with free.
 char *SHU_UtilFormat(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Runs a command with the shell, through system. A command that fails ends the build; use SHU_UtilRunTry for a command that may fail.
-/// Modules run the compiler without a shell.
-/// @param commandFormat Command to run, formatted as printf does. (eg. clang example.c -o example)
+/// @brief Runs a shell command. The build ends if it fails.
 void SHU_UtilRun(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Runs a command like SHU_UtilRun, but its failure is only a warning, and the build goes on.
-/// @param commandFormat Command to run, formatted as printf does. (eg. ./tests --quick)
-/// @return Exit code of the command.
+/// @brief Runs a shell command. A failure is only a warning.
+/// @return The command's exit code.
 i32 SHU_UtilRunTry(const char *commandFormat, ...) __attribute__((format(printf, 1, 2)));
 
-/// @brief Runs a command like SHU_UtilRun, with its output and errors written to a log file in place of the terminal. When the command fails, the end of the log is shown, and the build ends.
-/// @param log Log file to write, relative to the build script's directory. Its directory is created if it doesn't exist. (eg. .shu/cmake.log)
-/// @param commandFormat Command to run, formatted as printf does. (eg. cmake --build build/)
+/// @brief Runs a shell command with its output in a log file. If it fails, the end of the log is shown and the build ends.
+/// @param log The log file. (eg. .shu/cmake.log)
 void SHU_UtilRunLogged(const char *log, const char *commandFormat, ...) __attribute__((format(printf, 2, 3)));
 
-/// @brief Builds another build script and runs it in its own directory, as for a project inside this one. The script is compiled with the configured compiler and SHUILD_BUILD.
-/// Its log starts with a line that sets it apart, which names it by its directory, and ends with a line when it is built; its own lines go between them.
-/// @param script Build script to compile, relative to the build script's directory. (eg. plugins/shuild.c)
-/// @param program Program to compile it into, relative to the build script's directory, without .exe. (eg. plugins/shuild)
-/// @param flags More flags for the compiler, such as the script's include directories, or an empty string. (eg. -Idependencies)
-/// @param arguments Arguments for the program, or an empty string. (eg. -b release)
-void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments);
-
-/// @brief Gets the build script's directory: the directory of the program that the build script is compiled into. The paths that shuild takes start from it.
-/// @return The directory, with a separator at its end. Do not free or edit it.
+/// @brief Gets the build script's directory, with a separator at its end. Do not free it.
 const char *SHU_UtilGetScriptDirectory(void);
 
-/// @brief Gets the full path of a path from the build script's directory, with the system's separators, as a command run with SHU_UtilRun takes it; cmd.exe runs a program only by backslashes.
-/// @param path Path relative to the build script's directory. (eg. build/bin/app)
-/// @return The full path. Free it with free.
+/// @brief Gets a path's full path, with the system's separators, as a command takes it. Free it with free.
 char *SHU_UtilGetPath(const char *path);
 
-/// @brief Checks if a file exist in the environment.
-/// @param file File to check, relative to the build script's directory.
-/// @return The type of the file, or SHUFileType_Invalid if it does not exist.
+/// @brief Gets a file's type: SHUFileType_Invalid if it does not exist.
 SHUFileType SHU_UtilFileExists(const char *file);
 
-/// @brief Creates a directory, with the directories on its way, if it doesn't exist.
-/// @param directory Directory to create, relative to the build script's directory. (eg. resources/)
+/// @brief Creates a directory and its parents, if they do not exist.
 void SHU_UtilCreateDirectory(const char *directory);
 
 /// @brief Deletes a file, or a directory with what it holds, if it exists.
-/// @param file File to delete, relative to the build script's directory.
 void SHU_UtilDeleteFile(const char *file);
 
-/// @brief Copies a file into a directory, or a directory's contents into a directory recursively. A file that has the same content already is left as is, so its edit time stays and what includes it does not compile again. Copies keep the file's permissions on Linux and macOS.
-/// @param file File or directory to copy, relative to the build script's directory. (eg. include/foo.h or resources/)
-/// @param directory Directory to copy into, relative to the build script's directory. It is created if it doesn't exist. (eg. build/include/)
+/// @brief Copies a file, or a directory's contents, into a directory. A copy with the same content is left as is, so it does not compile again.
 void SHU_UtilCopyFile(const char *file, const char *directory);
 
-/// @brief Calls a function for each entry of a directory, sorted by name. Entries whose names start with a dot are left out.
-/// @param directory Directory to list, relative to the build script's directory. Leave it empty string to list the build script's directory. (eg. src/)
-/// @param recursive Lists the directories inside too, each right after its own entry.
-/// @param function Function to call for each entry.
-/// @param data Data to give to function. Can be NULL.
+/// @brief Calls a function for each entry of a directory, sorted by name, without the ones that start with a dot.
+/// @param directory The directory, or "" for the build script's. (eg. src/)
+/// @param recursive Lists subdirectories too, each after its own entry.
+/// @param data Given to the function. Can be NULL.
 void SHU_UtilListDirectory(const char *directory, bool recursive, SHUListFunction function, void *data);
 
-/// @brief Checks if a string matches a pattern, where '*' matches any characters and '?' matches one. (eg. "*.c" or "test_?.lua")
-/// @param string String to check, like a file name.
-/// @param pattern Pattern to match.
-/// @return Either the string matches the pattern or not.
+/// @brief Checks a string against a pattern, where '*' matches any characters and '?' one. (eg. "*.c")
 bool SHU_UtilMatch(const char *string, const char *pattern);
 
-/// @brief Reads a whole file.
-/// @param file File to read, relative to the build script's directory.
-/// @return Slice of the file's contents, followed by a terminating zero that the size does not count. Free its data with free.
+/// @brief Reads a whole file, with a zero after it that the size does not count. Free its data with free.
 SHUSlice SHU_UtilReadFile(const char *file);
 
-/// @brief Writes a file, replacing it if it exists. A file that has the content already is left as is, so its edit time stays and what includes it does not compile again.
-/// @param file File to write, relative to the build script's directory.
-/// @param content Content to write.
+/// @brief Writes a file. A file with the same content is left as is, so it does not compile again.
 void SHU_UtilWriteFile(const char *file, SHUSliceView content);
 
-/// @brief Gets the file that a module links a library by, on the system the compiler compiles for: the library itself, or on Windows a DLL's import library. A module links it as -l<name> on every system.
-/// Linux: libname.a and libname.so. macOS: libname.a and libname.dylib. Windows, with MinGW's gcc or LLVM: libname.a, and libname.dll.a, the import library that shuild writes beside name.dll.
-/// @param name Name of the library's module. (eg. math)
+/// @brief Gets the file a library compiles into, on the compiler's target. (eg. libmath.a, libmath.so, libmath.dll.a) Free it with free.
 /// @param type SHUModuleType_LibraryStatic or SHUModuleType_LibraryDynamic.
-/// @return The file name, without a directory. (eg. libmath.so) Free it with free.
 char *SHU_UtilLibraryFile(const char *name, SHUModuleType type);
 
 #pragma endregion Utility
@@ -323,8 +308,7 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type);
 
 #pragma region Cache
 
-/// @brief Configures the cache directory for incremental builds. Without it, the cache is .shu/ in the build script's directory.
-/// @param cacheDirectory Cache directory, relative to the build script's directory.
+/// @brief Sets the cache directory of incremental builds. It is .shu/ by default.
 void SHU_CacheConfigure(const char *cacheDirectory);
 
 #pragma endregion Cache
@@ -333,128 +317,100 @@ void SHU_CacheConfigure(const char *cacheDirectory);
 
 #pragma region Compiler
 
-/// @brief Configures the compiler to be used for compiling modules. Must be called before any other function. See SHU_CompilerConfigureTry for easier configuration.
-/// @param family Family of the compiler.
-/// @param command Command to invoke the compiler. (eg. clang)
+/// @brief Sets the compiler. Call it first, or SHU_InitializeShuild or SHU_CompilerConfigureTry instead.
+/// @param command The compiler's command. (eg. clang)
 void SHU_CompilerConfigure(SHUCompiler family, const char *command);
 
-/// @brief Configures the compiler, and finds its family by asking it for its version, so a clang that goes by gcc's name counts as clang.
-/// @param command Command to invoke the compiler. (eg. gcc).
-/// If NULL or empty, the newest compiler on PATH that compiles for the host's system and processor is used, of the family that compiled shuild.c if there is one, as SHU_CompilerDetect finds it;
-/// without one, the host compiler's own command. (eg. gcc-14 when gcc is gcc 13)
+/// @brief Sets the compiler, and asks it for its family.
+/// @param command The compiler's command, or NULL for the newest compiler on PATH that compiles for this system. (eg. gcc)
 void SHU_CompilerConfigureTry(const char *command);
 
-/// @brief Finds the gcc and clang compilers on PATH, cross compilers such as x86_64-w64-mingw32-gcc included, and asks each for its family, its version and its target.
-/// A clang that goes by gcc's name, such as LLVM-MinGW's x86_64-w64-mingw32-gcc, counts as clang.
-/// Each that compiles for the host's system and processor is also tried with the sanitizers, by compiling a small program. The first of each name on PATH is kept.
-/// @param retCount Number of compilers found. Must not be NULL.
-/// @return The compilers, sorted by name. They stay until the build script ends.
+/// @brief Finds the gcc and clang compilers on PATH, cross compilers included, with their family, version and target.
+/// @param retCount The number of compilers found.
+/// @return The compilers, sorted by name. Do not free them.
 SHUCompilerInfo *SHU_CompilerDetect(usz *retCount);
 
-///!!! This function is not meant to be used directly. Use SHU_CompilerAddFlags macro instead. !!!
+///!!! Use SHU_CompilerAddFlags. !!!
 void SHUI_CompilerAddFlags(const char *flags, ...);
 
-/// @brief Adds flags to the compiler configuration.
-/// @param flags Flags to add, one string or more. Each can include multiple flags separated by spaces as you want, quoted as in a shell. On Windows, a backslash escapes only a quote, so paths keep theirs. (eg. "-DFOO=31", "-Wall")
+/// @brief Adds compiler flags: one string or more, each with flags quoted as in a shell. (eg. "-DFOO=31", "-Wall")
 #define SHU_CompilerAddFlags(flags, ...) SHUI_CompilerAddFlags(flags, ##__VA_ARGS__, NULL)
 
-/// @brief Clears the current compiler flags, and the linker flags.
+/// @brief Clears the compiler flags and the linker flags.
 void SHU_CompilerClearFlags(void);
 
-///!!! This function is not meant to be used directly. Use SHU_CompilerAddLinkerFlags macro instead. !!!
+///!!! Use SHU_CompilerAddLinkerFlags. !!!
 void SHUI_CompilerAddLinkerFlags(const char *flags, ...);
 
-/// @brief Adds flags that only linking gets, not compiling, so the compiler does not warn that they are unused.
-/// @param flags Flags to add, one string or more, written as SHU_CompilerAddFlags takes them. (eg. "-Wl,--as-needed")
-/// @note Executables and dynamic libraries are linked with them; SHU_CompilerClearFlags clears them.
+/// @brief Adds flags that only linking gets. (eg. "-Wl,--as-needed")
 #define SHU_CompilerAddLinkerFlags(flags, ...) SHUI_CompilerAddLinkerFlags(flags, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_CompilerAddDefinitions macro instead. !!!
+///!!! Use SHU_CompilerAddDefinitions. !!!
 void SHUI_CompilerAddDefinitions(const char *name, ...);
 
-/// @brief Adds macro definitions to the compiler flags.
-/// @param name Name of the first macro, then its value, then more names and values in pairs. A NULL value defines the macro without one; a string value is written with escaped quotes inside. (eg. ("DEBUG", NULL, "BUFFER_SIZE", "31", "MY_STR", "\"this is my string\""))
+/// @brief Defines macros, as names and values in pairs; a NULL value defines a macro without one. (eg. "DEBUG", NULL, "SIZE", "31")
 #define SHU_CompilerAddDefinitions(name, ...) SHUI_CompilerAddDefinitions(name, ##__VA_ARGS__, NULL)
 
-/// @brief Gets the family of the configured compiler.
-/// @return Family of the compiler.
+/// @brief Gets the configured compiler's family.
 SHUCompiler SHU_CompilerGetFamily(void);
 
-/// @brief Gets the system that the configured compiler compiles for, which the compiler tells: the host's, or another's for a cross compiler such as x86_64-w64-mingw32-gcc.
-/// The names of executables and libraries, and how they find their dynamic libraries, follow it. Build scripts are compiled for the host.
-/// @return The system it compiles for.
+/// @brief Gets the system the configured compiler compiles for.
 SHUPlatform SHU_CompilerGetTarget(void);
 
-/// @brief Gets the command of a tool of the configured compiler's toolchain: the compiler's command with its family's name replaced by the tool's, so the tool has the compiler's prefix and version.
-/// (eg. g++-14 for gcc-14, x86_64-w64-mingw32-windres for x86_64-w64-mingw32-gcc) A command without the family's name gives the tool's name alone.
-/// @param gccTool Name of the tool for a gcc compiler. (eg. g++, gcc-ar, windres)
-/// @param clangTool Name of the tool for a clang compiler. (eg. clang++, llvm-ar, windres)
-/// @return The command. Free it with free.
+/// @brief Gets the command of a tool of the compiler, with the compiler's prefix and version. (eg. g++-14 for gcc-14) Free it with free.
+/// @param gccTool The tool's name for gcc. (eg. g++, gcc-ar)
+/// @param clangTool The tool's name for clang. (eg. clang++, llvm-ar)
 char *SHU_CompilerGetTool(const char *gccTool, const char *clangTool);
 
 #pragma endregion Compiler
 
 #pragma region Module
 
-///!!! This function is not meant to be used directly. Use SHU_MODULE macro instead. !!!
+///!!! Use SHU_Module. !!!
 void SHUI_ModuleBegin(const char *name, const char *root);
 
-///!!! This function is not meant to be used directly. Use SHU_MODULE macro instead. !!!
+///!!! Use SHU_Module. !!!
 void SHUI_ModuleCompile(SHUModuleType type, const char *directory);
 
-/// @brief Begins a module, runs the block after it, and compiles the module into an executable or a library when the block ends. The other Module functions go in the block.
-/// (eg. SHU_MODULE("app", NULL, SHUModuleType_Executable, "build/") { SHU_ModuleAddSourceFiles("src/"); })
-/// @param name Name of the module, which its output file is named from. (eg. myLibName, myAppName)
-/// @param root Root directory of the module, from which its other files and directories are found. Relative to the build script's directory. Leave it empty string or NULL to use the build script's directory. (eg. dependencies/library/)
-/// @param type What the module compiles into. (eg. SHUModuleType_LibraryStatic)
-/// @param directory Output directory, without the file's name. Relative to the build script's directory. Leave it NULL or empty string to use the build script's directory. (eg. build/)
-/// @note The module compiles when the block reaches its end; a break or return out of the block leaves it uncompiled.
-#define SHU_MODULE(name, root, type, directory) \
+/// @brief Compiles a module when its block ends. The other Module functions go in the block. A break or return out of the block leaves it uncompiled.
+/// (eg. SHU_Module("app", NULL, SHUModuleType_Executable, "build/") { SHU_ModuleAddSourceFiles("src/"); })
+/// @param name The module's name, which names its file.
+/// @param root The directory its files are relative to, or NULL for the build script's.
+/// @param directory The directory to compile it into, or NULL for the build script's.
+#define SHU_Module(name, root, type, directory) \
     for (int shuiModuleDone = (SHUI_ModuleBegin(name, root), 0); !shuiModuleDone; shuiModuleDone = 1, SHUI_ModuleCompile(type, directory))
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddIncludeDirectories macro instead. !!!
+///!!! Use SHU_ModuleAddIncludeDirectories. !!!
 void SHUI_ModuleAddIncludeDirectories(const char *directory, ...);
 
-/// @brief Adds include directories to the module.
-/// @param directory Include directories to add to the current module, one or more. Relative to the module's root (eg. "include/", "src/")
+/// @brief Adds include directories, relative to the module's root. (eg. "include/")
 #define SHU_ModuleAddIncludeDirectories(directory, ...) SHUI_ModuleAddIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddPublicIncludeDirectories macro instead. !!!
+///!!! Use SHU_ModuleAddPublicIncludeDirectories. !!!
 void SHUI_ModuleAddPublicIncludeDirectories(const char *directory, ...);
 
-/// @brief Adds include directories to the module, and gives them to the modules that link the module, as system headers, so their warnings stay out.
-/// Only the modules that link the library themselves get them, not the ones that get the library through another library.
-/// @param directory Include directories of the library's interface, one or more. Relative to the module's root (eg. "include/")
+/// @brief Adds include directories, relative to the module's root, that the modules linking this library get too, as system headers.
 #define SHU_ModuleAddPublicIncludeDirectories(directory, ...) SHUI_ModuleAddPublicIncludeDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddSourceFiles macro instead. !!!
+///!!! Use SHU_ModuleAddSourceFiles. !!!
 void SHUI_ModuleAddSourceFiles(const char *file, ...);
 
-/// @brief Adds source files to the module. Each is a single file or a directory, added with its subdirectories.
-/// @param file Files or directories to add to the current module, one or more. Relative to the module's root (eg. "main.c", "src/")
-/// @note A header file is compiled as C, so a single header library can be added with the definition of its implementation. (eg. clay.h with CLAY_IMPLEMENTATION)
+/// @brief Adds source files, or directories with all they hold, relative to the module's root. A header compiles as C. (eg. "main.c", "src/")
 #define SHU_ModuleAddSourceFiles(file, ...) SHUI_ModuleAddSourceFiles(file, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleAddLibraryDirectories macro instead. !!!
+///!!! Use SHU_ModuleAddLibraryDirectories. !!!
 void SHUI_ModuleAddLibraryDirectories(const char *directory, ...);
 
-/// @brief Adds directories to search for the libraries that the current module links. A static library keeps them for the modules that link it, as it keeps its libraries.
-/// On Linux and macOS, a directory that holds a dynamic library the module links is embedded in it, relative to the module's own directory ($ORIGIN or @loader_path),
-/// so the library is found at run time, also after both are moved together. On Windows, see SHU_ModuleCopyDynamicLinks.
-/// @param directory Directories to search for libraries, one or more. Relative to the build script's directory. (eg. "build/arc/")
+/// @brief Adds directories to find linked libraries in. On Linux and macOS, the module finds its dynamic libraries there at run time too. (eg. "build/lib/")
 #define SHU_ModuleAddLibraryDirectories(directory, ...) SHUI_ModuleAddLibraryDirectories(directory, ##__VA_ARGS__, NULL)
 
-///!!! This function is not meant to be used directly. Use SHU_ModuleLinkLibraries macro instead. !!!
+///!!! Use SHU_ModuleLinkLibraries. !!!
 void SHUI_ModuleLinkLibraries(const char *library, ...);
 
-/// @brief Links libraries to the current module. An executable or a dynamic library is linked with them.
-/// A static library cannot be linked, so it keeps the libraries: a module that links the static library later gets them too, after it, with their directories.
-/// @param library Libraries to link with the module, one or more, in order. Shouldn't include any path, use `SHU_ModuleAddLibraryDirectories` to search inside. (eg. "shapes", "numbers")
+/// @brief Links libraries by name, in order. A static library passes them on to the modules that link it. (eg. "math")
 #define SHU_ModuleLinkLibraries(library, ...) SHUI_ModuleLinkLibraries(library, ##__VA_ARGS__, NULL)
 
-/// @brief Copies the dynamic libraries that the current module links into its output directory when it compiles, so they are found beside it.
-/// Windows needs this, as a program finds its DLLs beside itself or on PATH, not in the directories it was linked with. A copy that has the content already is left as is.
-/// Only the module's own links are copied, with those that its static libraries bring, not the ones that its dynamic libraries link.
+/// @brief Copies the module's dynamic libraries beside it, as Windows finds them there.
 void SHU_ModuleCopyDynamicLinks(void);
 
 #pragma endregion Module
@@ -2830,7 +2786,7 @@ void SHU_UtilRunLogged(const char *log, const char *commandFormat, ...)
     SHU_UtilFail("command failed with exit code %d; " SHUM_LOG_PATH("%s") " has its output: " SHUM_LOG_COMMAND("%s"), result, SHUI_PathForLog(logPath), command);
 }
 
-void SHU_UtilBuildScript(const char *script, const char *program, const char *flags, const char *arguments)
+void SHU_Shuild(const char *script, const char *program, const char *flags, const char *arguments)
 {
     SHU_AssertNullPointer(script);
     SHU_AssertNullPointer(program);

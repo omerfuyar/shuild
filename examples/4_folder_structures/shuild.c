@@ -8,9 +8,9 @@
 
 int main(void)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
 
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, NULL)
+    SHU_Module("example", NULL, SHUModuleType_Executable, NULL)
     {
         // Add preconfigred flags to add include directory for current module.
         //  Thats why should needs to know your compiler.

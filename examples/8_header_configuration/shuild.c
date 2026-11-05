@@ -12,9 +12,9 @@
 
 int main(void)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
 
-    SHU_MODULE("example", "", SHUModuleType_Executable, "")
+    SHU_Module("example", "", SHUModuleType_Executable, "")
     {
         SHU_ModuleAddSourceFiles("example.c");
     }

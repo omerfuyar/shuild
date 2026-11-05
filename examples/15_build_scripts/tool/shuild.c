@@ -9,12 +9,12 @@
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
 
     // the build that runs it says which kind of build to make
     bool release = argc > 1 && strcmp(argv[1], "release") == 0;
 
-    SHU_MODULE("tool", NULL, SHUModuleType_Executable, "build/")
+    SHU_Module("tool", NULL, SHUModuleType_Executable, "build/")
     {
         SHU_CompilerAddDefinitions("BUILD_KIND", release ? "\"release\"" : "\"debug\"");
         SHU_ModuleAddSourceFiles("src/");
