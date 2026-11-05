@@ -22,14 +22,14 @@ int main(int argc, char **argv)
         SHU_CompilerAddFlags("-fPIC");
     }
 
-    SHU_MODULE("numbers", "dependencies/numbers/", SHUModuleType_LibraryStatic, "build/lib/")
+    SHU_Module("numbers", "dependencies/numbers/", SHUModuleType_LibraryStatic, "build/lib/")
     {
         SHU_ModuleAddPublicIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
     }
 
     // shapes uses numbers, and gets its headers by linking it. It keeps the link, and the directory to find numbers in.
-    SHU_MODULE("shapes", "dependencies/shapes/", SHUModuleType_LibraryStatic, "build/lib/")
+    SHU_Module("shapes", "dependencies/shapes/", SHUModuleType_LibraryStatic, "build/lib/")
     {
         SHU_ModuleAddPublicIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     }
 
     // report links only shapes, and is linked with numbers too. It gets shapes' headers, but not numbers', which it does not use.
-    SHU_MODULE("report", "dependencies/report/", SHUModuleType_LibraryDynamic, "build/lib/")
+    SHU_Module("report", "dependencies/report/", SHUModuleType_LibraryDynamic, "build/lib/")
     {
         SHU_ModuleAddPublicIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
     // The executable links shapes and report, and gets their headers. Functions that add to a module take one value or more. It gets numbers after shapes, so the linker finds what shapes needs.
     // On Linux and macOS, it finds report in ../lib/, from its own directory. On Windows, a program finds its DLLs beside itself, so report is copied there.
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/bin/")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "build/bin/")
     {
         SHU_ModuleAddSourceFiles("src/");
         SHU_ModuleAddLibraryDirectories("build/lib/");

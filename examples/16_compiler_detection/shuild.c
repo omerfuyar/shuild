@@ -4,7 +4,7 @@
 /*
     This example shows compiler detection.
     SHU_CompilerDetect lists the gcc and clang compilers on PATH: their versions, the systems and processors they compile for, and whether they have the sanitizers.
-    SHU_CompilerConfigureTry with NULL picks the newest one that compiles for this system and its processor, of the family that compiled this script if PATH has one.
+    SHU_InitializeShuild picks the newest one that compiles for this system and its processor, of the family that compiled this script if PATH has one.
 */
 
 int main(void)
@@ -25,9 +25,9 @@ int main(void)
                     compilers[i].sanitizers ? "with" : "without");
     }
 
-    SHU_CompilerConfigureTry(NULL);
+    SHU_InitializeShuild();
 
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "")
     {
         SHU_ModuleAddSourceFiles("example.c");
     }

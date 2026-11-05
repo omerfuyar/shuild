@@ -23,10 +23,10 @@ static void AddSource(const char *path, SHUFileType type, void *data)
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
     SHU_UtilAutomate(argc, argv);
 
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "build/")
     {
         // Entries are given sorted by name, and with recursive, the directories inside are listed too.
         usz sourceCount = 0;

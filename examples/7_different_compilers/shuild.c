@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 
     // totally dynamic/runtime configurations
 
-    SHU_MODULE(buffer, NULL, SHUModuleType_Executable, "")
+    SHU_Module(buffer, NULL, SHUModuleType_Executable, "")
     {
         SHU_ModuleAddSourceFiles("example.c");
     }

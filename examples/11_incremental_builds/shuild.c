@@ -12,18 +12,17 @@
 
 int main(int argc, char **argv)
 {
-
-    // The cache will be configured as '.shu' in current executable directory.
-    SHU_CompilerConfigureTry("gcc");
+    // The cache is .shu/ beside the build script, unless SHU_CacheConfigure sets another.
+    SHU_InitializeShuild();
     SHU_UtilAutomate(argc, argv);
 
-    SHU_MODULE("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryStatic, "build/lib/")
+    SHU_Module("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryStatic, "build/lib/")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
     }
 
-    SHU_MODULE("example", "", SHUModuleType_Executable, "build/bin/")
+    SHU_Module("example", "", SHUModuleType_Executable, "build/bin/")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");

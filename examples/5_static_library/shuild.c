@@ -7,16 +7,16 @@
 
 int main(void)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
 
     // Compile (archive) the module as a static library.
-    SHU_MODULE("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryStatic, "build/lib/")
+    SHU_Module("exampleLib", "dependencies/exampleLib/", SHUModuleType_LibraryStatic, "build/lib/")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddSourceFiles("src/");
     }
 
-    SHU_MODULE("example", NULL, SHUModuleType_Executable, "build/bin/")
+    SHU_Module("example", NULL, SHUModuleType_Executable, "build/bin/")
     {
         SHU_ModuleAddIncludeDirectories("include/");
         SHU_ModuleAddIncludeDirectories("dependencies/exampleLib/include/");

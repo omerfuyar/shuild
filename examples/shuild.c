@@ -6,7 +6,7 @@ void ShuildShuild(const char *name, const char *arg)
 {
     char *source = SHU_UtilFormat("%s/shuild.c", name);
 
-    SHU_MODULE("shuild", NULL, SHUModuleType_Executable, name)
+    SHU_Module("shuild", NULL, SHUModuleType_Executable, name)
     {
         SHU_ModuleAddSourceFiles(source);
     }
@@ -67,7 +67,7 @@ void BuildExample(const char *path, SHUFileType type, void *data)
 
 int main(int argc, char **argv)
 {
-    SHU_CompilerConfigureTry("gcc");
+    SHU_InitializeShuild();
     SHU_UtilAutomate(argc, argv);
 
     SHU_CompilerAddFlags(SHUM_FLAGS_WARNING_LOW, "-Wno-unused-function", "-Wno-format-truncation", SHUM_FLAGS_DEBUG, SHUM_FLAGS_STANDARD_C23);
