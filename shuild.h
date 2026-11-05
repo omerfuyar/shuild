@@ -2,7 +2,7 @@
 // SHU_IMPLEMENTATION in one file, to include the implementation.
 // SHUC_ENABLE_INCREMENTAL to compile only what changed.
 // SHUC_NO_MODULE_LOG to log no line for each module.
-// SHUC_NO_COMPILE_DATABASE to write no compile_commands.json, which clangd and clang-tidy read.
+// SHUC_COMPILE_DATABASE to write compile_commands.json beside the build script, which clangd and clang-tidy read.
 // SHUC_LOG_COMMANDS to log every command, not only failed ones.
 // SHUC_MAX_JOB_COUNT <count> to compile at most that many files at once. (eg. 1)
 // SHUC_ARRAY_INITIAL_COUNT <count> to set the first capacity of shuild's lists.
@@ -544,7 +544,7 @@ static struct
         SHUI_Library *data;
     } LIBRARIES;
 
-#if !defined(SHUC_NO_COMPILE_DATABASE) && !defined(SHUC_ENABLE_INCREMENTAL)
+#if defined(SHUC_COMPILE_DATABASE) && !defined(SHUC_ENABLE_INCREMENTAL)
     SHUI_StringList databaseEntries; // the compile commands of every module so far, as JSON objects; with incremental builds, each module keeps its own in the cache
 #endif
 } SHUILD = {0};
@@ -2148,7 +2148,7 @@ static void SHUI_ModuleCompileUnit(const SHUI_StringList *command, const char *o
     SHUILD.MODULE.compiledCount++;
 }
 
-#ifndef SHUC_NO_COMPILE_DATABASE
+#ifdef SHUC_COMPILE_DATABASE
 // a string as JSON writes it, in quotes
 static void SHUI_DatabaseAppendString(SHUI_Builder *text, const char *string)
 {
@@ -2254,7 +2254,7 @@ static void SHUI_DatabaseWrite(const SHUI_StringList *moduleEntries)
     free(database);
 }
 #endif
-#endif // SHUC_NO_COMPILE_DATABASE
+#endif // SHUC_COMPILE_DATABASE
 
 // the module's sources compile to objects, each in a job; with incremental builds, only the ones whose files changed.
 // compile_commands.json gets every source's command, also of those that did not compile again
@@ -2285,7 +2285,7 @@ static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
         SHUI_ModuleCompileUnit(&command, objectFile);
 #endif
 
-#ifndef SHUC_NO_COMPILE_DATABASE
+#ifdef SHUC_COMPILE_DATABASE
         SHUI_ListAdd(&databaseEntries, SHUI_DatabaseEntry(sourceFile, objectFile, &command));
 #endif
 
@@ -2295,7 +2295,7 @@ static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
 
     SHUI_JobWaitAll();
 
-#ifndef SHUC_NO_COMPILE_DATABASE
+#ifdef SHUC_COMPILE_DATABASE
     SHUI_DatabaseWrite(&databaseEntries);
 #endif
 
