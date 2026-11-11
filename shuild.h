@@ -2656,7 +2656,15 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
         }
 
         // llvm-ar reads objects of any system, and gcc-ar of the compiler's prefix and version reads its link-time optimized objects
-        SHUI_ListAdd(&command, SHU_CompilerGetTool("gcc-ar", "llvm-ar"));
+        // Apple's clang comes without llvm-ar; its ar makes the archives of macOS
+        if (SHUM_HOST_MACOS && SHUILD.COMPILER.family == SHUCompiler_Clang && SHUILD.COMPILER.target == SHUPlatform_MacOS)
+        {
+            SHUI_ListAdd(&command, SHUI_Copy("ar"));
+        }
+        else
+        {
+            SHUI_ListAdd(&command, SHU_CompilerGetTool("gcc-ar", "llvm-ar"));
+        }
         SHUI_CommandAddArgument(&command, "rcs");
         SHUI_CommandAddArgument(&command, outputFile);
     }
