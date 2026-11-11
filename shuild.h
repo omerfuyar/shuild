@@ -2298,7 +2298,11 @@ static void SHUI_ModuleDeleteObjects(void)
 {
     for (usz i = 0; i < SHUILD.temporaryObjects.count; i++)
     {
-        SHUI_FileDelete(SHUILD.temporaryObjects.data[i]);
+        // a file that did not compile has no object
+        if (SHUI_FileGetType(SHUILD.temporaryObjects.data[i]) == SHUFileType_Regular)
+        {
+            SHUI_FileDelete(SHUILD.temporaryObjects.data[i]);
+        }
     }
 
     SHUI_ListFree(&SHUILD.temporaryObjects);
@@ -3199,11 +3203,8 @@ void SHUI_CompilerAddDefinitions(const char *name, ...)
     {
         const char *value = va_arg(args, const char *);
 
-#if SHUM_HOST_WINDOWS
-        SHUI_ListAdd(&SHUILD.COMPILER.flags, value == NULL ? SHU_UtilFormat("-D%s", name) : SHU_UtilFormat("-D%s=\"\"%s\"\"", name, value));
-#else
+        // the flags are split as a shell splits them, on every system, so the single quotes keep the value whole
         SHUI_ListAdd(&SHUILD.COMPILER.flags, value == NULL ? SHU_UtilFormat("-D%s", name) : SHU_UtilFormat("-D%s='%s'", name, value));
-#endif
 
         name = va_arg(args, const char *);
     }
