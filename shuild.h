@@ -544,6 +544,10 @@ static struct
         SHUI_Library *data;
     } LIBRARIES;
 
+#ifndef SHUC_ENABLE_INCREMENTAL
+    SHUI_StringList temporaryObjects; // the objects beside their sources, which are deleted after linking, or when the build fails before it
+#endif
+
 #if defined(SHUC_COMPILE_DATABASE) && !defined(SHUC_ENABLE_INCREMENTAL)
     SHUI_StringList databaseEntries; // the compile commands of every module so far, as JSON objects; with incremental builds, each module keeps its own in the cache
 #endif
@@ -2256,6 +2260,19 @@ static void SHUI_DatabaseWrite(const SHUI_StringList *moduleEntries)
 #endif
 #endif // SHUC_COMPILE_DATABASE
 
+#ifndef SHUC_ENABLE_INCREMENTAL
+// deletes the objects beside their sources; it also runs when the build ends, so a build that fails leaves none
+static void SHUI_ModuleDeleteObjects(void)
+{
+    for (usz i = 0; i < SHUILD.temporaryObjects.count; i++)
+    {
+        SHUI_FileDelete(SHUILD.temporaryObjects.data[i]);
+    }
+
+    SHUI_ListFree(&SHUILD.temporaryObjects);
+}
+#endif
+
 // the module's sources compile to objects, each in a job; with incremental builds, only the ones whose files changed.
 // compile_commands.json gets every source's command, also of those that did not compile again
 static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
@@ -2281,6 +2298,15 @@ static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
 #else
         // the object goes beside its source, and is deleted after linking
         char *objectFile = SHU_UtilFormat("%.*so", (int)(strlen(sourceFile) - 1), sourceFile);
+        static bool registered = false;
+
+        if (!registered)
+        {
+            registered = true;
+            atexit(SHUI_ModuleDeleteObjects);
+        }
+
+        SHUI_ListAdd(&SHUILD.temporaryObjects, SHUI_Copy(objectFile));
         SHUI_StringList command = SHUI_ModuleCompileCommand(sourceFile, objectFile, NULL, extraFlag);
         SHUI_ModuleCompileUnit(&command, objectFile);
 #endif
@@ -3304,10 +3330,7 @@ void SHUI_ModuleCompile(SHUModuleType type, const char *directory)
     }
 
 #ifndef SHUC_ENABLE_INCREMENTAL
-    for (usz i = 0; i < objectFiles.count; i++)
-    {
-        SHUI_FileDelete(objectFiles.data[i]);
-    }
+    SHUI_ModuleDeleteObjects();
 #endif
 
     SHUI_ListFree(&objectFiles);
