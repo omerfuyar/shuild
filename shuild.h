@@ -427,6 +427,7 @@ void SHU_ModuleCopyDynamicLinks(void);
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <signal.h>
 
 #if SHUM_HOST_WINDOWS
 #include <windows.h>
@@ -1229,6 +1230,17 @@ static void SHUI_FileRename(const char *from, const char *to)
 // in nanoseconds, so a file edited in the same second as its object was compiled is still seen as newer
 static i64 SHUI_FileGetEditTime(const char *path)
 {
+#if SHUM_HOST_WINDOWS
+    // stat gives whole seconds on Windows; this gives the time in units of 100 nanoseconds
+    WIN32_FILE_ATTRIBUTE_DATA attributes;
+
+    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &attributes))
+    {
+        SHU_UtilFail("file " SHUM_LOG_PATH("%s") " cannot be found.", SHUI_PathForLog(path));
+    }
+
+    return (i64)(((u64)attributes.ftLastWriteTime.dwHighDateTime << 32) | (u64)attributes.ftLastWriteTime.dwLowDateTime) * 100LL;
+#else
     struct stat stats;
 
     if (stat(path, &stats) != 0)
@@ -1242,6 +1254,7 @@ static i64 SHUI_FileGetEditTime(const char *path)
     return (i64)stats.st_mtimespec.tv_sec * 1000000000LL + (i64)stats.st_mtimespec.tv_nsec;
 #else
     return (i64)stats.st_mtime * 1000000000LL;
+#endif
 #endif
 }
 
@@ -1284,7 +1297,8 @@ static bool SHUI_FileHasNewerDependency(const char *dependencyFile, const char *
         }
         else if (dependency.length != 0)
         {
-            if (SHUI_FileGetEditTime(dependency.data) > targetTime)
+            // a file that is gone, such as a header that moved, counts as newer
+            if (SHUI_FileGetType(dependency.data) == SHUFileType_Invalid || SHUI_FileGetEditTime(dependency.data) > targetTime)
             {
                 free(dependencies.data);
                 return true;
@@ -1588,12 +1602,30 @@ static i32 SHUI_ShellRun(const char *command)
 
 static void SHUI_JobWaitOne(void)
 {
-    // the first job that ends; on Windows, the oldest one
+    // the first job that ends
     usz index = 0;
     i32 result = -1;
 
 #if SHUM_HOST_WINDOWS
-    result = SHUI_CommandWait(SHUILD.JOBS.processes[0]);
+    // Windows waits for 64 processes at most; with more jobs, it waits for the oldest one
+    if (SHUILD.JOBS.count <= MAXIMUM_WAIT_OBJECTS)
+    {
+        HANDLE handles[MAXIMUM_WAIT_OBJECTS];
+
+        for (usz i = 0; i < SHUILD.JOBS.count; i++)
+        {
+            handles[i] = (HANDLE)(intptr_t)SHUILD.JOBS.processes[i];
+        }
+
+        DWORD ended = WaitForMultipleObjects((DWORD)SHUILD.JOBS.count, handles, FALSE, INFINITE);
+
+        if (ended < WAIT_OBJECT_0 + (DWORD)SHUILD.JOBS.count)
+        {
+            index = (usz)(ended - WAIT_OBJECT_0);
+        }
+    }
+
+    result = SHUI_CommandWait(SHUILD.JOBS.processes[index]);
 #else
     // a child that is not a job, like one the build script started itself, is passed over
     int status = 0;
@@ -2271,6 +2303,12 @@ static void SHUI_ModuleDeleteObjects(void)
 
     SHUI_ListFree(&SHUILD.temporaryObjects);
 }
+
+static void SHUI_ModuleStopped(int signalNumber)
+{
+    // exit runs SHUI_ModuleDeleteObjects
+    exit(128 + signalNumber);
+}
 #endif
 
 // the module's sources compile to objects, each in a job; with incremental builds, only the ones whose files changed.
@@ -2304,6 +2342,10 @@ static SHUI_StringList SHUI_ModuleCompileObjects(const char *extraFlag)
         {
             registered = true;
             atexit(SHUI_ModuleDeleteObjects);
+
+            // a build that is stopped, with Ctrl+C for one, deletes them too
+            signal(SIGINT, SHUI_ModuleStopped);
+            signal(SIGTERM, SHUI_ModuleStopped);
         }
 
         SHUI_ListAdd(&SHUILD.temporaryObjects, SHUI_Copy(objectFile));
@@ -2662,9 +2704,9 @@ static void SHUI_ModuleLink(SHUModuleType type, const SHUI_StringList *objectFil
 #pragma region Utility
 
 // the build script compiles again when its source, or a header it includes, is newer than its program
-static bool SHUI_UtilScriptChanged(const char *program, const char *source)
+static bool SHUI_UtilScriptChanged(const char *program, const char *source, const char *flags)
 {
-    if (SHUI_FileGetEditTime(program) < SHUI_FileGetEditTime(source))
+    if (SHUI_FileGetType(program) != SHUFileType_Regular || SHUI_FileGetEditTime(program) < SHUI_FileGetEditTime(source))
     {
         return true;
     }
@@ -2677,6 +2719,7 @@ static bool SHUI_UtilScriptChanged(const char *program, const char *source)
     SHUI_CommandAddArgument(&command, source);
     SHUI_CommandAddArgument(&command, "-MF");
     SHUI_CommandAddArgument(&command, dependencyFile);
+    SHUI_CommandAddArguments(&command, flags);
 
     // when the dependencies cannot be listed, the rebuild shows why
     bool changed = SHUI_CommandRun(&command) != 0 || SHUI_FileHasNewerDependency(dependencyFile, program);
@@ -2700,14 +2743,21 @@ void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile)
     char *program = SHUI_PathFromScript(SHUI_PathFileName(argv[0]));
     char *source = SHUI_PathFromScript(SHUI_PathFileName(sourceFile));
 
-    if (!SHUI_UtilScriptChanged(program, source))
+    char *oldProgram = SHU_UtilFormat("%s.old", program);
+
+    // the program that an earlier rebuild replaced; Windows cannot delete it while it runs, so it stays until the next run
+    if (SHUI_FileGetType(oldProgram) == SHUFileType_Regular)
+    {
+        remove(oldProgram);
+    }
+
+    if (!SHUI_UtilScriptChanged(program, source, ""))
     {
         return;
     }
 
     SHU_UtilLog("the build script changed; rebuilding it");
 
-    char *oldProgram = SHU_UtilFormat("%s.old", program);
     SHUI_FileRename(program, oldProgram);
 
     SHUI_StringList command = {0};
@@ -2723,6 +2773,10 @@ void SHUI_UtilAutomate(int argc, char **argv, const char *sourceFile)
         SHUI_FileRename(oldProgram, program);
         SHU_UtilFail("the build script cannot be rebuilt; " SHUI_COMMAND_FAILED, result, SHUI_CommandJoin(&command));
     }
+
+#if !SHUM_HOST_WINDOWS
+    remove(oldProgram);
+#endif
 
     // the new program runs in place of this one, with the same arguments
     SHUI_StringList rerun = {0};
@@ -2829,15 +2883,24 @@ void SHU_Shuild(const char *script, const char *program, const char *flags, cons
     // a line sets its log apart from the lines before it
     SHU_UtilLog(SHUM_COLOR_DIM("---- ") SHUM_LOG_NAME("%s") " (" SHUM_COLOR_GREEN("Build Script") "): building " SHUM_COLOR_DIM("----"), name);
 
-    SHUI_StringList command = {0};
-    SHUI_CommandAddArguments(&command, SHUI_CompilerForScripts());
-    SHUI_CommandAddArgument(&command, "-o");
-    SHUI_CommandAddArgument(&command, programPath);
-    SHUI_CommandAddArgument(&command, SHUI_PathFromScript(script));
-    SHUI_CommandAddArguments(&command, SHUILD_BUILD);
-    SHUI_CommandAddArguments(&command, flags);
-    SHUI_CommandRunOrFail(&command);
-    SHUI_ListFree(&command);
+    // it compiles when its source, or a header it includes, is newer than its program
+    char *scriptPath = SHUI_PathFromScript(script);
+    char *allFlags = SHU_UtilFormat("%s %s", SHUILD_BUILD, flags);
+
+    if (SHUI_UtilScriptChanged(programPath, scriptPath, allFlags))
+    {
+        SHUI_StringList command = {0};
+        SHUI_CommandAddArguments(&command, SHUI_CompilerForScripts());
+        SHUI_CommandAddArgument(&command, "-o");
+        SHUI_CommandAddArgument(&command, programPath);
+        SHUI_CommandAddArgument(&command, scriptPath);
+        SHUI_CommandAddArguments(&command, allFlags);
+        SHUI_CommandRunOrFail(&command);
+        SHUI_ListFree(&command);
+    }
+
+    free(scriptPath);
+    free(allFlags);
 
     // it runs in its own directory, as it would if it were run there by hand, and the build goes on here after it
     char *directory = SHUI_PathDirectory(programPath);
