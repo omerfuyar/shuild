@@ -1,0 +1,32 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  examples:
+    name: Examples (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: shuild
+      # the examples include shu from the directory beside shuild
+      - uses: actions/checkout@v4
+        with:
+          repository: omerfuyar/shu
+          path: shu
+      - name: Build and run the examples
+        working-directory: shuild/examples
+        run: |
+          gcc -o shuild shuild.c
+          ./shuild run
