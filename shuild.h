@@ -503,6 +503,7 @@ static struct
 
 #ifdef SHUC_ENABLE_INCREMENTAL
     char *cacheDirectory;
+    SHUI_StringList builtModules; // each module built in this run: its cache directory, a newline and its settings' hash
 #endif
 
     struct
@@ -2081,20 +2082,30 @@ static char *SHUI_CacheFindProgram(const char *word)
         char *directory = SHU_UtilFormat("%.*s", (int)(end == NULL ? strlen(path) : (usz)(end - path)), path);
         path = end == NULL ? NULL : end + 1;
 
+        // an empty entry of PATH is skipped, as the current directory is not where a compiler is looked for
         if (!hasDirectory && directory[0] == '\0')
         {
+            free(directory);
             continue;
         }
 
+        char *file = hasDirectory ? SHUI_Copy(word) : SHUI_PathJoin(directory, word);
+        free(directory);
+
         for (usz i = 0; i < sizeof(extensions) / sizeof(extensions[0]); i++)
         {
-            char *program = hasDirectory ? SHU_UtilFormat("%s%s", word, extensions[i]) : SHU_UtilFormat("%s%s", SHUI_PathJoin(directory, word), extensions[i]);
+            char *program = SHU_UtilFormat("%s%s", file, extensions[i]);
 
             if (SHUI_FileGetType(program) == SHUFileType_Regular)
             {
+                free(file);
                 return program;
             }
+
+            free(program);
         }
+
+        free(file);
     }
 
     return NULL;
@@ -2138,7 +2149,10 @@ static u64 SHUI_CacheSettingsHash(void)
 
         if (program != NULL)
         {
-            SHUI_HASH_STRING(SHU_UtilFormat("%lld", (long long)SHUI_FileGetEditTime(program)));
+            char *time = SHU_UtilFormat("%lld", (long long)SHUI_FileGetEditTime(program));
+            SHUI_HASH_STRING(time);
+            free(time);
+            free(program);
         }
     }
 
@@ -2165,6 +2179,36 @@ static u64 SHUI_CacheSettingsHash(void)
 static char *SHUI_CacheSettingsFile(void)
 {
     return SHU_UtilFormat("%s%s.hash", SHUI_CacheModuleDirectory(), SHUILD.MODULE.name);
+}
+
+// two modules of one name in one cache would overwrite each other's settings, and both would compile every file in each build; a module built again
+// with the same settings, such as a library that several modules link, is the same module
+static void SHUI_CacheClaimName(void)
+{
+    char *directory = SHUI_CacheModuleDirectory();
+    usz length = (usz)strlen(directory);
+    char *entry = SHU_UtilFormat("%s\n%llu", directory, (unsigned long long)SHUI_CacheSettingsHash());
+
+    for (usz i = 0; i < SHUILD.builtModules.count; i++)
+    {
+        const char *built = SHUILD.builtModules.data[i];
+
+        if (strncmp(built, directory, length) == 0 && built[length] == '\n')
+        {
+            if (strcmp(built, entry) != 0)
+            {
+                SHU_UtilFail("module " SHUM_LOG_NAME("%s") " is built twice with different settings in " SHUM_LOG_PATH("%s") "; give each module a name of its own.",
+                             SHUILD.MODULE.name, SHUI_PathForLog(SHUI_CacheDirectory()));
+            }
+
+            free(entry);
+            free(directory);
+            return;
+        }
+    }
+
+    SHUI_ListAdd(&SHUILD.builtModules, entry);
+    free(directory);
 }
 
 static SHUI_SettingsState SHUI_CacheCompareSettings(void)
@@ -3420,6 +3464,8 @@ void SHUI_ModuleCompile(SHUModuleType type, const char *directory)
     SHUI_FileMakeDirectories(outputDirectory);
 
 #ifdef SHUC_ENABLE_INCREMENTAL
+    SHUI_CacheClaimName();
+
     // a module whose settings, such as its flags, are new or changed compiles every file again
     SHUI_SettingsState settings = SHUI_CacheCompareSettings();
 
