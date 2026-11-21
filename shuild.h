@@ -304,6 +304,80 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type);
 
 #pragma endregion Utility
 
+#pragma region Flags
+
+typedef enum SHUFlagKind
+{
+    SHUFlagKind_Switch,   // takes no value, and sets a bool
+    SHUFlagKind_String,   // takes a value, and sets a const char *
+    SHUFlagKind_Required, // a String that the command line must give
+    SHUFlagKind_Choice,   // takes one of a list of names, case aside, and sets an int to its index
+    SHUFlagKind_List,     // takes the arguments after it that are no flags, and sets a SHUFlagList
+} SHUFlagKind;
+
+/// @brief A name that a Choice flag takes, with its help, or NULL to print the names on one line.
+typedef struct SHUFlagChoice
+{
+    const char *name;
+    const char *help;
+} SHUFlagChoice;
+
+/// @brief What a List flag read: whether it was given, and the arguments after it, which point into argv.
+typedef struct SHUFlagList
+{
+    bool given;
+    char **values;
+    int count;
+} SHUFlagList;
+
+/// @brief A flag of a build script. Write them with the SHU_FLAG_ macros, in one array.
+typedef struct SHUFlag
+{
+    SHUFlagKind kind;
+    const char *shortName; // (eg. -b), or NULL
+    const char *longName;  // (eg. --build)
+    const char *value;     // the value's name in the help (eg. TYPE), or NULL for a Switch
+    const char *help;      // one line, or more with '\n' between them
+    void *target;          // where the value goes: a bool *, a const char **, an int * or a SHUFlagList *
+    const SHUFlagChoice *choices; // a Choice's names, ended by one whose name is NULL
+} SHUFlag;
+
+/// @brief A flag that takes no value and sets a bool to true. (eg. SHU_FLAG_SWITCH("-e", "--examples", &examples, "Also build the examples"))
+#define SHU_FLAG_SWITCH(shortName, longName, target, help) {SHUFlagKind_Switch, (shortName), (longName), NULL, (help), (bool *){(target)}, NULL}
+
+/// @brief A flag that takes a value and sets a const char * to it. (eg. SHU_FLAG_STRING("-c", "--compiler", "CC", &compiler, "The compiler"))
+#define SHU_FLAG_STRING(shortName, longName, value, target, help) {SHUFlagKind_String, (shortName), (longName), (value), (help), (const char **){(target)}, NULL}
+
+/// @brief A String flag that the command line must give. The usage line names it.
+#define SHU_FLAG_REQUIRED(shortName, longName, value, target, help) {SHUFlagKind_Required, (shortName), (longName), (value), (help), (const char **){(target)}, NULL}
+
+/// @brief A flag that takes one of the names of an SHUFlagChoice array, case aside, and sets an int to its index.
+#define SHU_FLAG_CHOICE(shortName, longName, value, target, choices, help) {SHUFlagKind_Choice, (shortName), (longName), (value), (help), (int *){(target)}, (choices)}
+
+/// @brief A flag that takes the arguments after it that do not start with '-', none or more, and sets a SHUFlagList. (eg. -t c1_hello c3_ui)
+#define SHU_FLAG_LIST(shortName, longName, value, target, help) {SHUFlagKind_List, (shortName), (longName), (value), (help), (SHUFlagList *){(target)}, NULL}
+
+///!!! Use SHU_FlagsRead. !!!
+void SHUI_FlagsRead(const SHUFlag *flags, usz count, int argc, char **argv);
+
+///!!! Use SHU_FlagsCheck. !!!
+void SHUI_FlagsCheck(const SHUFlag *flags, usz count);
+
+///!!! Use SHU_FlagsPrintHelp. !!!
+void SHUI_FlagsPrintHelp(const SHUFlag *flags, usz count);
+
+/// @brief Reads the command line with an array of flags, into their targets. It notes the first argument it cannot read, and never stops the build,
+/// so call it before SHU_UtilAutomate, whose new program reports it with SHU_FlagsCheck.
+#define SHU_FlagsRead(flags, argc, argv) SHUI_FlagsRead((flags), sizeof(flags) / sizeof(*(flags)), (argc), (argv))
+
+/// @brief Ends the build with the help and why, if SHU_FlagsRead noted an argument it could not read, or a Required flag is missing.
+#define SHU_FlagsCheck(flags) SHUI_FlagsCheck((flags), sizeof(flags) / sizeof(*(flags)))
+
+/// @brief Prints the usage line and the help of each flag, from the same array.
+#define SHU_FlagsPrintHelp(flags) SHUI_FlagsPrintHelp((flags), sizeof(flags) / sizeof(*(flags)))
+
+#pragma endregion Flags
+
 #ifdef SHUC_ENABLE_INCREMENTAL
 
 #pragma region Cache
@@ -3209,7 +3283,239 @@ char *SHU_UtilLibraryFile(const char *name, SHUModuleType type)
 
 #pragma endregion Utility
 
+#pragma region Flags
+
+// what SHU_FlagsRead noted, for SHU_FlagsCheck and the usage line
+static struct
+{
+    const char *program;
+    const char *badArgument;
+    const char *reason;
+} SHUI_FLAGS = {0};
+
+static void SHUI_FlagsNote(const char *reason, const char *argument)
+{
+    if (SHUI_FLAGS.badArgument == NULL)
+    {
+        SHUI_FLAGS.reason = reason;
+        SHUI_FLAGS.badArgument = argument;
+    }
+}
+
+static const SHUFlag *SHUI_FlagsFind(const SHUFlag *flags, usz count, const char *name)
+{
+    for (usz i = 0; i < count; i++)
+    {
+        if ((flags[i].shortName != NULL && strcmp(flags[i].shortName, name) == 0) || strcmp(flags[i].longName, name) == 0)
+        {
+            return &flags[i];
+        }
+    }
+
+    return NULL;
+}
+
+void SHUI_FlagsRead(const SHUFlag *flags, usz count, int argc, char **argv)
+{
+    SHU_AssertNullPointer(flags);
+    SHU_AssertNullPointer(argv);
+
+    SHUI_FLAGS.program = argc > 0 ? argv[0] : "shuild";
+
+    for (int i = 1; i < argc; i++)
+    {
+        const SHUFlag *flag = SHUI_FlagsFind(flags, count, argv[i]);
+
+        if (flag == NULL)
+        {
+            SHUI_FlagsNote(argv[i][0] == '-' ? "Unknown flag" : "Unknown argument", argv[i]);
+            return;
+        }
+
+        if (flag->kind == SHUFlagKind_Switch)
+        {
+            *(bool *)flag->target = true;
+            continue;
+        }
+
+        if (flag->kind == SHUFlagKind_List)
+        {
+            SHUFlagList *list = flag->target;
+            list->given = true;
+            list->values = &argv[i + 1];
+            list->count = 0;
+
+            while (i + 1 < argc && argv[i + 1][0] != '-')
+            {
+                list->count++;
+                i++;
+            }
+
+            continue;
+        }
+
+        if (i + 1 == argc)
+        {
+            SHUI_FlagsNote("A value is missing after the flag", argv[i]);
+            return;
+        }
+
+        const char *value = argv[++i];
+
+        if (flag->kind != SHUFlagKind_Choice)
+        {
+            *(const char **)flag->target = value;
+            continue;
+        }
+
+        int index = 0;
+
+        while (flag->choices[index].name != NULL && strcasecmp(flag->choices[index].name, value) != 0)
+        {
+            index++;
+        }
+
+        if (flag->choices[index].name == NULL)
+        {
+            SHUI_FlagsNote("Unknown value", value);
+            return;
+        }
+
+        *(int *)flag->target = index;
+    }
+}
+
+void SHUI_FlagsCheck(const SHUFlag *flags, usz count)
+{
+    SHU_AssertNullPointer(flags);
+
+    for (usz i = 0; i < count && SHUI_FLAGS.badArgument == NULL; i++)
+    {
+        if (flags[i].kind == SHUFlagKind_Required && *(const char **)flags[i].target == NULL)
+        {
+            SHUI_FlagsNote("A flag is missing", flags[i].longName);
+        }
+    }
+
+    if (SHUI_FLAGS.badArgument != NULL)
+    {
+        SHUI_FlagsPrintHelp(flags, count);
+        SHU_UtilFail("%s: " SHUM_LOG_VALUE("%s"), SHUI_FLAGS.reason, SHUI_FLAGS.badArgument);
+    }
+}
+
+// the names of a flag as the help shows them, with the length they take, which the colours do not count
+static int SHUI_FlagsPrintNames(const SHUFlag *flag)
+{
+    int length = 0;
+
+    if (flag->shortName != NULL)
+    {
+        length += printf(SHUM_COLOR_GREEN("%s") ", ", flag->shortName) - (int)(sizeof(SHUM_COLOR_GREEN("")) - 1);
+    }
+
+    length += printf(SHUM_COLOR_GREEN("%s"), flag->longName) - (int)(sizeof(SHUM_COLOR_GREEN("")) - 1);
+
+    if (flag->value != NULL)
+    {
+        const char *format = flag->kind == SHUFlagKind_List ? " [" SHUM_COLOR_CYAN("%s") "...]" : " " SHUM_COLOR_CYAN("%s");
+        length += printf(format, flag->value) - (int)(sizeof(SHUM_COLOR_CYAN("")) - 1);
+    }
+
+    return length;
+}
+
+// a help text, each line after the first starting at the column
+static void SHUI_FlagsPrintText(const char *text, int column)
+{
+    for (const char *line = text; line != NULL;)
+    {
+        const char *end = strchr(line, '\n');
+        printf("%.*s\n", end == NULL ? (int)strlen(line) : (int)(end - line), line);
+        line = end == NULL ? NULL : end + 1;
+
+        if (line != NULL)
+        {
+            printf("%*s", column, "");
+        }
+    }
+}
+
+void SHUI_FlagsPrintHelp(const SHUFlag *flags, usz count)
+{
+    SHU_AssertNullPointer(flags);
+
+    printf(SHUM_COLOR_BOLD("Usage:") " %s", SHUI_FLAGS.program != NULL ? SHUI_FLAGS.program : "shuild");
+
+    for (usz i = 0; i < count; i++)
+    {
+        if (flags[i].kind == SHUFlagKind_Required)
+        {
+            printf(" " SHUM_COLOR_GREEN("%s") " " SHUM_COLOR_CYAN("%s"), flags[i].shortName != NULL ? flags[i].shortName : flags[i].longName, flags[i].value);
+        }
+    }
+
+    printf(" [" SHUM_COLOR_GREEN("FLAG") "...]\n\n" SHUM_COLOR_BOLD("Flags:") "\n");
+
+    // the help texts start at one column, after the longest names
+    int column = 0;
+
+    for (usz i = 0; i < count; i++)
+    {
+        int length = (flags[i].shortName != NULL ? (int)strlen(flags[i].shortName) + 2 : 0) + (int)strlen(flags[i].longName);
+        length += flags[i].value == NULL ? 0 : (int)strlen(flags[i].value) + (flags[i].kind == SHUFlagKind_List ? 6 : 1);
+        column = length > column ? length : column;
+    }
+
+    column += 4;
+
+    for (usz i = 0; i < count; i++)
+    {
+        printf("  ");
+        printf("%*s", column - 2 - SHUI_FlagsPrintNames(&flags[i]), "");
+        SHUI_FlagsPrintText(flags[i].help, column);
+
+        if (flags[i].kind != SHUFlagKind_Choice)
+        {
+            continue;
+        }
+
+        // the names it takes: each on its own line with its help, or all on one line
+        const SHUFlagChoice *choices = flags[i].choices;
+
+        if (choices[0].name != NULL && choices[0].help != NULL)
+        {
+            int width = 0;
+
+            for (usz j = 0; choices[j].name != NULL; j++)
+            {
+                width = (int)strlen(choices[j].name) > width ? (int)strlen(choices[j].name) : width;
+            }
+
+            for (usz j = 0; choices[j].name != NULL; j++)
+            {
+                printf("%*s" SHUM_LOG_VALUE("%s") "%*s", column, "", choices[j].name, width + 2 - (int)strlen(choices[j].name), "");
+                SHUI_FlagsPrintText(choices[j].help, column + width + 2);
+            }
+
+            continue;
+        }
+
+        printf("%*s", column, "");
+
+        for (usz j = 0; choices[j].name != NULL; j++)
+        {
+            printf("%s" SHUM_LOG_VALUE("%s"), j == 0 ? "" : ", ", choices[j].name);
+        }
+
+        printf("\n");
+    }
+}
+
+#pragma endregion Flags
+
 #ifdef SHUC_ENABLE_INCREMENTAL
+
 #pragma region Cache
 
 void SHU_CacheConfigure(const char *cacheDirectory)
